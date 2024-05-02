@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-pgsql-example
+  namespace: team-infrastructure
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-pgsql-example
+  namespace: team-infrastructure
+  labels:
+    app: vault-pgsql-example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-pgsql-example
+  template:
+    metadata:
+      labels:
+        app: vault-pgsql-example
+        vault-db-injector: "true"
+      annotations:
+        db-creds-injector.numberly.io/cluster: pgsql2-dv
+        db-creds-injector.numberly.io/role: gule-rw
+        # db-creds-injector.numberly.io/env-key-dbuser: PG_INJECTED_USER
+        # db-creds-injector.numberly.io/env-key-dbpassword: PG_INJECTED_PASS
+    spec:
+      serviceAccountName: vault-pgsql-example
+      imagePullSecrets:
+        - name: "registry-token"
+        - name: "registry-token-common"
+      containers:
+        - name: svc
+          image: registry.numberly.in/docker-images/postgres-curl-jq:0.1.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+          command:
+            - "bash"
+            - "-c"
+            - "trap 'exit 0' TERM; sleep infinity & wait"
+          env:
+            - name: PGHOST
+              value: rw-pgsql2-dv.numberly.in
+            - name: PGDATABASE
+              value: demo

@@ -1,0 +1,267 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    #db-creds-injector.numberly.io/revoke-ttl: "1"
+    db-creds-injector.numberly.io/netbox_dev.role: netbox-dev-rw
+    db-creds-injector.numberly.io/netbox_dev.mode: classic
+    db-creds-injector.numberly.io/netbox_dev.env-key-dbpassword: DB_PASSWORD,PGPASSWORD
+    db-creds-injector.numberly.io/netbox_dev.env-key-dbuser: DB_USER,PGUSER
+    db-creds-injector.numberly.io/inbound_mailserver_dev.role: netbox-dev-rw
+    db-creds-injector.numberly.io/inbound_mailserver_dev.template: postgresql+asyncpg://@rw-pgsql2-dv.numberly.in:5432/inbound_mailserver_dev?sslmode=require
+    db-creds-injector.numberly.io/inbound_mailserver_dev.env-key-uri: MAILBOXES_DB_URL,PROUT
+    db-creds-injector.numberly.io/inbound_mailserver_dev.mode: uri
+  labels:
+    app: netbox-web
+    service: netbox-web
+    vault-db-injector-dev: "true"
+  name: netbox-web-test
+  namespace: team-infrastructure
+spec:
+  containers:
+  - env:
+    - name: DB_WAIT_DEBUG
+      value: "1"
+    - name: DB_HOST
+      value: rw-pgsql2-dv.numberly.in
+    - name: DB_NAME
+      value: netbox_dev
+    - name: REDIS_HOST
+      value: netbox-redis
+    - name: REDIS_DATABASE
+      value: "0"
+    - name: AUTH_LDAP_SERVER_URI
+      value: ldaps://ad-par5.numberly.in
+    - name: LDAP_IGNORE_CERT_ERRORS
+      value: "true"
+    - name: AUTH_LDAP_BIND_DN
+      value: CN=SVC_Netbox, OU=Services_Accounts, OU=1000mercis, DC=millemercis,DC=com
+    - name: AUTH_LDAP_USER_SEARCH_BASEDN
+      value: ou=1000mercis,dc=millemercis,dc=com
+    - name: AUTH_LDAP_GROUP_SEARCH_BASEDN
+      value: dc=millemercis,dc=com
+    - name: AUTH_LDAP_GROUP_SEARCH_CLASS
+      value: group
+    - name: AUTH_LDAP_GROUP_TYPE
+      value: NestedGroupOfNamesType
+    - name: AUTH_LDAP_IS_ADMIN_DN
+      value: cn=g_systeme & reseau,ou=security,ou=groups,ou=1000mercis,dc=millemercis,dc=com
+    - name: AUTH_LDAP_IS_SUPERUSER_DN
+      value: cn=g_systeme & reseau,ou=security,ou=groups,ou=1000mercis,dc=millemercis,dc=com
+    - name: AUTH_LDAP_USER_SEARCH_ATTR
+      value: sAMAccountName
+    - name: AUTH_LDAP_ATTR_FIRSTNAME
+      value: givenName
+    - name: AUTH_LDAP_ATTR_LASTNAME
+      value: sn
+    - name: AUTH_LDAP_ATTR_MAIL
+      value: mail
+    - name: AUTH_LDAP_BIND_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: AUTH_LDAP_BIND_PASSWORD
+          name: netbox
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          key: SECRET_KEY
+          name: netbox
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: status.podIP
+    image: quay.io/netboxcommunity/netbox:v3.6
+    imagePullPolicy: IfNotPresent
+    livenessProbe:
+      failureThreshold: 1
+      httpGet:
+        path: /api/
+        port: 8080
+        scheme: HTTP
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 10
+    name: netbox
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+    readinessProbe:
+      failureThreshold: 1
+      httpGet:
+        path: /api/
+        port: 8080
+        scheme: HTTP
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 10
+    resources:
+      limits:
+        ephemeral-storage: 2Gi
+        memory: 1Gi
+      requests:
+        ephemeral-storage: 512Mi
+        memory: 1Gi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 65534
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /opt/unit/
+      name: unit
+    - mountPath: /opt/netbox/netbox/static/
+      name: static
+    - mountPath: /etc/netbox/config/extra.py
+      name: netbox-conf
+      subPath: extra.py
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-s56zr
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  imagePullSecrets:
+  - name: registry-token
+  - name: registry-token-common
+  initContainers:
+  - command:
+    - /opt/netbox/venv/bin/python3
+    - manage.py
+    - collectstatic
+    - -v0
+    - --no-input
+    - --clear
+    env:
+    - name: DB_WAIT_DEBUG
+      value: "1"
+    - name: DB_HOST
+      value: rw-pgsql2-dv.numberly.in
+    - name: DB_NAME
+      value: netbox_dev
+    - name: REDIS_HOST
+      value: netbox-redis
+    - name: REDIS_DATABASE
+      value: "0"
+    - name: AUTH_LDAP_SERVER_URI
+      value: ldaps://ad-par5.numberly.in
+    - name: LDAP_IGNORE_CERT_ERRORS
+      value: "true"
+    - name: AUTH_LDAP_BIND_DN
+      value: CN=SVC_Netbox, OU=Services_Accounts, OU=1000mercis, DC=millemercis,DC=com
+    - name: AUTH_LDAP_USER_SEARCH_BASEDN
+      value: ou=1000mercis,dc=millemercis,dc=com
+    - name: AUTH_LDAP_GROUP_SEARCH_BASEDN
+      value: dc=millemercis,dc=com
+    - name: AUTH_LDAP_GROUP_SEARCH_CLASS
+      value: group
+    - name: AUTH_LDAP_GROUP_TYPE
+      value: NestedGroupOfNamesType
+    - name: AUTH_LDAP_IS_ADMIN_DN
+      value: cn=g_systeme & reseau,ou=security,ou=groups,ou=1000mercis,dc=millemercis,dc=com
+    - name: AUTH_LDAP_IS_SUPERUSER_DN
+      value: cn=g_systeme & reseau,ou=security,ou=groups,ou=1000mercis,dc=millemercis,dc=com
+    - name: AUTH_LDAP_USER_SEARCH_ATTR
+      value: sAMAccountName
+    - name: AUTH_LDAP_ATTR_FIRSTNAME
+      value: givenName
+    - name: AUTH_LDAP_ATTR_LASTNAME
+      value: sn
+    - name: AUTH_LDAP_ATTR_MAIL
+      value: mail
+    - name: AUTH_LDAP_BIND_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: AUTH_LDAP_BIND_PASSWORD
+          name: netbox
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          key: SECRET_KEY
+          name: netbox
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: status.podIP
+    image: quay.io/netboxcommunity/netbox:v3.6
+    imagePullPolicy: IfNotPresent
+    name: init-netbox
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+    resources:
+      limits:
+        ephemeral-storage: 2Gi
+        memory: 1Gi
+      requests:
+        ephemeral-storage: 512Mi
+        memory: 1Gi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 65534
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /opt/unit/
+      name: unit
+    - mountPath: /opt/netbox/netbox/static/
+      name: static
+    - mountPath: /etc/netbox/config/extra.py
+      name: netbox-conf
+      subPath: extra.py
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-s56zr
+      readOnly: true
+  nodeName: kubernetes1-node5.dv.par5.numberly.net
+  preemptionPolicy: PreemptLowerPriority
+  priority: 0
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: netbox-dev-rw
+  serviceAccountName: netbox-dev-rw
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - emptyDir:
+      sizeLimit: 200Mi
+    name: static
+  - emptyDir:
+      sizeLimit: 50Mi
+    name: unit
+  - configMap:
+      defaultMode: 420
+      name: netbox-conf
+    name: netbox-conf
+  - name: kube-api-access-s56zr
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          expirationSeconds: 3607
+          path: token
+      - configMap:
+          items:
+          - key: ca.crt
+            path: ca.crt
+          name: kube-root-ca.crt
+      - downwardAPI:
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+            path: namespace

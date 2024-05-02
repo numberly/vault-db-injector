@@ -1,0 +1,19 @@
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: vault-db-injector
+      {{- include "vault-db-injector.selectorLabels" . | nindent 6 }}
+  ingress:
+  - fromEntities:
+    - remote-node
+    - host
+    toPorts:
+    - ports:
+      - port: "8443"

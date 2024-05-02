@@ -1,0 +1,34 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "vault-db-injector.fullname" . }}-ca
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: '{{ include "vault-db-injector.fullname" . }}'
+      namespace: '{{ .Release.Namespace }}'
+      port: 8443
+  failurePolicy: Fail
+  name: {{ .Values.vaultDbInjector.configuration.webhookFqdn }}
+  objectSelector:
+    matchLabels:
+      {{ .Values.vaultDbInjector.configuration.webhookMatchLabels }}: "true"
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - pods
+    scope: Namespaced
+  sideEffects: NoneOnDryRun
+  timeoutSeconds: 5

@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-injector
+data:
+  config.yaml: |
+    certFile: /tls/tls.crt
+    keyFile: /tls/tls.key
+    vaultAddress: {{ .Values.vaultDbInjector.configuration.vaultAddress }}
+    vaultAuthPath: {{ .Values.vaultDbInjector.configuration.vaultAuthPath }}
+    logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
+    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
+    tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
+    vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
+    vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}
+    mode: injector
+    sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
+    sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-renewer
+data:
+  config.yaml: |
+    vaultAddress: {{ .Values.vaultDbInjector.configuration.vaultAddress }}
+    vaultAuthPath: {{ .Values.vaultDbInjector.configuration.vaultAuthPath }}
+    logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
+    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
+    tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
+    vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
+    vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}
+    mode: renewer
+    sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
+    sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-revoker
+data:
+  config.yaml: |
+    vaultAddress: {{ .Values.vaultDbInjector.configuration.vaultAddress }}
+    vaultAuthPath: {{ .Values.vaultDbInjector.configuration.vaultAuthPath }}
+    logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
+    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
+    tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
+    vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
+    vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}
+    mode: revoker
+    sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
+    sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
+    injectorLabel: {{ .Values.vaultDbInjector.configuration.injectorLabel }}

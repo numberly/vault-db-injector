@@ -1,0 +1,108 @@
+postgresql:
+- pgsql2-pr:
+  environments: 
+  - production
+  - staging
+  admins:
+    - team-infrastructure
+    - team-data-ops
+  hosts:
+    - rw-pgsql2-pr.numberly.in
+    - ro-pgsql2-pr.numberly.in
+- pgsql3-dv:
+  environments:
+  - development
+  admins:
+    - team-infrastructure
+    - team-data-ops
+  hosts:
+    - rw-pgsql3-dv.numberly.in
+    - ro-pgsql3-dv.numberly.in
+- pgsql2-dv:
+  environments:
+  - development
+  admins:
+    - team-infrastructure
+  hosts:
+    - rw-pgsql3-dv.numberly.in
+    - ro-pgsql3-dv.numberly.in
+    
+kubernetes:
+- kubernetes1-pr-par5:
+  environments: 
+    - production
+    - staging
+- kubernetes1-pr-pa7:
+  environments: 
+    - production
+    - staging
+- kubernetes1-dv-par5:
+  environments: 
+    - development
+
+projects:
+- darco:
+  teams:
+    - team-uep
+    - team-infrastructure
+  environments:
+    - production
+    - staging
+    - development
+  serviceAccounts:
+  - darco-webserver
+  - darco-scheduler
+
+databases:
+- name: numberly_people
+  project: darco
+  owner: darco-webserver
+  environments:
+    production: pgsql2-pr
+    staging: pgsql2-pr
+    development: pgsql3-dv
+
+serviceAccounts:
+  - name: darco-webserver
+    environments:
+      production:
+        databases:
+        - numberly_people
+        - other_database
+        secrets:
+          - secrets/team-x/production/projects/foo/*
+          - secrets/team-other/production/stuff
+      staging:
+        databases:
+        - numberly_people
+        - other_databases
+        secrets:
+          - secrets/team-x/staging/projects/foo/*
+          - secrets/team-other/staging/stuff
+      development:
+        databases:
+        - numberly_people
+        - other_databases
+        secrets:
+          - secrets/team-x/development/projects/foo/*
+          - secrets/team-other/development/stuff
+  - name: darco-scheduler
+    environments:
+      production:
+        databases:
+        - numberly_people
+        secrets:
+          - secrets/team-x/production/projects/foo/*
+          - secrets/team-other/production/stuff
+      staging:
+        databases:
+        - numberly_people
+        secrets:
+          - secrets/team-x/staging/projects/foo/*
+          - secrets/team-other/staging/stuff
+      development:
+        databases:
+        - numberly_people
+        secrets:
+          - secrets/team-x/development/projects/foo/*
+          - secrets/team-other/development/stuff

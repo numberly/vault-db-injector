@@ -1,0 +1,229 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    db-creds-injector.numberly.io/api_infra_dev.mode: uri
+    db-creds-injector.numberly.io/api_infra_dev.template: postgres://@rw-pgsql2-dv.numberly.in:5432/api_infra_dev?sslmode=require
+    db-creds-injector.numberly.io/api_infra_dev.env-key-uri: POSTGRES_URL
+    db-creds-injector.numberly.io/inbound_mailserver_dev.template: postgres://@rw-pgsql2-dv.numberly.in:5432/inbound_mailserver_dev?sslmode=require
+    db-creds-injector.numberly.io/inbound_mailserver_dev.env-key-uri: MAILBOXES_DB_URL
+    db-creds-injector.numberly.io/inbound_mailserver_dev.mode: uri
+    db-creds-injector.numberly.io/cluster: databases
+    db-creds-injector.numberly.io/role: backend-api-infra-development
+  labels:
+    client: numberly
+    component: backend
+    dependency/team: team-infrastructure
+    environment: development
+    flavor: ""
+    instance: backend-api-infra-development
+    managed-by: backend-infrastructure
+    name: api-infra
+    pod-template-hash: 5c6db94948
+    release: 1.8.2
+    vault-db-injector-dev: "true"
+    who: mari
+  name: backend-api-infra-development-test
+  namespace: team-infrastructure
+spec:
+  containers:
+  - env:
+    - name: ENVIRONMENT
+      value: development
+    - name: CLIENT
+      value: numberly
+    - name: CONTAINER_PORT
+      value: "8000"
+    - name: RELEASE
+      value: 1.8.2
+    - name: MY_NODE_NAME
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: spec.nodeName
+    - name: MY_POD_NAME
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: metadata.name
+    - name: MY_POD_NAMESPACE
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: metadata.namespace
+    - name: MY_POD_IP
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: status.podIP
+    - name: MY_POD_SERVICE_ACCOUNT
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: spec.serviceAccountName
+    envFrom:
+    - configMapRef:
+        name: backend-api-infra-development
+    - secretRef:
+        name: backend-api-infra-development
+    image: registry.numberly.in/team-infrastructure/api-infra/api-infra:1.8.2
+    imagePullPolicy: IfNotPresent
+    lifecycle:
+      postStart:
+        exec:
+          command:
+          - /bin/sh
+          - -c
+          - python manage.py migrate
+    livenessProbe:
+      failureThreshold: 3
+      httpGet:
+        path: /health
+        port: 8000
+        scheme: HTTP
+      initialDelaySeconds: 20
+      periodSeconds: 3
+      successThreshold: 1
+      timeoutSeconds: 10
+    name: backend-api-infra-development
+    ports:
+    - containerPort: 8000
+      name: http
+      protocol: TCP
+    readinessProbe:
+      failureThreshold: 3
+      httpGet:
+        path: /health
+        port: http
+        scheme: HTTP
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    resources:
+      limits:
+        ephemeral-storage: 2Gi
+        memory: 256Mi
+      requests:
+        ephemeral-storage: 512Mi
+        memory: 256Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 65534
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /tmp
+      name: kyverno
+    - mountPath: /app/staticfiles/
+      name: staticfiles
+    - mountPath: /var/lib/unit/
+      name: nginx-unit
+    - mountPath: /var/run/
+      name: nginx-unit-control
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-6rl45
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  imagePullSecrets:
+  - name: registry-token
+  - name: registry-token-common
+  initContainers:
+  - command:
+    - sh
+    - -c
+    - python manage.py collectstatic
+    envFrom:
+    - configMapRef:
+        name: backend-api-infra-development
+    - secretRef:
+        name: backend-api-infra-development
+    image: registry.numberly.in/team-infrastructure/api-infra/api-infra:1.8.2
+    imagePullPolicy: IfNotPresent
+    name: collectstatic
+    resources:
+      limits:
+        ephemeral-storage: 2Gi
+        memory: 400Mi
+      requests:
+        ephemeral-storage: 512Mi
+        memory: 160Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 65534
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /tmp
+      name: kyverno
+    - mountPath: /app/staticfiles/
+      name: staticfiles
+    - mountPath: /var/lib/unit/
+      name: nginx-unit
+    - mountPath: /var/run/
+      name: nginx-unit-control
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-6rl45
+      readOnly: true
+  nodeName: kubernetes1-node9.dv.par5.numberly.net
+  nodeSelector:
+    kubernetes.io/arch: amd64
+    kubernetes.io/os: linux
+  preemptionPolicy: PreemptLowerPriority
+  priority: 0
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: backend-api-infra-development
+  serviceAccountName: backend-api-infra-development
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - emptyDir:
+      sizeLimit: 5Mi
+    name: kyverno
+  - emptyDir:
+      sizeLimit: 50Mi
+    name: staticfiles
+  - emptyDir:
+      sizeLimit: 10Mi
+    name: nginx-unit
+  - emptyDir:
+      sizeLimit: 10Mi
+    name: nginx-unit-control
+  - name: kube-api-access-6rl45
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          expirationSeconds: 3607
+          path: token
+      - configMap:
+          items:
+          - key: ca.crt
+            path: ca.crt
+          name: kube-root-ca.crt
+      - downwardAPI:
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+            path: namespace
