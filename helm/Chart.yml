@@ -1,0 +1,13 @@
+apiVersion: v1
+name: vault-db-injector
+version: 2.0.0
+description: vault-db-injector helm chart
+keywords:
+- vault-db-injector
+- vault
+sources:
+- https://github.com/numberly/vault-db-injector
+maintainers:
+- name: Guillaume LEGRAIN
+  email: guillaume.legrain@numberly.com
+engine: gotpl

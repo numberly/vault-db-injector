@@ -1,0 +1,49 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-selfsigned
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-ca
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  commonName: ca.{{ .Values.vaultDbInjector.webhookFqdn }}
+  dnsNames: []
+  duration: 43800h0m0s
+  isCA: true
+  issuerRef:
+    name: '{{ include "vault-db-injector.fullname" . }}-selfsigned'
+  secretName: {{ include "vault-db-injector.fullname" . }}-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-ca
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ include "vault-db-injector.fullname" . }}-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-tls
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  dnsNames:
+  - '{{ include "vault-db-injector.fullname" . }}'
+  - '{{ include "vault-db-injector.fullname" . }}.{{ .Release.Namespace }}'
+  - '{{ include "vault-db-injector.fullname" . }}.{{ .Release.Namespace }}.svc'
+  duration: 8760h0m0s
+  issuerRef:
+    name: '{{ include "vault-db-injector.fullname" . }}-ca'
+  secretName: {{ include "vault-db-injector.fullname" . }}-tls

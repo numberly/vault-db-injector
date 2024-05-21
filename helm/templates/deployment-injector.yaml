@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.vaultDbInjector.injector.replicas }}
+  selector:
+    matchLabels:
+      app: vault-db-injector
+    {{- include "vault-db-injector.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: vault-db-injector
+      {{- include "vault-db-injector.selectorLabels" . | nindent 8 }}
+      annotations:
+        logging.active: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+      - args: {{- toYaml .Values.vaultDbInjector.injector.args | nindent 8 }}
+        image: {{ .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.vaultDbInjector.injector.image.tag | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.vaultDbInjector.injector.imagePullPolicy }}
+        name: vault-db-injector
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        - containerPort: 8888
+          name: healthcheck
+          protocol: TCP
+        resources: {}
+        securityContext: {{- toYaml .Values.vaultDbInjector.injector.containerSecurityContext
+          | nindent 10 }}
+        volumeMounts:
+        - mountPath: /injector
+          name: config-injector
+        - mountPath: /tls
+          name: cert
+          readOnly: true
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthcheck
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthcheck
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+      imagePullSecrets:
+      - name: registry-token
+      serviceAccountName: {{ include "vault-db-injector.fullname" . }}
+      volumes:
+      - name: cert
+        secret:
+          secretName: {{ include "vault-db-injector.fullname" . }}-tls
+      - configMap:
+          defaultMode: 420
+          name: {{ include "vault-db-injector.fullname" . }}-injector
+        name: config-injector

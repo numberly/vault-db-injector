@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.vaultDbInjector.injector.type }}
+  selector:
+    app: vault-db-injector
+  {{- include "vault-db-injector.selectorLabels" . | nindent 4 }}
+  ports:
+	{{- .Values.vaultDbInjector.injector.ports | toYaml | nindent 2 -}}

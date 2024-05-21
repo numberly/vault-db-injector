@@ -1,0 +1,61 @@
+vaultDbInjector:
+  configuration:
+    vaultAddress: "https://vault1.numberly.in:8200"
+    vaultAuthPath: "kubernetes"
+    logLevel: info
+    kubeRole: "all-rw"
+    tokenTTL: 8766h
+    vaultSecretName: vault-injector
+    vaultSecretPrefix: "kubernetes"
+    sentry: true
+    sentryDsn: https://your-sentry@sentry/660
+    webhookFqdn: vault-db-injector.numberly.io
+    webhookMatchLabels: vault-db-injector
+  injector:
+    args:
+    - "--config=/injector/config.yaml"
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsGroup: 65534
+      runAsNonRoot: true
+      runAsUser: 65534
+    image:
+      repository: numberly/vault-db-injector
+      tag: 2.0.5
+    imagePullPolicy: Always
+    ports:
+    - port: 8443
+      targetPort: 8443
+    replicas: 2
+    serviceAccount:
+      annotations: {}
+    type: ClusterIP
+  renewer:
+    args:
+    - "--config=/renewer/config.yaml"
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsGroup: 65534
+      runAsNonRoot: true
+      runAsUser: 65534
+    replicas: 4
+    image:
+      repository: numberly/vault-db-injector
+      tag: 2.0.5
+    imagePullPolicy: Always
+  revoker:
+    args:
+    - "--config=/revoker/config.yaml"
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsGroup: 65534
+      runAsNonRoot: true
+      runAsUser: 65534
+    replicas: 4
+    image:
+      repository: numberly/vault-db-injector
+      tag: 2.0.5
+    imagePullPolicy: Always

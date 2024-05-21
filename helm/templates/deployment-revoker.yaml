@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-revoker
+  annotations:
+    allow-replicacount-one: "true"
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.vaultDbInjector.revoker.replicas }}
+  selector:
+    matchLabels:
+      app: vault-db-revoker
+    {{- include "vault-db-injector.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: vault-db-revoker
+      {{- include "vault-db-injector.selectorLabels" . | nindent 8 }}
+      annotations:
+        logging.active: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+      - args: {{- toYaml .Values.vaultDbInjector.revoker.args | nindent 8 }}
+        image: {{ .Values.vaultDbInjector.revoker.image.repository }}:{{ .Values.vaultDbInjector.revoker.image.tag | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.vaultDbInjector.revoker.imagePullPolicy }}
+        name: vault-db-revoker
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        - containerPort: 8888
+          name: healthcheck
+          protocol: TCP
+        resources: {}
+        securityContext: {{- toYaml .Values.vaultDbInjector.revoker.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+          - mountPath: /revoker
+            name: config-revoker
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthcheck
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthcheck
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+      imagePullSecrets:
+      - name: registry-token
+      serviceAccountName: {{ include "vault-db-injector.fullname" . }}
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: {{ include "vault-db-injector.fullname" . }}-revoker
+          name: config-revoker
