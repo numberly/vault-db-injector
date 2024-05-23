@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vault-db-injector"
+version = "1.0"
+description = "vault-db-injector credentials with Kubernetes and Vault"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Numberly", email = "guillaume.legrain@numberly.com" },
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "mkdocs>=1.5.3",
+    "mkdocs-static-i18n",
+]
+
+[project.urls]
+Documentation = "https://github.com/numberly/vault-db-injector#readme"
+Download = "https://github.com/numberly/vault-db-injector/tags"
+Homepage = "https://github.com/numberly/vault-db-injector"
+Source = "https://github.com/numberly/vault-db-injector"
+Tracker = "https://github.com/numberly/vault-db-injector/issues"
+
+[project.optional-dependencies]
+material = ["mkdocs-material>=9.2.5"]
+
+[tool.hatch.envs.docs]
+dependencies = [
+    "mkdocs-material>=9.2.5"
+]
+
+[tool.hatch.build.targets.wheel]
+    packages = ["src/vault_db_injector"]

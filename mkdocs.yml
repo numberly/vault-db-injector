@@ -1,0 +1,80 @@
+site_name: Vault DB Injector Documentation
+site_url: https://numberly.github.io/vault-db-injector
+repo_url: https://github.com/numberly/vault-db-injector
+
+docs_dir: docs/
+
+copyright: Copyright © 2024 Numberly
+
+theme:
+  name: material
+  font: false
+  icon:
+    logo: material/lock
+  palette:
+    primary: blue
+  features:
+    - navigation.expand
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - toc.follow
+    - toc.integrate
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/numberly/vault-db-injector
+      name: vault-db-injector on Github
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/getting-started.md
+    - getting-started/build.md
+  - How it Works:
+    - how-it-works/how-it-work.md
+    - how-it-works/configuration.md
+    - how-it-works/injector.md
+    - how-it-works/renewer.md
+    - how-it-works/revoker.md
+    - how-it-works/vault.md
+    - how-it-works/kubernetes.md
+    - how-it-works/leaderelection.md
+    - how-it-works/healthcheck.md
+  - Monitoring:
+    - monitoring/grafana.md
+    - monitoring/alertmanager.md
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: fr
+          name: Français
+          build: true
+          theme:
+            palette:
+              primary: red
+          nav_translations:
+            Home: Accueil
+            Getting Started: Démarrage Rapide
+            How it Works: Comment ça marche
