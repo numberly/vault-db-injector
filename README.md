@@ -10,7 +10,7 @@ The Vault DB Injector relay on Database engine from vault to generate credential
 
 ##  2. <a name='Documentation'></a>Documentation
 
-Checkout the Vault DB Injector documentation for more informations.
+Checkout the [Vault DB Injector documentation](https://numberly.github.io/vault-db-injector) for more informations.
 
 ##  3. <a name='Contribution'></a>Contribution
 
