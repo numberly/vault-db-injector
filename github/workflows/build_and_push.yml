@@ -24,7 +24,7 @@ jobs:
       run: |
         docker buildx build \
           --file Dockerfile \
-          --tag ${{ secrets.DOCKER_USERNAME }}/$GITHUB_REPOSITORY:${{ github.ref_name }} \
+          --tag numberlyinfra/vault-injector:${{ github.ref_name }} \
           --cache-from type=local,src=$HOME/.docker/.cache \
           --cache-to type=local,dest=$HOME/.docker/.cache \
           --platform linux/amd64,linux/arm64 \
