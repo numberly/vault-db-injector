@@ -52,7 +52,8 @@ func NewService(cfg config.Config, pod *corev1.Pod) *ParserService {
 }
 
 func (s *ParserService) GetPodDbConfig() (*podDbConfig, error) {
-	var dbConfigurations []DbConfiguration
+	estimatedSize := len(s.pod.Annotations)
+	dbConfigurations := make([]DbConfiguration, 0, estimatedSize)
 	vaultDbPath, ok := s.pod.Annotations[ANNOTATION_VAULT_DB_PATH]
 	if !ok || vaultDbPath == "" {
 		vaultDbPath = s.cfg.DefaultEngine

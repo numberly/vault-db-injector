@@ -55,7 +55,9 @@ func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInform
 		return nil, errors.Newf("no pods found in the cluster")
 	}
 
-	var podInfos []PodInformations
+	estimatedSize := len(pods.Items)
+	podInfos := make([]PodInformations, 0, estimatedSize)
+
 	for _, pod := range pods.Items {
 		if uuid, exists := pod.GetAnnotations()[ANNOTATION_VAULT_POD_UUID]; exists {
 			podInfos = append(podInfos, PodInformations{

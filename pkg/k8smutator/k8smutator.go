@@ -83,7 +83,7 @@ func generateUUID(logger log.Logger) string {
 
 func handlePodConfiguration(ctx context.Context, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
 	if len(*dbConfs) > 0 {
-		var podUuids []string
+		podUuids := make([]string, 0, len(*dbConfs))
 		for _, dbConf := range *dbConfs {
 			// Configure vault connection using serviceAccount token
 			err := checkConfiguration(dbConf)
