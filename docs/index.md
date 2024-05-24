@@ -56,7 +56,7 @@ We welcome contributions from the community! Please see our [Contribution Guidel
 
 ## License
 
-This project is licensed under the terms of the MIT license. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the terms of the Apache-2.0 license. See the [LICENSE](https://github.com/numberly/vault-db-injector/blob/main/LICENSE) file for details.
 
 ## Contact
 

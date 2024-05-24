@@ -7,13 +7,13 @@ name = "vault-db-injector"
 version = "1.0"
 description = "vault-db-injector credentials with Kubernetes and Vault"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [
     { name = "Numberly", email = "guillaume.legrain@numberly.com" },
 ]
 classifiers = [
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
