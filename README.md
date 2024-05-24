@@ -1,6 +1,6 @@
 # Vault Database Injector
 
-The Vault DB Injector relay on Database engine from vault to generate credentials, distribute them to Kubernetes application and handle their lifecycle.
+The Vault DB Injector relies on the database engine from Vault to generate credentials, distribute them to Kubernetes applications and handle their lifecycle.
 
 ##  1. <a name='Feature'></a>Feature
 - Generate credentials through Vault Database Engine
