@@ -60,5 +60,5 @@ This project is licensed under the terms of the MIT license. See the [LICENSE](L
 
 ## Contact
 
-For any questions or support, please reach out to our team at [support@numberly.com](mailto:support@numberly.com).
+For any questions or support, please reach out to our team at directly by creating an issue on the project.
 
