@@ -1,5 +1,7 @@
 .DEFAULT_GOAL := build
 
+VERSION ?= $(shell ./hack/get-version.sh)
+
 .PHONY:fmt vet build
 fmt:
 	go fmt ./...
@@ -11,7 +13,7 @@ build: vet
 	go build
 
 build-docker: vet
-	docker build -t numberly/vault-db-injector:2.0.1 .
+	docker build -t numberly/vault-db-injector:${VERSION} .
 
 push-docker: build-docker
-	docker push numberly/vault-db-injector:2.0.1
+	docker push numberly/vault-db-injector:${VERSION}
