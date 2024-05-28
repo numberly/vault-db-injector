@@ -1,24 +1,4 @@
 # getting-started
-<!-- vscode-markdown-toc -->
-* 1. [Requirements](#Requirements)
-* 2. [Vocabulary](#Vocabulary)
-* 3. [Vault Configuration](#VaultConfiguration)
-	* 3.1. [Create `all-rw` vault-policy](#Createall-rwvault-policy)
-	* 3.2. [Create `K/V Vault`](#CreateKVVault)
-	* 3.3. [Create `vault databases mount`](#Createvaultdatabasesmount)
-	* 3.4. [Create `vault databases backend connection`](#Createvaultdatabasesbackendconnection)
-	* 3.5. [Create a `kubernetes auth backend`](#Createakubernetesauthbackend)
-	* 3.6. [Create a `kubernetes auth backend role`](#Createakubernetesauthbackendrole)
-	* 3.7. [Create `vault databases backend role`](#Createvaultdatabasesbackendrole)
-* 4. [`Database` configuration](#Databaseconfiguration)
-* 5. [Deploy the vault db injector](#Deploythevaultdbinjector)
-* 6. [Deploy an example application :](#Deployanexampleapplication:)
-
-<!-- vscode-markdown-toc-config
-	numbering=true
-	autoSave=true
-	/vscode-markdown-toc-config -->
-<!-- /vscode-markdown-toc -->
 
 ##  1. <a name='Requirements'></a>Requirements
 

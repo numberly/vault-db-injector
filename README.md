@@ -16,6 +16,9 @@ Checkout the [Vault DB Injector documentation](https://numberly.github.io/vault-
 
 Contributions to the vault-db-injector are welcome. Please submit your pull requests or issues to the project's GitLab repository.
 
+## 4. <a name='Tool Comparison'></a>Projects Comparison
+
+Here you can find a comparison with many vault injector projects : [Comparaison](https://numberly.github.io/vault-db-injector/getting-started/comparison/)
 
 ##  5. <a name='Acknowledgements'></a>Acknowledgements
 

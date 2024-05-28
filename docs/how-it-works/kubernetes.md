@@ -1,17 +1,5 @@
 # Kubernetes Integration
 
-<!-- vscode-markdown-toc -->
-* 1. [How It Works:](#HowItWorks:)
-* 2. [Key Responsibilities:](#KeyResponsibilities:)
-* 3. [Benefits:](#Benefits:)
-	* 3.1. [Annotations :](#Annotations:)
-
-<!-- vscode-markdown-toc-config
-	numbering=true
-	autoSave=true
-	/vscode-markdown-toc-config -->
-<!-- /vscode-markdown-toc -->
-
 **Key Files:** `pkg/k8s/connect.go`, `pkg/k8s/pod_utils.go`, `pkg/k8s/parse_annotations.go`
 
 ##  1. <a name='HowItWorks:'></a>How It Works:
