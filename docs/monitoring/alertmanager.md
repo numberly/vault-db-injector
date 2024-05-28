@@ -1,20 +1,5 @@
 # Alertmanager Configuration for VaultDb Injector
 
-<!-- vscode-markdown-toc -->
-* 1. [Alerts Configuration](#AlertsConfiguration)
-	* 1.1. [Service Account Denied](#ServiceAccountDenied)
-	* 1.2. [Token Renewal Failure](#TokenRenewalFailure)
-	* 1.3. [Lease Renewal Failure](#LeaseRenewalFailure)
-	* 1.4. [Token Expiration Warnings](#TokenExpirationWarnings)
-	* 1.5. [Lease Expiration Warnings](#LeaseExpirationWarnings)
-* 2. [Conclusion](#Conclusion)
-
-<!-- vscode-markdown-toc-config
-	numbering=true
-	autoSave=true
-	/vscode-markdown-toc-config -->
-<!-- /vscode-markdown-toc -->
-
 This configuration defines a set of alerts for monitoring the VaultDb Injector within a Kubernetes environment. Each alert is designed to notify the team of potential issues that could impact the availability, security, or functionality of the services relying on Vault for secret management.
 
 ##  1. <a name='AlertsConfiguration'></a>Alerts Configuration

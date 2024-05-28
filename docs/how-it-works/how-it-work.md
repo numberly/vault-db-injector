@@ -1,24 +1,6 @@
 # How it Work
 
-<!-- vscode-markdown-toc -->
-* 1. [Vault-Injector](#Vault-Injector)
-	* 1.1. [Mechanism](#Mechanism)
-		* 1.1.1. [Vault Injector:](#VaultInjector:)
-	* 1.2. [Diagram](#Diagram)
-	* 1.3. [Vault Usage](#VaultUsage)
-	* 1.4. [Authentication](#Authentication)
-	* 1.5. [How token are handled ?](#Howtokenarehandled)
-	* 1.6. [How does injector work then ?](#Howdoesinjectorworkthen)
-	* 1.7. [Usage :](#Usage:)
-		* 1.7.1. [In mode classic](#Inmodeclassic)
-		* 1.7.2. [In mode URI](#InmodeURI)
-		* 1.7.3. [With multiple databases](#Withmultipledatabases)
-
-<!-- vscode-markdown-toc-config
-	numbering=true
-	autoSave=true
-	/vscode-markdown-toc-config -->
-<!-- /vscode-markdown-toc -->##  1. <a name='Vault-Injector'></a>Vault-Injector
+##  1. <a name='Vault-Injector'></a>Vault-Injector
 
 The Vault DB Injector is a Go program that is design to retrieve databases credentials from Hashicorp Vault, it use Kubernetes Mutating Webhook to intercept pod creation activated with a label and configured with annotations.
 After the credentials are provided, it will store them in a specific Vault KV and will handle the lifecycle of them such as : 
