@@ -361,6 +361,8 @@
       
         
       
+        
+      
     
     
       
@@ -408,6 +410,27 @@
   
   <span class="md-ellipsis">
     getting-started
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Comparison
   </span>
   
 
@@ -547,17 +570,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Configuration
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -567,52 +579,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#11-mode-injector" class="md-nav__link">
-    <span class="md-ellipsis">
-      1.1. Mode Injector
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#12-mode-token-renewer" class="md-nav__link">
-    <span class="md-ellipsis">
-      1.2. Mode token-renewer
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#13-mode-token-renewer" class="md-nav__link">
-    <span class="md-ellipsis">
-      1.3. Mode token-renewer
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -889,20 +855,8 @@
 
 
 <h1 id="configuration">Configuration</h1>
-<!-- vscode-markdown-toc -->
-<div class="highlight"><pre><span></span><code>* 1. [Configuration](#Configuration)
-    * 1.1. [Mode Injector](#ModeInjector)
-    * 1.2. [Mode token-renewer](#Modetoken-renewer)
-    * 1.3. [Mode token-renewer](#Modetoken-renewer-1)
-</code></pre></div>
-<!-- vscode-markdown-toc-config
-    numbering=true
-    autoSave=true
-    /vscode-markdown-toc-config -->
-<!-- /vscode-markdown-toc -->
-
 <p>Here is the configuration for Vault Injector:</p>
-<h4 id="11-mode-injector">1.1. <a name='ModeInjector'></a>Mode Injector</h4>
+<h1 id="1-mode-injector">1 <a name='ModeInjector'></a>Mode Injector</h1>
 <p>The Injector mode is basic one that will handle all api-server request and handle all requests to vault to generate credentials to our DB
 The config file path can be parse by adding the path with : <code>- "--config=/injector/config.yaml"</code>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">certFile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/tls/tls.crt</span>
@@ -920,7 +874,7 @@ The config file path can be parse by adding the path with : <code>- "--config=/i
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="nt">injectorLabel</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vault-db-injector</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="nt">defaultEngine</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">databases</span>
 </code></pre></div></p>
-<h4 id="12-mode-token-renewer">1.2. <a name='Modetoken-renewer'></a>Mode token-renewer</h4>
+<h1 id="1-mode-token-renewer">1 <a name='Modetoken-renewer'></a>Mode token-renewer</h1>
 <p>The Renewer one is a process that will run every hour and validate that all orphan token won't expire before pod is deleted 
 The config file path can be parse by adding the path with : <code>- "--config=/renewer/config.yaml"</code>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">vaultAddress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://vault1.tld:8200</span>
@@ -937,7 +891,7 @@ The config file path can be parse by adding the path with : <code>- "--config=/r
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="nt">injectorLabel</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vault-db-injector</span>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="nt">defaultEngine</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">databases</span>
 </code></pre></div></p>
-<h4 id="13-mode-token-renewer">1.3. <a name='Modetoken-renewer-1'></a>Mode token-renewer</h4>
+<h1 id="1-mode-token-renewer_1">1 <a name='Modetoken-renewer-1'></a>Mode token-renewer</h1>
 <p>The Revoker one is a process that is going to watch pod deletion Kubernetes events filtered with the label <code>vault-db-injector: true</code> and will revoke token attached to the pod when it is deleted 
 The config file path can be parse by adding the path with : <code>- "--config=/revoker/config.yaml"</code>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">vaultAddress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://vault1.tld:8200</span>

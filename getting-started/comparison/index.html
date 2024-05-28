@@ -1,6 +1,6 @@
 
 <!doctype html>
-<html lang="fr" class="no-js">
+<html lang="en" class="no-js">
   <head>
     
       <meta charset="utf-8">
@@ -8,28 +8,28 @@
       
       
       
-        <link rel="canonical" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/leaderelection/">
+        <link rel="canonical" href="https://numberly.github.io/vault-db-injector/getting-started/comparison/">
       
       
-        <link rel="prev" href="../kubernetes/">
+        <link rel="prev" href="../getting-started/">
       
       
-        <link rel="next" href="../healthcheck/">
+        <link rel="next" href="../build/">
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.25">
     
     
       
-        <title>Leader Election - Vault DB Injector Documentation</title>
+        <title>Comparison - Vault DB Injector Documentation</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.6543a935.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -42,7 +42,7 @@
       
     
     
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -57,7 +57,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="indigo">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -66,8 +66,8 @@
     <div data-md-component="skip">
       
         
-        <a href="#leader-election" class="md-skip">
-          Aller au contenu
+        <a href="#comparison" class="md-skip">
+          Skip to content
         </a>
       
     </div>
@@ -79,8 +79,8 @@
       
 
 <header class="md-header" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="En-tête">
-    <a href="../../" title="Vault DB Injector Documentation" class="md-header__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Vault DB Injector Documentation" class="md-header__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2h1m-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3Z"/></svg>
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Leader Election
+              Comparison
             
           </span>
         </div>
@@ -114,20 +114,20 @@
       <div class="md-header__option">
   <div class="md-select">
     
-    <button class="md-header__button md-icon" aria-label="Sélectionner la langue">
+    <button class="md-header__button md-icon" aria-label="Select language">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04M18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12m-2.62 7 1.62-4.33L19.12 17h-3.24Z"/></svg>
     </button>
     <div class="md-select__inner">
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="../../../how-it-works/leaderelection/" hreflang="en" class="md-select__link">
+            <a href="./" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
         
           <li class="md-select__item">
-            <a href="./" hreflang="fr" class="md-select__link">
+            <a href="../../fr/getting-started/comparison/" hreflang="fr" class="md-select__link">
               Français
             </a>
           </li>
@@ -146,16 +146,16 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Rechercher" placeholder="Rechercher" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
       <label class="md-search__icon md-icon" for="__search">
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
       </label>
-      <nav class="md-search__options" aria-label="Recherche">
+      <nav class="md-search__options" aria-label="Search">
         
-        <button type="reset" class="md-search__icon md-icon" title="Effacer" aria-label="Effacer" tabindex="-1">
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
         </button>
@@ -166,7 +166,7 @@
       <div class="md-search__scrollwrap" data-md-scrollfix>
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            Initialisation de la recherche
+            Initializing search
           </div>
           <ol class="md-search-result__list" role="presentation"></ol>
         </div>
@@ -177,7 +177,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/numberly/vault-db-injector" title="Aller au dépôt" class="md-source" data-md-component="source">
+        <a href="https://github.com/numberly/vault-db-injector" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
@@ -198,7 +198,7 @@
         
           
             
-<nav class="md-tabs" aria-label="Onglets" data-md-component="tabs">
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
       
@@ -207,35 +207,15 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../" class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
     
   
-  Accueil
+  Home
 
       </a>
     </li>
-  
-
-      
-        
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../../getting-started/getting-started/" class="md-tabs__link">
-          
-  
-    
-  
-  Démarrage Rapide
-
-        </a>
-      </li>
-    
   
 
       
@@ -248,12 +228,32 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../how-it-work/" class="md-tabs__link">
+        <a href="../getting-started/" class="md-tabs__link">
           
   
     
   
-  Comment ça marche
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-it-works/how-it-work/" class="md-tabs__link">
+          
+  
+    
+  
+  How it Works
 
         </a>
       </li>
@@ -305,7 +305,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../" title="Vault DB Injector Documentation" class="md-nav__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
+    <a href="../.." title="Vault DB Injector Documentation" class="md-nav__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2h1m-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3Z"/></svg>
@@ -315,7 +315,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/numberly/vault-db-injector" title="Aller au dépôt" class="md-source" data-md-component="source">
+      <a href="https://github.com/numberly/vault-db-injector" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
@@ -335,11 +335,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../../" class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Accueil
+    Home
   </span>
   
 
@@ -352,144 +352,12 @@
       
   
   
-  
-  
-    
-    
-      
-        
-      
-        
-      
-        
-      
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
-            
-  
-  <span class="md-ellipsis">
-    Démarrage Rapide
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            Démarrage Rapide
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../getting-started/getting-started/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    getting-started
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../getting-started/comparison/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Comparison
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../getting-started/build/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Build
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
     
   
   
   
     
     
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
       
         
       
@@ -512,24 +380,24 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   <span class="md-ellipsis">
-    Comment ça marche
+    Getting Started
   </span>
   
 
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
-            Comment ça marche
+            Getting Started
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -540,137 +408,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../how-it-work/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    How it Work
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../configuration/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Configuration
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../injector/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Injector
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../renewer/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Renewer
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../revoker/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Revoker
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../vault/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Vault Integration
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../kubernetes/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Kubernetes Integration
+    getting-started
   </span>
   
 
@@ -700,7 +442,7 @@
           
   
   <span class="md-ellipsis">
-    Leader Election
+    Comparison
   </span>
   
 
@@ -711,7 +453,7 @@
         
   
   <span class="md-ellipsis">
-    Leader Election
+    Comparison
   </span>
   
 
@@ -719,7 +461,7 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
   
   
   
@@ -728,32 +470,74 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table des matières
+      Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-how-it-works" class="md-nav__link">
+  <a href="#summary" class="md-nav__link">
     <span class="md-ellipsis">
-      1. How It Works:
+      Summary
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-key-responsibilities" class="md-nav__link">
+  <a href="#1-why-vault-db-injector" class="md-nav__link">
     <span class="md-ellipsis">
-      2. Key Responsibilities:
+      1. Why Vault-Db-Injector?
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-benefits" class="md-nav__link">
+  <a href="#2-tools-comparison" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Benefits:
+      2. Tools Comparison
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-our-needs" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Our needs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-comparison-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Comparison Table
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Comparison Table">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1. Key
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Conclusion
     </span>
   </a>
   
@@ -775,7 +559,265 @@
   
   
     <li class="md-nav__item">
-      <a href="../healthcheck/" class="md-nav__link">
+      <a href="../build/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Build
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How it Works
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            How it Works
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/how-it-work/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    How it Work
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/injector/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Injector
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/renewer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Renewer
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/revoker/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Revoker
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/vault/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vault Integration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/kubernetes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Kubernetes Integration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/leaderelection/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Leader Election
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/healthcheck/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -911,45 +953,188 @@
   
 
 
-<h1 id="leader-election">Leader Election</h1>
-<p><strong>Key File:</strong> <code>pkg/leadership/leadership.go</code></p>
-<h2 id="1-how-it-works">1. <a name='HowItWorks:'></a>How It Works:</h2>
-<p>Leader Election is a mechanism that ensures high availability and fault tolerance by designating a single instance of the application to perform critical tasks at any given time. This feature is particularly important in distributed systems where multiple instances of an application might be running concurrently.</p>
-<h2 id="2-key-responsibilities">2. <a name='KeyResponsibilities:'></a>Key Responsibilities:</h2>
-<ol>
-<li><strong>Resource Locking:</strong></li>
-<li>
-<p>Leader Election uses Kubernetes resource locks to manage which instance of the application is the current leader. The application instances compete for a lock, and the one that acquires it becomes the leader.</p>
-</li>
-<li>
-<p><strong>Performing Critical Tasks:</strong></p>
-</li>
-<li>
-<p>The leader is responsible for performing tasks that should not be duplicated. These tasks could include credential renewal, revocation, and other maintenance activities that need to be managed centrally.</p>
-</li>
-<li>
-<p><strong>Failover Handling:</strong></p>
-</li>
-<li>If the current leader fails or goes offline, another instance of the application can take over by acquiring the lock. This ensures continuous operation and minimal downtime for critical tasks.</li>
-</ol>
-<h2 id="3-benefits">3. <a name='Benefits:'></a>Benefits:</h2>
+<h1 id="comparison">Comparison</h1>
+<p>A vault injector retrieves credentials from a vault database engine and injects them into pods' environment variables. This document compares different existing tools with the new vault injector being developed.</p>
+<h2 id="summary">Summary</h2>
+<h2 id="1-why-vault-db-injector">1. <a name='WhyVault-Db-Injector'></a>Why Vault-Db-Injector?</h2>
+<p>Before comparing Vault-Db-Injector with existing tools, we would like to share that we initially investigated various vault injector solutions designed to fetch credentials from Vault.</p>
+<p>After extensive research, we found no tools that matched our needs, and most of them were difficult to contribute to.</p>
+<p>Vault-Db-Injector is not a replacement for any existing vault injector but a tool more focused on security and the database engine.</p>
+<p>We didn't intend to reinvent the wheel but designed a tool that perfectly matches our needs and shared it with those who might be interested.</p>
+<h2 id="2-tools-comparison">2. <a name='ToolsComparison'></a>Tools Comparison</h2>
+<p>Here are the major tools that we compare our injector to:</p>
 <ul>
-<li><strong>High Availability:</strong></li>
-<li>
-<p>By ensuring that there is always one active leader performing critical tasks, the system can provide high availability and resilience. If the current leader fails, another instance takes over, maintaining operational continuity.</p>
-</li>
-<li>
-<p><strong>Fault Tolerance:</strong></p>
-</li>
-<li>
-<p>Leader Election allows the system to handle failures gracefully. The loss of a leader does not disrupt critical operations because another instance will quickly assume leadership.</p>
-</li>
-<li>
-<p><strong>Efficient Resource Management:</strong></p>
-</li>
-<li>Only the leader performs certain tasks, reducing the risk of conflicts and duplicated efforts. This efficient allocation of responsibilities helps maintain system stability.</li>
+<li><a href="https://developer.hashicorp.com/vault/docs/platform/k8s/injector">Vault Agent Injector</a></li>
+<li><a href="https://github.com/bank-vaults/bank-vaults">Bank Vault</a></li>
+<li><a href="https://github.com/digitalis-io/vals-operator">Vals Operator</a></li>
+<li><a href="https://developer.hashicorp.com/vault/docs/platform/k8s/csi">Vault CSI Provider</a></li>
 </ul>
-<p>This feature is essential for applications deployed in Kubernetes clusters, where ensuring that critical tasks are managed by a single, designated instance enhances both reliability and performance.</p>
+<h2 id="3-our-needs">3. <a name='Ourneeds'></a>Our needs</h2>
+<p>Here are our needs by importance in our research : </p>
+<ul>
+<li>Handle database engine</li>
+<li>Injection through environment variables</li>
+<li>Easy to use for developpers</li>
+<li>Audit logging</li>
+<li>Lease can be automatically renewed and revoked</li>
+<li>State is available for debugging purpose and manual revocation also</li>
+<li>Working with a single deployment</li>
+</ul>
+<h2 id="4-comparison-table">4. <a name='ComparisonTable'></a>Comparison Table</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Vault-Db-Injector</th>
+<th>Vault Agent Injector</th>
+<th>Bank Vault (webhook)</th>
+<th>Vals Operator</th>
+<th>Vault CSI Provider</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Credential Source</strong></td>
+<td>Vault Database Engine</td>
+<td>Multiple Engines</td>
+<td>Secret Engine</td>
+<td>Multiple Engine</td>
+<td>K/V</td>
+</tr>
+<tr>
+<td><strong>Engine</strong></td>
+<td>Database</td>
+<td>All</td>
+<td>K/V</td>
+<td>Database and K/V</td>
+<td>K/V</td>
+</tr>
+<tr>
+<td><strong>Injection Method</strong></td>
+<td>Pod Environment Vars</td>
+<td>Sidecar Container / Init Container</td>
+<td>Init Container (in-memory)</td>
+<td>Kubernetes Secrets</td>
+<td>CSI Volume</td>
+</tr>
+<tr>
+<td><strong>Dynamic Secret Rotation</strong></td>
+<td>🚫 Not needed</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Access Control</strong></td>
+<td>Role-Based Policies</td>
+<td>Role-Based Policies</td>
+<td>Role-Based Policies</td>
+<td>Role-Based Policies</td>
+<td>Role-Based Policies</td>
+</tr>
+<tr>
+<td><strong>Configuration Complexity</strong></td>
+<td>🟢 Low</td>
+<td>🔴 Very High</td>
+<td>🟢 Low</td>
+<td>🟠 Moderate</td>
+<td>🟠 Moderate</td>
+</tr>
+<tr>
+<td><strong>User Complexity</strong></td>
+<td>🟢 Low</td>
+<td>🔴 Very High</td>
+<td>🟢 Low</td>
+<td>🟠 Moderate</td>
+<td>🟢 Low</td>
+</tr>
+<tr>
+<td><strong>Operation Mode</strong></td>
+<td>Deployment</td>
+<td>Deployment</td>
+<td>Deployment</td>
+<td>Operator</td>
+<td>Operator</td>
+</tr>
+<tr>
+<td><strong>Configuration Mode</strong></td>
+<td>Annotations</td>
+<td>Annotations</td>
+<td>Through Env</td>
+<td>CRDS</td>
+<td>CRDS</td>
+</tr>
+<tr>
+<td><strong>Handle Environment</strong></td>
+<td>✅ Yes</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>✅ Yes (secretRef)</td>
+</tr>
+<tr>
+<td><strong>Secret Encryption</strong></td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Audit Logging</strong></td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Accessible state</strong></td>
+<td>✅ Yes</td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><strong>Lease Renew</strong></td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>-</td>
+<td>🤔 With restarting</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Lease Revocation</strong></td>
+<td>✅ Yes</td>
+<td>❌ No</td>
+<td>-</td>
+<td>❌ No</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Community Support</strong></td>
+<td>🌱 Growing</td>
+<td>🟢 Established</td>
+<td>🟠 Moderate</td>
+<td>🟠 Moderate</td>
+<td>🟢 Established</td>
+</tr>
+</tbody>
+</table>
+<h3 id="41-key">4.1. <a name='Key'></a>Key</h3>
+<ul>
+<li>✅ Yes</li>
+<li>❌ No</li>
+<li>🤔 Consideration (Intermediate)</li>
+<li>🚫 Not Needed</li>
+<li>🟢 Low</li>
+<li>🟠 Moderate</li>
+<li>🔴 High</li>
+</ul>
+<h2 id="5-conclusion">5. <a name='Conclusion'></a>Conclusion</h2>
+<p>This comparison highlights the unique features and capabilities of the new vault injector. While similar in many ways to existing solutions, the new tool offers dynamic secret rotation without requiring pod restarts, moderate configuration complexity, and robust access control, making it a compelling choice for managing secrets in Kubernetes environments.</p>
 
 
 
@@ -1012,10 +1197,10 @@
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.081f42fc.min.js"></script>
+      <script src="../../assets/javascripts/bundle.081f42fc.min.js"></script>
       
     
   </body>

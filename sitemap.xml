@@ -15,6 +15,13 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/build/"/>
     </url>
     <url>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/comparison/</loc>
+        <lastmod>2024-05-28</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/"/>
+    </url>
+    <url>
         <loc>https://numberly.github.io/vault-db-injector/getting-started/contributing/</loc>
         <lastmod>2024-05-28</lastmod>
         <changefreq>daily</changefreq>
@@ -125,6 +132,13 @@
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/build/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/build/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/</loc>
+        <lastmod>2024-05-28</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/comparison/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/contributing/</loc>

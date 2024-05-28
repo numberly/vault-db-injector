@@ -361,6 +361,8 @@
       
         
       
+        
+      
     
     
       
@@ -408,6 +410,27 @@
   
   <span class="md-ellipsis">
     getting-started
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Comparison
   </span>
   
 
@@ -988,34 +1011,6 @@
 
 
 <h1 id="how-it-work">How it Work</h1>
-<!-- vscode-markdown-toc -->
-<ul>
-<li>
-<ol>
-<li><a href="#Vault-Injector">Vault-Injector</a></li>
-<li>1.1. <a href="#Mechanism">Mechanism</a><ul>
-<li>1.1.1. <a href="#VaultInjector:">Vault Injector:</a></li>
-</ul>
-</li>
-<li>1.2. <a href="#Diagram">Diagram</a></li>
-<li>1.3. <a href="#VaultUsage">Vault Usage</a></li>
-<li>1.4. <a href="#Authentication">Authentication</a></li>
-<li>1.5. <a href="#Howtokenarehandled">How token are handled ?</a></li>
-<li>1.6. <a href="#Howdoesinjectorworkthen">How does injector work then ?</a></li>
-<li>1.7. <a href="#Usage:">Usage :</a><ul>
-<li>1.7.1. <a href="#Inmodeclassic">In mode classic</a></li>
-<li>1.7.2. <a href="#InmodeURI">In mode URI</a></li>
-<li>1.7.3. <a href="#Withmultipledatabases">With multiple databases</a></li>
-</ul>
-</li>
-</ol>
-</li>
-</ul>
-<!-- vscode-markdown-toc-config
-    numbering=true
-    autoSave=true
-    /vscode-markdown-toc-config -->
-<!-- /vscode-markdown-toc -->
 <h2 id="1-vault-injector">1. <a name='Vault-Injector'></a>Vault-Injector</h2>
 <p>The Vault DB Injector is a Go program that is design to retrieve databases credentials from Hashicorp Vault, it use Kubernetes Mutating Webhook to intercept pod creation activated with a label and configured with annotations.
 After the credentials are provided, it will store them in a specific Vault KV and will handle the lifecycle of them such as : 
