@@ -35,21 +35,21 @@ Here are our needs by importance in our research :
 - State is available for debugging purpose and manual revocation also
 - Working with a single deployment
 
-
 ##  4. <a name='ComparisonTable'></a>Comparison Table
 
 | Feature                              | Vault-Db-Injector     | Vault Agent Injector                | Bank Vault (webhook)               | Vals Operator                   | Vault CSI Provider              |
 |--------------------------------------|-----------------------|-------------------------------------|------------------------------------|---------------------------------|---------------------------------|
 | **Credential Source**                | Vault Database Engine | Multiple Engines                    | Secret Engine                      | Multiple Engine                 | K/V                             |
 | **Engine**                           | Database              | All                                 | K/V                                | Database and K/V                | K/V                             |
-| **Injection Method**                 | Pod Environment Vars  | Sidecar Container / Init Container  | Init Container (in-memory)         | Kubernetes Secrets              | CSI Volume                      |
-| **Dynamic Secret Rotation**          | 🚫 Not needed         | ✅ Yes                              | ✅ Yes                             | ❌ No                           | ✅ Yes                           |
+| **Injection Method**                 | Mutating Webhook      | Mutating Webhook                    | Mutating Webhook                   | Mutating Webhook                | CSI Driver Injection            |
+| **Injection Style**                  | Environment Variable  | Sidecar Container / Init Container  | Init Container (in-memory)         | ValsSecret (CRD)                | CSI Volume                      |
+| **Dynamic Secret Rotation**          | 🚫 Not needed         | ✅ Yes                              | ✅ Yes                             | ❌ No                           | ✅ Yes                          |
 | **Access Control**                   | Role-Based Policies   | Role-Based Policies                 | Role-Based Policies                | Role-Based Policies             | Role-Based Policies             |
 | **Configuration Complexity**         | 🟢 Low                | 🔴 Very High                        | 🟢 Low                             | 🟠 Moderate                     | 🟠 Moderate                     |
 | **User Complexity**                  | 🟢 Low                | 🔴 Very High                        | 🟢 Low                             | 🟠 Moderate                     | 🟢 Low                          |
 | **Operation Mode**                   | Deployment            | Deployment                          | Deployment                         | Operator                        | Operator                        |
 | **Configuration Mode**               | Annotations           | Annotations                         | Through Env                        | CRDS                            | CRDS                            |
-| **Handle Environment**               | ✅ Yes                | ❌ No                               | ✅ Yes                             | ✅ Yes                          | ✅ Yes (secretRef)              |
+| **Handle Environment Variables**     | ✅ Yes                | ❌ No                               | ✅ Yes                             | ✅ Yes                          | ✅ Yes (secretRef)              |
 | **Secret Encryption**                | ✅ Yes                | ✅ Yes                              | ✅ Yes                             | ✅ Yes                          | ✅ Yes                           |
 | **Audit Logging**                    | ✅ Yes                | ✅ Yes                              | ✅ Yes                             | ✅ Yes                          | ✅ Yes                           |
 | **Accessible state**                 | ✅ Yes                | ❌ No                               | ❌ No                              | ❌ No                           | ❌ No                            |

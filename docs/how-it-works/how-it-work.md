@@ -112,6 +112,9 @@ labels:
 ```
 
 ####  1.7.2. <a name='InmodeURI'></a>In mode URI
+
+In this mode, the injector will automatically inject the username and the password inside the postgres URI and will for example generate : `postgres://username:password@postgres-server.tld:5432/dbname?sslmode=require` 
+
 ```yaml
 annotations:
   db-creds-injector.numberly.io/cluster: databases
