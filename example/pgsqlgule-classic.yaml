@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pgsqlgule-dv
+  namespace: demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgsqlgule-dv-classic
+  namespace: demo
+  labels:
+    app: pgsqlgule-dv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgsqlgule-dv
+  template:
+    metadata:
+      labels:
+        app: pgsqlgule-dv
+        vault-db-injector-dev: "true"
+      annotations:
+        db-creds-injector.numberly.io/pgsqlgule_dv.role: pgsqlgule-dv
+        db-creds-injector.numberly.io/pgsqlgule_dv.mode: classic
+        db-creds-injector.numberly.io/pgsqlgule_dv.env-key-dbpassword: DB_PASSWORD,PGPASSWORD
+        db-creds-injector.numberly.io/pgsqlgule_dv.env-key-dbuser: DB_USER,PGUSER
+    spec:
+      serviceAccountName: pgsqlgule-dv
+      imagePullSecrets:
+        - name: "registry-token"
+        - name: "registry-token-common"
+      containers:
+        - name: svc
+          image: registry.numberly.in/docker-images/postgres-curl-jq:0.1.0
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              ephemeral-storage: 2Gi
+              memory: 400Mi
+            requests:
+              ephemeral-storage: 512Mi
+              memory: 160Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+          command:
+            - "bash"
+            - "-c"
+            - "trap 'exit 0' TERM; sleep infinity & wait"
+          env:
+            - name: PGHOST
+              value: pginstance
+            - name: PGDATABASE
+              value: pgsqlgule_dv
