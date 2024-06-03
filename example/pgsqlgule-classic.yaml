@@ -2,13 +2,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: pgsqlgule-dv
-  namespace: demo-secatscale
+  namespace: demo
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pgsqlgule-dv-classic
-  namespace: demo-secatscale
+  namespace: demo
   labels:
     app: pgsqlgule-dv
 spec:
