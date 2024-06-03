@@ -390,10 +390,11 @@ func (c *Connector) StartTokenRenewal(ctx context.Context, cfg *config.Config) {
 					c.Log.Errorf("Failed to renew Vault token: %v", err)
 					c.Log.Info("Trying to reconnect to Vault")
 					newConn, err := ConnectToVault(ctx, cfg)
-					c.K8sSaVaultToken = newConn.K8sSaVaultToken
 					if err != nil {
 						c.Log.Fatalf("Can't reconnect to VAULT: %v", err)
 					}
+					c.K8sSaVaultToken = newConn.K8sSaVaultToken
+					c.SetToken(newConn.K8sSaVaultToken)
 				}
 				c.Log.Debug("Token has been renewed succefully !")
 			}
