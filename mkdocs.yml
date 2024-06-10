@@ -45,6 +45,7 @@ nav:
   - Home: index.md
   - Getting Started:
     - getting-started/getting-started.md
+    - getting-started/comparison.md
     - getting-started/build.md
   - How it Works:
     - how-it-works/how-it-work.md

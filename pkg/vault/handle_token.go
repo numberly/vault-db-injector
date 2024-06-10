@@ -10,6 +10,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	promInjector "github.com/numberly/vault-db-injector/pkg/prometheus"
+	"golang.org/x/time/rate"
 )
 
 type KeyInformation struct {
@@ -119,24 +120,35 @@ func (c *Connector) ListKeyInformations(ctx context.Context, path, prefix string
 	var wg sync.WaitGroup
 	keyInformationsChan := make(chan *KeyInformation, len(keys))
 
+	// Create a rate limiter
+	rateLimit := rate.Limit(c.VaultRateLimit) // requests per second
+	limiter := rate.NewLimiter(rateLimit, 1)
+
 	for _, k := range keys {
 		wg.Add(1)
 		go func(k interface{}) {
 			defer wg.Done()
+
+			// Wait for the rate limiter
+			if err := limiter.Wait(ctx); err != nil {
+				c.Log.Errorf("Rate limiter error: %v", err)
+				return
+			}
+
 			podName := strings.TrimSuffix(k.(string), "/")
 
 			// Utiliser le préfixe pour lire les données
 			dataPath := fmt.Sprintf("%s/data/%s/%s", path, prefix, podName)
 			podSecret, err := c.client.Logical().ReadWithContext(ctx, dataPath)
 			if err != nil {
-				c.Log.Errorf("Error while trying to recover data informations for : %s: %v", podName, err)
+				c.Log.Errorf("Error while trying to recover data informations for: %s: %v", podName, err)
 				return
 			}
 
 			if podSecret == nil || podSecret.Data == nil || podSecret.Data["data"] == nil {
 				status, err := c.DeleteData(ctx, podName, path, podName, "", prefix)
 				if err != nil {
-					c.Log.Errorf("Data for %s can't be deleted : %s with error : %s", podName, status, err.Error())
+					c.Log.Errorf("Data for %s can't be deleted: %s with error: %s", podName, status, err.Error())
 				}
 				return
 			}
@@ -189,61 +201,73 @@ func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysIn
 		return false
 	}
 
-	// Créer une map pour une recherche rapide des podsInformations
+	// Create a map for quick lookup of pod information
 	podInfoMap := make(map[string]k8s.PodInformations)
 	for _, pi := range podsInformations {
 		for _, uuid := range pi.PodNameUUIDs {
 			podInfoMap[uuid] = pi
 		}
-
 	}
 
 	var KubePolicies []string
 	KubePolicies = append(KubePolicies, c.authRole)
 	_, err = c.CreateOrphanToken(ctx, "1h", KubePolicies)
 	if err != nil {
-		c.Log.Errorf("Can't create orphan ticket : %v", err)
+		c.Log.Errorf("Can't create orphan ticket: %v", err)
 		c.Log.Error("Token renew has been cancelled")
 		return false
 	}
+
+	// Create a rate limiter
+	rateLimit := rate.Limit(cfg.VaultRateLimit) // requests per second
+	limiter := rate.NewLimiter(rateLimit, 1)
+
 	var wg sync.WaitGroup
 	var isOk bool = true
+
 	for _, ki := range keysInformations {
 		wg.Add(1)
 		go func(ki *KeyInformation) {
 			defer wg.Done()
 
+			// Wait for the rate limiter
+			if err := limiter.Wait(ctx); err != nil {
+				c.Log.Errorf("Rate limiter error: %v", err)
+				isOk = false
+				return
+			}
+
 			if _, found := podInfoMap[ki.PodNameUID]; found {
 				err := c.RenewToken(ctx, ki.TokenId, ki.PodNameUID, ki.Namespace, SyncTTLSecond)
 				if err != nil {
-					c.Log.Errorf("Can't renew Token with pod UUID : %s", ki.PodNameUID)
+					c.Log.Errorf("Can't renew Token with pod UUID: %s", ki.PodNameUID)
 					isOk = false
 					return
 				}
-				err = c.RenewLease(ctx, ki.LeaseId, 86400*5, ki.PodNameUID, ki.Namespace) // Renew for 1week
+				err = c.RenewLease(ctx, ki.LeaseId, 86400*5, ki.PodNameUID, ki.Namespace) // Renew for 1 week
 				if err != nil {
-					c.Log.Errorf("Can't renew Lease with pod UUID : %s", ki.PodNameUID)
+					c.Log.Errorf("Can't renew Lease with pod UUID: %s", ki.PodNameUID)
 					isOk = false
 					return
 				}
 			} else {
 				leaseTooYoung, err := c.isLeaseTooYoung(ctx, ki.LeaseId)
 				if err != nil {
-					c.Log.Debug("error while trying to retrieve lease age, lease will be cleaned")
+					c.Log.Debug("Error while trying to retrieve lease age, lease will be cleaned")
 				}
 				if leaseTooYoung {
-					c.Log.Infof("This lease : %s is too young to be cleaned up.", ki.LeaseId)
+					c.Log.Infof("This lease: %s is too young to be cleaned up.", ki.LeaseId)
 					return
 				}
 				err = c.RevokeOrphanToken(ctx, ki.TokenId, ki.PodNameUID, ki.Namespace)
 				if err != nil {
-					c.Log.Errorf("Can't revok Token with UUID : %s", ki.PodNameUID)
+					c.Log.Errorf("Can't revoke Token with UUID: %s", ki.PodNameUID)
 					isOk = false
 					return
 				}
 				status, err := c.DeleteData(ctx, ki.PodNameUID, secretName, ki.PodNameUID, ki.Namespace, prefix)
 				if err != nil {
-					c.Log.Errorf("Data for %s can't be deleted : %s with error : %s", ki.PodNameUID, status, err.Error())
+					c.Log.Errorf("Data for %s can't be deleted: %s with error: %s", ki.PodNameUID, status, err.Error())
 					isOk = false
 					return
 				}
@@ -252,10 +276,11 @@ func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysIn
 				promInjector.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
 				promInjector.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
 				promInjector.DataDeletedCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				c.Log.Infof("Token has been revoked and data deleted : %s", status)
+				c.Log.Infof("Token has been revoked and data deleted: %s", status)
 			}
 		}(ki)
 	}
+
 	wg.Wait()
 	c.RevokeSelfToken(ctx, c.client.Token(), "", "")
 	c.SetToken(c.K8sSaVaultToken)
@@ -390,10 +415,11 @@ func (c *Connector) StartTokenRenewal(ctx context.Context, cfg *config.Config) {
 					c.Log.Errorf("Failed to renew Vault token: %v", err)
 					c.Log.Info("Trying to reconnect to Vault")
 					newConn, err := ConnectToVault(ctx, cfg)
-					c.K8sSaVaultToken = newConn.K8sSaVaultToken
 					if err != nil {
 						c.Log.Fatalf("Can't reconnect to VAULT: %v", err)
 					}
+					c.K8sSaVaultToken = newConn.K8sSaVaultToken
+					c.SetToken(newConn.K8sSaVaultToken)
 				}
 				c.Log.Debug("Token has been renewed succefully !")
 			}

@@ -91,7 +91,7 @@ func handlePodConfiguration(ctx context.Context, cfg *config.Config, dbConfs *[]
 				logger.Errorf("Their is an issue with the db Configuration")
 				return nil, "db-role not found", nil, err
 			}
-			vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, vaultDbPath, dbConf.Role, tok)
+			vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, vaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
 			if err := vaultConn.Login(ctx); err != nil {
 				return nil, dbConf.Role, nil, errors.Newf("cannot authenticate vault role: %s", err.Error())
 			}
