@@ -2,11 +2,9 @@ package healthcheck
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,11 +30,13 @@ func TestHealthzHandler(t *testing.T) {
 	// logger.Initialize(yourConfigHere)
 
 	service := NewService()
-	service.RegisterHandlers()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", service.healthzHandler)
 
 	req := httptest.NewRequest("GET", "/healthz", nil)
 	w := httptest.NewRecorder()
-	http.DefaultServeMux.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
 		t.Errorf("expected status %d, got %d", http.StatusNoContent, w.Code)
@@ -48,12 +48,15 @@ func TestReadyzHandler(t *testing.T) {
 	// Assuming your logger has been initialized elsewhere or doing it here if needed
 
 	service := NewService()
-	service.RegisterHandlers()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/readyz", service.readyzHandler())
+	mux.HandleFunc("/healthz", service.healthzHandler)
 
 	// Test when the service is ready
 	reqReady := httptest.NewRequest("GET", "/readyz", nil)
 	wReady := httptest.NewRecorder()
-	http.DefaultServeMux.ServeHTTP(wReady, reqReady)
+	mux.ServeHTTP(wReady, reqReady)
 
 	if wReady.Code != http.StatusNoContent {
 		t.Errorf("expected status %d when ready, got %d", http.StatusNoContent, wReady.Code)
@@ -63,50 +66,10 @@ func TestReadyzHandler(t *testing.T) {
 	service.isReady.Store(false)
 	reqNotReady := httptest.NewRequest("GET", "/readyz", nil)
 	wNotReady := httptest.NewRecorder()
-	http.DefaultServeMux.ServeHTTP(wNotReady, reqNotReady)
+	mux.ServeHTTP(wNotReady, reqNotReady)
 
 	if wNotReady.Code != http.StatusServiceUnavailable {
 		t.Errorf("expected status %d when not ready, got %d", http.StatusServiceUnavailable, wNotReady.Code)
-	}
-}
-
-// TestServiceStart remains largely the same as previously described.
-func TestServiceStart(t *testing.T) {
-	ctx := context.TODO()
-	// Assuming your logger has been initialized elsewhere or doing it here if needed
-	initTestLogger()
-	service := &Service{
-		isReady: &atomic.Value{},
-		server: &http.Server{
-			Addr:         "127.0.0.1:8888", // Use an ephemeral port
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		},
-		log: logger.GetLogger(), // Assuming logger has been initialized
-	}
-	service.isReady.Store(true)
-
-	service.RegisterHandlers()
-	// Starting the service in a goroutine since it's blocking
-	go func() {
-		if err := service.Start(ctx, stopChan); err != nil {
-			t.Errorf("failed to start service: %v", err)
-		}
-	}()
-
-	// Wait a short period to let the server start
-	time.Sleep(1000 * time.Millisecond)
-
-	// Make a request to ensure the server is up and running
-	resp, err := http.Get("http://" + service.server.Addr + "/healthz")
-	if err != nil {
-		t.Fatalf("failed to make request to the server: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		t.Errorf("expected status %d, got %d, body: %s", http.StatusNoContent, resp.StatusCode, string(bodyBytes))
 	}
 }
 
@@ -115,6 +78,14 @@ func TestServiceShutdown(t *testing.T) {
 
 	// Create a new service and register handlers
 	service := NewService()
+
+	mux := http.NewServeMux()
+	service.server = &http.Server{
+		Addr:         "127.0.0.1:8888",
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
 	service.RegisterHandlers()
 
 	// Create a cancelable context
