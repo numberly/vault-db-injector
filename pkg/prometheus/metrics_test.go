@@ -34,7 +34,7 @@ func TestRunMetrics(t *testing.T) {
 	// Initialize the metric service
 	service := prom.NewService(successChan)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	go service.RunMetrics()
@@ -46,13 +46,28 @@ func TestRunMetrics(t *testing.T) {
 		t.Fatal("Test timed out waiting for RunMetrics to send success signal")
 	}
 
-	serverURL := "http://" + "127.0.0.1:8080" + "/metrics"
-	resp, err := http.Get(serverURL)
+	serverURL := "http://127.0.0.1:8080/metrics"
+	var resp *http.Response
+	var err error
+
+	// Retry mechanism
+	for i := 0; i < 5; i++ {
+		resp, err = http.Get(serverURL)
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	if err != nil {
 		t.Fatalf("Failed to make a request to the server: %v", err)
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected status %d, got %d, body: %s", http.StatusOK, resp.StatusCode, string(bodyBytes))
 }

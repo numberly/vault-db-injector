@@ -25,7 +25,7 @@ unit-test:
 ifeq ($(USE_DOCKER), 1)
 	@${DOCKER_CMD} go test -v ./...
 else
-	go test -v ./..
+	go test -v ./... ;
 endif
 
 ## build-image: Build image
