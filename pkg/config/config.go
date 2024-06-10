@@ -26,6 +26,7 @@ type Config struct {
 	SyncTTLSecond     int    `yaml:"syncTTLSecond" envconfig:"sync_ttl_second"`
 	InjectorLabel     string `yaml:"injectorLabel" envconfig:"injector_label"`
 	DefaultEngine     string `yaml:"defaultEngine" envconfig:"default_engine"`
+	VaultRateLimit    int    `yaml:"vaultRateLimit" envconfig:"vault_rate_limit"`
 }
 
 func NewConfig(configFile string) (*Config, error) {
@@ -45,6 +46,7 @@ func NewConfig(configFile string) (*Config, error) {
 		SyncTTLSecond:     300,
 		InjectorLabel:     "vault-db-injector",
 		DefaultEngine:     "databases",
+		VaultRateLimit:    50,
 	}
 	if configFile != "" {
 		data, err := os.ReadFile(configFile)
