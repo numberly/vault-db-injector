@@ -28,6 +28,7 @@ type Connector struct {
 	client          *vault.Client
 	RenewalInterval time.Duration
 	Log             logger.Logger
+	VaultRateLimit  int
 }
 
 func (c *Connector) GetToken() string {
@@ -46,15 +47,16 @@ type DbCreds struct {
 	DbTokenId   string
 }
 
-func NewConnector(address string, authPath string, authRole string, dbMountPath string, dbRole string, token string) *Connector {
+func NewConnector(address string, authPath string, authRole string, dbMountPath string, dbRole string, token string, VaultRateLimit int) *Connector {
 	return &Connector{
-		address:     address,
-		authPath:    authPath,
-		dbRole:      dbRole,
-		dbMountPath: dbMountPath,
-		k8sSaToken:  token,
-		authRole:    authRole,
-		Log:         logger.GetLogger(),
+		address:        address,
+		authPath:       authPath,
+		dbRole:         dbRole,
+		dbMountPath:    dbMountPath,
+		k8sSaToken:     token,
+		authRole:       authRole,
+		Log:            logger.GetLogger(),
+		VaultRateLimit: VaultRateLimit,
 	}
 }
 
@@ -67,7 +69,7 @@ func ConnectToVault(ctx context.Context, cfg *config.Config) (*Connector, error)
 		return nil, errors.Newf("cannot get ServiceAccount token: %s", err.Error())
 	}
 	// Configure vault connection using serviceAccount token
-	vaultConn := NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, "random", "random", tok)
+	vaultConn := NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, "random", "random", tok, cfg.VaultRateLimit)
 	if err := vaultConn.Login(ctx); // Assuming Login is modified to accept a context
 	err != nil {
 		promInjector.ConnectVaultError.WithLabelValues().Inc()
