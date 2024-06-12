@@ -48,8 +48,9 @@ func TestNewKeyInformation(t *testing.T) {
 	leaseId := "lease-id"
 	tokenId := "token-id"
 	namespace := "test-namespace"
+	serviceaccount := "sa"
 
-	keyInfo := NewKeyInformation(podName, leaseId, tokenId, namespace)
+	keyInfo := NewKeyInformation(podName, leaseId, tokenId, namespace, serviceaccount)
 	assert.Equal(t, podName, keyInfo.PodNameUID)
 	assert.Equal(t, leaseId, keyInfo.LeaseId)
 	assert.Equal(t, tokenId, keyInfo.TokenId)
@@ -125,6 +126,7 @@ func TestStoreData(t *testing.T) {
 				assert.Equal(t, tt.vaultInfo.LeaseId, data["LeaseId"])
 				assert.Equal(t, tt.vaultInfo.TokenId, data["TokenId"])
 				assert.Equal(t, tt.vaultInfo.Namespace, data["Namespace"])
+				assert.Equal(t, tt.vaultInfo.ServiceAccount, data["ServiceAccountName"])
 			}
 		})
 	}
@@ -179,9 +181,10 @@ func TestDeleteData(t *testing.T) {
 				// Setup data to delete
 				data := map[string]interface{}{
 					"data": map[string]interface{}{
-						"LeaseId":   "lease-id",
-						"TokenId":   "token-id",
-						"Namespace": "namespace",
+						"LeaseId":            "lease-id",
+						"TokenId":            "token-id",
+						"Namespace":          "namespace",
+						"ServiceAccountName": "sa",
 					},
 				}
 				_, err := client.Logical().Write("vault-db-injector/data/"+tt.prefix+"/"+tt.podName, data)

@@ -14,26 +14,43 @@ import (
 )
 
 type KeyInformation struct {
-	PodNameUID string
-	LeaseId    string
-	TokenId    string
-	Namespace  string
+	PodNameUID     string
+	LeaseId        string
+	TokenId        string
+	Namespace      string
+	PodName        string
+	NodeName       string
+	ServiceAccount string
 }
 
-func NewKeyInformation(podName, leaseId, tokenId, namespace string) *KeyInformation {
+func NewKeyInformation(podUuid, leaseId, tokenId, namespace, serviceAccount string, podName ...string) *KeyInformation {
+	var pn string
+	var nn string
+	if len(podName) > 0 {
+		pn = podName[0]
+	}
+	if len(podName) > 1 {
+		nn = podName[1]
+	}
 	return &KeyInformation{
-		PodNameUID: podName,
-		LeaseId:    leaseId,
-		TokenId:    tokenId,
-		Namespace:  namespace,
+		PodNameUID:     podUuid,
+		LeaseId:        leaseId,
+		TokenId:        tokenId,
+		Namespace:      namespace,
+		PodName:        pn,
+		NodeName:       nn,
+		ServiceAccount: serviceAccount,
 	}
 }
 
 func (c *Connector) StoreData(ctx context.Context, vaultInformation *KeyInformation, secretName, uuid, namespace, prefix string) (string, error) {
 	data := map[string]interface{}{
-		"LeaseId":   vaultInformation.LeaseId,
-		"TokenId":   vaultInformation.TokenId,
-		"Namespace": vaultInformation.Namespace,
+		"LeaseId":            vaultInformation.LeaseId,
+		"TokenId":            vaultInformation.TokenId,
+		"Namespace":          vaultInformation.Namespace,
+		"ServiceAccountName": vaultInformation.ServiceAccount,
+		"PodName":            vaultInformation.PodName,
+		"NodeName":           vaultInformation.NodeName,
 	}
 
 	kv := c.client.KVv2(secretName)
@@ -72,6 +89,9 @@ func (c *Connector) DeleteData(ctx context.Context, podName, secretName, uuid, n
 }
 
 func safeString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
 	s, _ := v.(string)
 	return s
 }
@@ -98,6 +118,9 @@ func (c *Connector) GetKeyInformations(ctx context.Context, podName, uuid, path,
 		safeString(dataMap["LeaseId"]),
 		safeString(dataMap["TokenId"]),
 		safeString(dataMap["Namespace"]),
+		safeString(dataMap["ServiceAccountName"]),
+		safeString(dataMap["PodName"]),
+		safeString(dataMap["NodeName"]),
 	)
 
 	return keyInfo, nil
@@ -163,6 +186,9 @@ func (c *Connector) ListKeyInformations(ctx context.Context, path, prefix string
 				safeString(dataMap["LeaseId"]),
 				safeString(dataMap["TokenId"]),
 				safeString(dataMap["Namespace"]),
+				safeString(dataMap["ServiceAccountName"]),
+				safeString(dataMap["PodName"]),
+				safeString(dataMap["NodeName"]),
 			)
 			keyInformationsChan <- keyInfo
 		}(k)
@@ -249,6 +275,14 @@ func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysIn
 					c.Log.Errorf("Can't renew Lease with pod UUID: %s", ki.PodNameUID)
 					isOk = false
 					return
+				}
+				if ki.ServiceAccount == "" || ki.NodeName == "" || ki.PodName == "" {
+					fullyKiInformations := NewKeyInformation(ki.PodNameUID, ki.LeaseId, ki.TokenId, ki.Namespace, podInfoMap[ki.PodNameUID].ServiceAccountName, podInfoMap[ki.PodNameUID].PodName, podInfoMap[ki.PodNameUID].NodeName)
+					c.Log.Debugf("Renewing information for UUID %s", ki.PodNameUID)
+					status, err := c.StoreData(ctx, fullyKiInformations, secretName, ki.PodNameUID, ki.Namespace, prefix)
+					if err != nil {
+						c.Log.Infof("%s : Extended vault information could not been saved, process will continue : %v", status, err)
+					}
 				}
 			} else {
 				leaseTooYoung, err := c.isLeaseTooYoung(ctx, ki.LeaseId)
