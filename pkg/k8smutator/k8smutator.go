@@ -107,7 +107,7 @@ func handlePodConfiguration(ctx context.Context, cfg *config.Config, dbConfs *[]
 			podUuid := generateUUID(logger)
 			podUuids = append(podUuids, podUuid)
 			// Request temporary database credentials from vault using configured role
-			creds, err := vaultConn.GetDbCredentials(ctx, cfg.TokenTTL, podUuid, pod.Namespace, cfg.VaultSecretName, cfg.VaultSecretPrefix)
+			creds, err := vaultConn.GetDbCredentials(ctx, cfg.TokenTTL, podUuid, pod.Namespace, cfg.VaultSecretName, cfg.VaultSecretPrefix, pod.Spec.ServiceAccountName)
 			if err != nil {
 				vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
 				return nil, dbConf.Role, nil, errors.Newf("cannot get database credentials from role %s: %s", dbConf.Role, err.Error())

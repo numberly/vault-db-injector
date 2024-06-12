@@ -36,8 +36,11 @@ func NewPodService(clientset KubernetesClient, cfg *config.Config) PodService {
 }
 
 type PodInformations struct {
-	PodNameUUIDs []string
-	Namespace    string
+	PodNameUUIDs       []string
+	Namespace          string
+	ServiceAccountName string
+	PodName            string
+	NodeName           string
 }
 
 func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInformations, error) {
@@ -61,8 +64,11 @@ func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInform
 	for _, pod := range pods.Items {
 		if uuid, exists := pod.GetAnnotations()[ANNOTATION_VAULT_POD_UUID]; exists {
 			podInfos = append(podInfos, PodInformations{
-				PodNameUUIDs: strings.Split(uuid, ","),
-				Namespace:    pod.Namespace,
+				PodNameUUIDs:       strings.Split(uuid, ","),
+				Namespace:          pod.Namespace,
+				PodName:            pod.Name,
+				NodeName:           pod.Spec.NodeName,
+				ServiceAccountName: pod.Spec.ServiceAccountName,
 			})
 		}
 	}

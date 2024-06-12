@@ -168,7 +168,7 @@ func (c *Connector) CanIGetRoles(serviceAccountName, namespace, vaultAuthPath, d
 	return true, nil
 }
 
-func (c *Connector) GetDbCredentials(ctx context.Context, ttl, PodNameUID, namespace, secretName, prefix string) (*DbCreds, error) {
+func (c *Connector) GetDbCredentials(ctx context.Context, ttl, PodNameUID, namespace, secretName, prefix, serviceAccount string) (*DbCreds, error) {
 	// Create orphan token before retrieving BDD IDs
 	var policies []string
 	policies = append(policies, c.dbRole)
@@ -198,7 +198,7 @@ func (c *Connector) GetDbCredentials(ctx context.Context, ttl, PodNameUID, names
 	creds.DbLeaseId = secret.LeaseID
 	creds.DbTokenId = c.vaultToken
 
-	vaultInformation := NewKeyInformation(PodNameUID, creds.DbLeaseId, creds.DbTokenId, namespace)
+	vaultInformation := NewKeyInformation(PodNameUID, creds.DbLeaseId, creds.DbTokenId, namespace, serviceAccount, "", "")
 
 	c.SetToken(c.K8sSaVaultToken)
 
