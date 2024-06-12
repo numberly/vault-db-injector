@@ -6,7 +6,7 @@ require (
 	github.com/cockroachdb/errors v1.11.3
 	github.com/getsentry/sentry-go v0.28.0
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/vault v1.17.0-rc1
+	github.com/hashicorp/vault v1.17.0
 	github.com/hashicorp/vault/api v1.14.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.7.0
 	github.com/kelseyhightower/envconfig v1.4.0
@@ -130,6 +130,7 @@ require (
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
 	github.com/hashicorp-forge/bbolt v1.3.8-hc3 // indirect
 	github.com/hashicorp/cli v1.1.6 // indirect
+	github.com/hashicorp/consul/sdk v0.15.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/eventlogger v0.2.9 // indirect
 	github.com/hashicorp/go-bexpr v0.1.12 // indirect
