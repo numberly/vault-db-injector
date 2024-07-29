@@ -63,7 +63,7 @@ func (c *Connector) StoreData(ctx context.Context, vaultInformation *KeyInformat
 		return "Error !", err
 	}
 
-	promInjector.DataStoredCount.WithLabelValues(uuid, namespace).Inc()
+	promInjector.DataStoredCount.WithLabelValues().Inc()
 	return "Success !", nil
 }
 
@@ -310,7 +310,6 @@ func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysIn
 				promInjector.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
 				promInjector.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
 				promInjector.DataDeletedCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				promInjector.DataStoredCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
 				c.Log.Infof("Token has been revoked and data deleted: %s", status)
 			}
 		}(ki)
