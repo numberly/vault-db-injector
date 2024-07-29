@@ -63,7 +63,7 @@ func (c *Connector) StoreData(ctx context.Context, vaultInformation *KeyInformat
 		return "Error !", err
 	}
 
-	promInjector.DataStoredCount.WithLabelValues(uuid, namespace).Inc()
+	promInjector.DataStoredCount.WithLabelValues().Inc()
 	return "Success !", nil
 }
 

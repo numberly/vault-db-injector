@@ -125,7 +125,7 @@ var (
 			Name: "vault_injector_store_data_count_success",
 			Help: "Vault injector data stored with success",
 		},
-		[]string{"uuid", "namespace"},
+		[]string{},
 	)
 	DataErrorStoredCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
