@@ -43,7 +43,7 @@ func NewKeyInformation(podUuid, leaseId, tokenId, namespace, serviceAccount stri
 	}
 }
 
-func (c *Connector) StoreData(ctx context.Context, vaultInformation *KeyInformation, secretName, uuid, namespace, prefix string) (string, error) {
+func (c *Connector) StoreData(ctx context.Context, contextId string, vaultInformation *KeyInformation, secretName, uuid, namespace, prefix string) (string, error) {
 	data := map[string]interface{}{
 		"LeaseId":            vaultInformation.LeaseId,
 		"TokenId":            vaultInformation.TokenId,
@@ -58,13 +58,54 @@ func (c *Connector) StoreData(ctx context.Context, vaultInformation *KeyInformat
 
 	_, err := kv.Put(ctx, fullPath, data)
 	if err != nil {
-		c.Log.Errorf("Vault Information couldn't be stored in Vault KV: %v", err)
+		c.Log.Errorf("%s: Vault Information couldn't be stored in Vault KV: %v", contextId, err)
 		promInjector.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
 		return "Error !", err
 	}
 
 	promInjector.DataStoredCount.WithLabelValues().Inc()
 	return "Success !", nil
+}
+
+func (c *Connector) StoreDataAsync(ctx context.Context, contextId string, vaultInformation *KeyInformation, secretName, uuid, namespace, prefix string) {
+	go func() {
+		asyncCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		asyncConn := &Connector{
+			address:        c.address,
+			authPath:       c.authPath,
+			dbRole:         c.dbRole,
+			k8sSaToken:     c.k8sSaToken,
+			authRole:       c.authRole,
+			dbMountPath:    c.dbMountPath,
+			Log:            c.Log,
+			VaultRateLimit: c.VaultRateLimit,
+		}
+
+		if err := asyncConn.Login(asyncCtx); err != nil {
+			c.Log.Errorf("Failed to login for async operation: %v", err)
+			return
+		}
+
+		var policies []string
+		policies = append(policies, c.authRole)
+		_, err := asyncConn.CreateOrphanToken(asyncCtx, "5m", policies)
+		if err != nil {
+			c.Log.Errorf("%s: Failed to create token for async operation: %v", contextId, err)
+			return
+		}
+
+		status, err := asyncConn.StoreData(asyncCtx, contextId, vaultInformation, secretName, uuid, namespace, prefix)
+		if err != nil {
+			c.Log.Errorf("%s: Async store operation failed: %v", contextId, err)
+			asyncConn.RevokeOrphanToken(asyncCtx, asyncConn.vaultToken, uuid, namespace)
+			return
+		}
+
+		asyncConn.RevokeOrphanToken(asyncCtx, asyncConn.vaultToken, uuid, namespace)
+		c.Log.Infof("%s: Async store operation completed: %s", contextId, status)
+	}()
 }
 
 func (c *Connector) DeleteData(ctx context.Context, podName, secretName, uuid, namespace, prefix string) (string, error) {
@@ -279,7 +320,7 @@ func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysIn
 				if ki.ServiceAccount == "" || ki.NodeName == "" || ki.PodName == "" {
 					fullyKiInformations := NewKeyInformation(ki.PodNameUID, ki.LeaseId, ki.TokenId, ki.Namespace, podInfoMap[ki.PodNameUID].ServiceAccountName, podInfoMap[ki.PodNameUID].PodName, podInfoMap[ki.PodNameUID].NodeName)
 					c.Log.Debugf("Renewing information for UUID %s", ki.PodNameUID)
-					status, err := c.StoreData(ctx, fullyKiInformations, secretName, ki.PodNameUID, ki.Namespace, prefix)
+					status, err := c.StoreData(ctx, "id-handle-token", fullyKiInformations, secretName, ki.PodNameUID, ki.Namespace, prefix)
 					if err != nil {
 						c.Log.Infof("%s : Extended vault information could not been saved, process will continue : %v", status, err)
 					}

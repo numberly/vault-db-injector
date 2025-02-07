@@ -11,22 +11,24 @@ import (
 )
 
 type Config struct {
-	CertFile          string `yaml:"certFile" envconfig:"cert_file"`
-	KeyFile           string `yaml:"keyFile" envconfig:"key_file"`
-	VaultAddress      string `yaml:"vaultAddress" envconfig:"vault_address"`
-	VaultAuthPath     string `yaml:"vaultAuthPath" envconfig:"vault_auth_path"`
-	LogLevel          string `yaml:"logLevel" envconfig:"log_level"`
-	KubeRole          string `yaml:"kubeRole" envconfig:"kube_role"`
-	TokenTTL          string `yaml:"tokenTTL" envconfig:"token_ttl"`
-	VaultSecretName   string `yaml:"vaultSecretName" envconfig:"vault_secret_name"`
-	VaultSecretPrefix string `yaml:"vaultSecretPrefix" envconfig:"vault_secret_prefix"`
-	Mode              string `yaml:"mode" envconfig:"mode"`
-	Sentry            bool   `yaml:"sentry" envconfig:"sentry"`
-	SentryDsn         string `yaml:"sentryDsn" envconfig:"sentry_dsn"`
-	SyncTTLSecond     int    `yaml:"syncTTLSecond" envconfig:"sync_ttl_second"`
-	InjectorLabel     string `yaml:"injectorLabel" envconfig:"injector_label"`
-	DefaultEngine     string `yaml:"defaultEngine" envconfig:"default_engine"`
-	VaultRateLimit    int    `yaml:"vaultRateLimit" envconfig:"vault_rate_limit"`
+	CertFile          string  `yaml:"certFile" envconfig:"cert_file"`
+	KeyFile           string  `yaml:"keyFile" envconfig:"key_file"`
+	VaultAddress      string  `yaml:"vaultAddress" envconfig:"vault_address"`
+	VaultAuthPath     string  `yaml:"vaultAuthPath" envconfig:"vault_auth_path"`
+	LogLevel          string  `yaml:"logLevel" envconfig:"log_level"`
+	KubeRole          string  `yaml:"kubeRole" envconfig:"kube_role"`
+	TokenTTL          string  `yaml:"tokenTTL" envconfig:"token_ttl"`
+	VaultSecretName   string  `yaml:"vaultSecretName" envconfig:"vault_secret_name"`
+	VaultSecretPrefix string  `yaml:"vaultSecretPrefix" envconfig:"vault_secret_prefix"`
+	Mode              string  `yaml:"mode" envconfig:"mode"`
+	Sentry            bool    `yaml:"sentry" envconfig:"sentry"`
+	SentryDsn         string  `yaml:"sentryDsn" envconfig:"sentry_dsn"`
+	SentryEnvironment string  `yaml:"sentryEnvironment" envconfig:"sentry_environment"`
+	SentrySampleRate  float64 `yaml:"sentrySampleRate" envconfig:"sentry_sample_rate"`
+	SyncTTLSecond     int     `yaml:"syncTTLSecond" envconfig:"sync_ttl_second"`
+	InjectorLabel     string  `yaml:"injectorLabel" envconfig:"injector_label"`
+	DefaultEngine     string  `yaml:"defaultEngine" envconfig:"default_engine"`
+	VaultRateLimit    int     `yaml:"vaultRateLimit" envconfig:"vault_rate_limit"`
 }
 
 func NewConfig(configFile string) (*Config, error) {
@@ -43,10 +45,12 @@ func NewConfig(configFile string) (*Config, error) {
 		Mode:              "all",
 		Sentry:            false,
 		SentryDsn:         "",
+		SentryEnvironment: "production",
+		SentrySampleRate:  1.0,
 		SyncTTLSecond:     300,
 		InjectorLabel:     "vault-db-injector",
 		DefaultEngine:     "databases",
-		VaultRateLimit:    50,
+		VaultRateLimit:    30,
 	}
 	if configFile != "" {
 		data, err := os.ReadFile(configFile)

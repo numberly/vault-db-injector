@@ -51,7 +51,7 @@ func NewService(cfg config.Config, pod *corev1.Pod) *ParserService {
 	}
 }
 
-func (s *ParserService) GetPodDbConfig() (*podDbConfig, error) {
+func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 	estimatedSize := len(s.pod.Annotations)
 	dbConfigurations := make([]DbConfiguration, 0, estimatedSize)
 	vaultDbPath, ok := s.pod.Annotations[ANNOTATION_VAULT_DB_PATH]
@@ -67,12 +67,12 @@ func (s *ParserService) GetPodDbConfig() (*podDbConfig, error) {
 			// Extract the database name and configuration type (e.g., dbname, dbaddress) from the key
 			keyParts := strings.SplitN(key, "/", 2)
 			if (len(keyParts) < 2 && key != "role") || (len(keyParts) < 2 && key != "cluster") {
-				s.log.Printf("Warning: Annotation '%s' does not follow the expected format 'db-creds-injector.numberly.io/dbname.configtype'", key)
+				s.log.Printf("%s: Warning: Annotation '%s' does not follow the expected format 'db-creds-injector.numberly.io/dbname.configtype'", contextId, key)
 				continue // Skip if the annotation doesn't follow the expected format
 			}
 			dbConfigKeyParts := strings.SplitN(keyParts[1], ".", 2)
 			if (len(dbConfigKeyParts) < 2 && key != "role") || (len(dbConfigKeyParts) < 2 && key != "cluster") {
-				s.log.Printf("Warning: Configuration for '%s' does not include a database name and type", key)
+				s.log.Printf("%s: Warning: Configuration for '%s' does not include a database name and type", contextId, key)
 				continue // Skip if the configuvaultConnation doesn't include a database name and type
 			}
 			dbName := dbConfigKeyParts[0]
@@ -98,7 +98,7 @@ func (s *ParserService) GetPodDbConfig() (*podDbConfig, error) {
 
 			}
 
-			s.log.Infof("La valeur du role est : %s", dbc.Role)
+			s.log.Infof("%s: La valeur du role est : %s", contextId, dbc.Role)
 
 			// Assign the configuration value based on the type
 			switch configType {
@@ -115,7 +115,7 @@ func (s *ParserService) GetPodDbConfig() (*podDbConfig, error) {
 			case "role":
 				dbc.Role = value
 			default:
-				s.log.Infof("db configuration is not handled : %s", configType)
+				s.log.Infof("%s db configuration is not handled : %s", contextId, configType)
 			}
 
 		}

@@ -2,7 +2,6 @@ package k8smutator
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -22,10 +21,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func generateUUID(logger log.Logger) string {
+	newUUID, err := uuid.NewUUID()
+	if err != nil {
+		logger.Infof("Error while generating UUID : %v", err)
+	}
+	return newUUID.String()
+}
+
 func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) kwhmutating.MutatorFunc {
 	k8sClient := k8s.NewClient()
 	// Create mutator.
 	return kwhmutating.MutatorFunc(func(_ context.Context, _ *kwhmodel.AdmissionReview, obj metav1.Object) (*kwhmutating.MutatorResult, error) {
+
+		contextId := generateUUID(logger)
 
 		defaultResult := &kwhmutating.MutatorResult{
 			MutatedObject: obj,
@@ -35,10 +44,10 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		if !ok {
 			return &kwhmutating.MutatorResult{}, nil
 		}
-		logger.Infof("mutating pod %s/%s", pod.Namespace, pod.UID)
+		logger.Infof("%s: mutating pod %s/%s", contextId, pod.Namespace, pod.UID)
 		// Get config from pod annotations
 		podLib := k8s.NewService(*cfg, pod)
-		podDbConfig, err := podLib.GetPodDbConfig()
+		podDbConfig, err := podLib.GetPodDbConfig(contextId)
 		if err != nil {
 			if err.Error() == "this pod is going to be ignored, old annotation from vault injector v1 detected" {
 				return defaultResult, nil
@@ -51,9 +60,9 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		if err != nil {
 			return defaultResult, errors.Wrap(err, "cannot get ServiceAccount token")
 		}
-		logger.Debugf("got token from serviceAccount Successfully")
+		logger.Debugf("%s: got token from serviceAccount Successfully", contextId)
 
-		mutatedPod, role, podUuids, err := handlePodConfiguration(ctx, cfg, podDbConfig.DbConfigurations, logger, podDbConfig.VaultDbPath, tok, pod)
+		mutatedPod, role, podUuids, err := handlePodConfiguration(ctx, contextId, cfg, podDbConfig.DbConfigurations, logger, podDbConfig.VaultDbPath, tok, pod)
 		if err != nil || mutatedPod == nil {
 			promInjector.MutatedPodWithErrorCount.WithLabelValues().Inc()
 			return defaultResult, errors.Wrapf(err, "cannot get database credentials from role %s", role)
@@ -65,7 +74,7 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		}
 		mutatedPod.Annotations["db-creds-injector.numberly.io/uuid"] = strings.Join(podUuids, ",")
 
-		logger.Infof("returning injected pod %s", mutatedPod.Namespace)
+		logger.Infof("%s: returning injected pod %s", contextId, mutatedPod.Namespace)
 		promInjector.MutatedPodWithSucessCount.WithLabelValues().Inc()
 		return &kwhmutating.MutatorResult{
 			MutatedObject: mutatedPod,
@@ -73,22 +82,14 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 	})
 }
 
-func generateUUID(logger log.Logger) string {
-	newUUID, err := uuid.NewUUID()
-	if err != nil {
-		logger.Infof("Error while generating UUID : %v", err)
-	}
-	return newUUID.String()
-}
-
-func handlePodConfiguration(ctx context.Context, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
+func handlePodConfiguration(ctx context.Context, contextId string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
 	if len(*dbConfs) > 0 {
 		podUuids := make([]string, 0, len(*dbConfs))
 		for _, dbConf := range *dbConfs {
 			// Configure vault connection using serviceAccount token
 			err := checkConfiguration(dbConf)
 			if err != nil {
-				logger.Errorf("Their is an issue with the db Configuration")
+				logger.Errorf("%s: Their is an issue with the db Configuration", contextId)
 				return nil, "db-role not found", nil, err
 			}
 			vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, vaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
@@ -96,10 +97,10 @@ func handlePodConfiguration(ctx context.Context, cfg *config.Config, dbConfs *[]
 				return nil, dbConf.Role, nil, errors.Newf("cannot authenticate vault role: %s", err.Error())
 			}
 			vaultConn.K8sSaVaultToken = vaultConn.GetToken()
-			logger.Debugf("authenticated to vault using role %s/%s", cfg.VaultAuthPath, dbConf.Role)
+			logger.Debugf("%s: authenticated to vault using role %s/%s", contextId, cfg.VaultAuthPath, dbConf.Role)
 
 			serviceAccountName := pod.Spec.ServiceAccountName
-			ok, err := vaultConn.CanIGetRoles(serviceAccountName, pod.Namespace, cfg.VaultAuthPath, dbConf.Role)
+			ok, err := vaultConn.CanIGetRoles(contextId, serviceAccountName, pod.Namespace, cfg.VaultAuthPath, dbConf.Role)
 			if !ok || err != nil {
 				vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
 				return nil, dbConf.Role, nil, err
@@ -107,14 +108,14 @@ func handlePodConfiguration(ctx context.Context, cfg *config.Config, dbConfs *[]
 			podUuid := generateUUID(logger)
 			podUuids = append(podUuids, podUuid)
 			// Request temporary database credentials from vault using configured role
-			creds, err := vaultConn.GetDbCredentials(ctx, cfg.TokenTTL, podUuid, pod.Namespace, cfg.VaultSecretName, cfg.VaultSecretPrefix, pod.Spec.ServiceAccountName)
+			creds, err := vaultConn.GetDbCredentials(ctx, contextId, cfg.TokenTTL, podUuid, pod.Namespace, cfg.VaultSecretName, cfg.VaultSecretPrefix, pod.Spec.ServiceAccountName)
 			if err != nil {
 				vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
 				return nil, dbConf.Role, nil, errors.Newf("cannot get database credentials from role %s: %s", dbConf.Role, err.Error())
 			}
-			logger.Debugf("got DB credentials using role %s", dbConf.Role)
+			logger.Debugf("%s: got DB credentials using role %s", contextId, dbConf.Role)
 
-			logger.Infof("DbConfMode is equal to : %s", dbConf.Mode)
+			logger.Infof("%s: DbConfMode is equal to : %s", contextId, dbConf.Mode)
 
 			if dbConf.Mode == "" || dbConf.Mode == "classic" {
 				dbUserKeys := strings.Split(dbConf.DbUserEnvKey, ",")
@@ -145,7 +146,7 @@ func handlePodConfiguration(ctx context.Context, cfg *config.Config, dbConfs *[]
 
 				dsnURL, err := url.Parse(dbConf.Template)
 				if err != nil {
-					fmt.Printf("Error parsing DSN: %v\n", err)
+					logger.Infof("%s: Error parsing DSN: %v\n", contextId, err)
 					vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
 					return nil, dbConf.Role, nil, err
 				}

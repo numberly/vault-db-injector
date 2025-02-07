@@ -128,15 +128,15 @@ func (c *Connector) CreateOrphanToken(ctx context.Context, ttl string, policies 
 	return secret.LeaseID, nil
 }
 
-func (c *Connector) CanIGetRoles(serviceAccountName, namespace, vaultAuthPath, dbRole string) (bool, error) {
+func (c *Connector) CanIGetRoles(contextId, serviceAccountName, namespace, vaultAuthPath, dbRole string) (bool, error) {
 	rolePath := fmt.Sprintf("auth/%s/role/%s", vaultAuthPath, dbRole)
 	role, err := c.client.Logical().Read(rolePath)
 	if err != nil {
-		c.Log.Errorf("error reading role from Vault: %v", err)
+		c.Log.Errorf("%s: error reading role from Vault: %v", contextId, err)
 		return false, err
 	}
 	if role == nil {
-		c.Log.Errorf("role %s not found in Vault", dbRole)
+		c.Log.Errorf("%s: role %s not found in Vault", contextId, dbRole)
 		theError := fmt.Sprintf("role %s not found in Vault", dbRole)
 		return false, errors.Newf(theError)
 	}
@@ -147,19 +147,19 @@ func (c *Connector) CanIGetRoles(serviceAccountName, namespace, vaultAuthPath, d
 
 	if !stringInSlice(dbRole, tokenPolicies) {
 		promInjector.ServiceAccountDenied.WithLabelValues(serviceAccountName, namespace, dbRole, "RoleNotInAssumeRole").Inc()
-		c.Log.Errorf("the serviceAccount %s can't assume vault role : %s", serviceAccountName, dbRole)
+		c.Log.Errorf("%s: the serviceAccount %s can't assume vault role : %s", contextId, serviceAccountName, dbRole)
 		theError := fmt.Sprintf("serviceAccount not allowed, the Role is not in the AssumeRole, %s =/= %s", serviceAccountName, dbRole)
 		return false, errors.New(theError)
 	}
 	if !stringInSlice(serviceAccountName, boundServiceAccountNames) {
 		promInjector.ServiceAccountDenied.WithLabelValues(serviceAccountName, namespace, dbRole, "ServiceAccountNameNotInRole").Inc()
-		c.Log.Errorf("the serviceAccount %s can't assume vault role : %s", serviceAccountName, dbRole)
+		c.Log.Errorf("%s: the serviceAccount %s can't assume vault role : %s", contextId, serviceAccountName, dbRole)
 		theError := fmt.Sprintf("serviceAccount not allowed, the serviceAccount is not in the bound_service_account_names in the Vault Kubernetes Auth Dedicated Backend, %s =/= %s", serviceAccountName, boundServiceAccountNames)
 		return false, errors.New(theError)
 	}
 	if !stringInSlice(namespace, boudServiceAccountNamespaces) {
 		promInjector.ServiceAccountDenied.WithLabelValues(serviceAccountName, namespace, dbRole, "NamespaceNotInRole").Inc()
-		c.Log.Errorf("the serviceAccount %s can't assume vault role : %s", serviceAccountName, dbRole)
+		c.Log.Errorf("%s: the serviceAccount %s can't assume vault role : %s", contextId, serviceAccountName, dbRole)
 		theError := fmt.Sprintf("serviceAccount not allowed, the namespace is not in the bound_service_account_namespaces in the Vault Kubernetes Auth Dedicated Backend, %s =/= %s", namespace, boudServiceAccountNamespaces)
 		return false, errors.New(theError)
 	}
@@ -168,7 +168,7 @@ func (c *Connector) CanIGetRoles(serviceAccountName, namespace, vaultAuthPath, d
 	return true, nil
 }
 
-func (c *Connector) GetDbCredentials(ctx context.Context, ttl, PodNameUID, namespace, secretName, prefix, serviceAccount string) (*DbCreds, error) {
+func (c *Connector) GetDbCredentials(ctx context.Context, contextId, ttl, PodNameUID, namespace, secretName, prefix, serviceAccount string) (*DbCreds, error) {
 	// Create orphan token before retrieving BDD IDs
 	var policies []string
 	policies = append(policies, c.dbRole)
@@ -176,13 +176,16 @@ func (c *Connector) GetDbCredentials(ctx context.Context, ttl, PodNameUID, names
 	if err != nil {
 		return nil, err
 	}
+
 	creds := &DbCreds{}
 	creds.AuthLeaseId = authLeaseId
 	path := fmt.Sprintf("/%s/creds/%s", c.dbMountPath, c.dbRole)
+	c.Log.Infof("%s: Get credentials from Vault database engine", contextId)
 	secret, err := c.client.Logical().Read(path)
 	if err != nil {
 		return nil, err
 	}
+	c.Log.Infof("%s: Credentials successfully retrieved", contextId)
 
 	username, ok := secret.Data["username"]
 	if !ok {
@@ -200,17 +203,9 @@ func (c *Connector) GetDbCredentials(ctx context.Context, ttl, PodNameUID, names
 
 	vaultInformation := NewKeyInformation(PodNameUID, creds.DbLeaseId, creds.DbTokenId, namespace, serviceAccount, "", "")
 
-	c.SetToken(c.K8sSaVaultToken)
+	c.StoreDataAsync(ctx, contextId, vaultInformation, secretName, PodNameUID, namespace, prefix)
 
-	status, err := c.StoreData(ctx, vaultInformation, secretName, PodNameUID, namespace, prefix)
-	if err != nil {
-		c.RevokeOrphanToken(ctx, creds.DbTokenId, "", "")
-		c.RevokeSelfToken(ctx, c.K8sSaVaultToken, "", "")
-		c.Log.Infof("%s : Vault Information couldn't been store on Vault KV : %v", status, err)
-		return nil, err
-	}
-	c.RevokeSelfToken(ctx, c.K8sSaVaultToken, "", "")
-	c.Log.Infof("Data has been stored : %s", status)
+	c.Log.Infof("%s: Async store operation initiated", contextId)
 	return creds, nil
 }
 

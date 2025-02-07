@@ -28,7 +28,7 @@ func main() {
 	}
 	logger.Initialize(*cfg)
 	log := logger.GetLogger()
-	sentryService := sentry.NewSentry(cfg.SentryDsn, cfg.Sentry)
+	sentryService := sentry.NewSentry(cfg.SentryDsn, cfg.Sentry, cfg.SentryEnvironment)
 	sentryService.StartSentry()
 
 	k8sClient := k8s.NewClient()
@@ -40,7 +40,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c := controller.NewController(cfg, clientset)
+	c := controller.NewController(cfg, clientset, sentryService)
 
 	switch cfg.Mode {
 	case "injector":

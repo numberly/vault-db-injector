@@ -19,7 +19,7 @@ func TestGetPodDbConfigWithoutAnnotations(t *testing.T) {
 	pod := &corev1.Pod{} // Mock pod without any annotations
 
 	service := k8s.NewService(cfg, pod)
-	podDbConfig, err := service.GetPodDbConfig()
+	podDbConfig, err := service.GetPodDbConfig("id-1")
 
 	assert.NoError(t, err)
 	// The VaultDbPath should default to cfg.DefaultEngine when no annotation is present.
@@ -53,7 +53,7 @@ func TestGetPodDbConfigWithAnnotationsModeURI(t *testing.T) {
 	}
 
 	service := k8s.NewService(cfg, pod)
-	podDbConfig, err := service.GetPodDbConfig()
+	podDbConfig, err := service.GetPodDbConfig("id-1")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "custom-engine-path", podDbConfig.VaultDbPath)
@@ -84,7 +84,7 @@ func TestGetPodDbConfigWithAnnotationsModeClassic(t *testing.T) {
 	}
 
 	service := k8s.NewService(cfg, pod)
-	podDbConfig, err := service.GetPodDbConfig()
+	podDbConfig, err := service.GetPodDbConfig("id-1")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "custom-engine-path", podDbConfig.VaultDbPath)
@@ -114,7 +114,7 @@ func TestGetPodDbConfigWithAnnotationsModeClassicWithoutDbPath(t *testing.T) {
 	}
 
 	service := k8s.NewService(cfg, pod)
-	podDbConfig, err := service.GetPodDbConfig()
+	podDbConfig, err := service.GetPodDbConfig("id-1")
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, podDbConfig.DbConfigurations)
