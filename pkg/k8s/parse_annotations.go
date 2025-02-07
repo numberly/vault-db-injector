@@ -98,7 +98,7 @@ func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 
 			}
 
-			s.log.Infof("%s: La valeur du role est : %s", contextId, dbc.Role)
+			s.log.Infof("%s: The role value is : %s", contextId, dbc.Role)
 
 			// Assign the configuration value based on the type
 			switch configType {
