@@ -44,7 +44,7 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		if !ok {
 			return &kwhmutating.MutatorResult{}, nil
 		}
-		logger.Infof("%s: mutating pod %s/%s", contextId, pod.Namespace, pod.UID)
+		logger.WithValues(log.Kv{"contextId": contextId}).Infof("mutating pod %s/%s", pod.Namespace, pod.UID)
 		// Get config from pod annotations
 		podLib := k8s.NewService(*cfg, pod)
 		podDbConfig, err := podLib.GetPodDbConfig(contextId)
@@ -60,7 +60,7 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		if err != nil {
 			return defaultResult, errors.Wrap(err, "cannot get ServiceAccount token")
 		}
-		logger.Debugf("%s: got token from serviceAccount Successfully", contextId)
+		logger.WithValues(log.Kv{"contextId": contextId}).Debugf("got token from serviceAccount Successfully")
 
 		mutatedPod, role, podUuids, err := handlePodConfiguration(ctx, contextId, cfg, podDbConfig.DbConfigurations, logger, podDbConfig.VaultDbPath, tok, pod)
 		if err != nil || mutatedPod == nil {
@@ -74,7 +74,7 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		}
 		mutatedPod.Annotations["db-creds-injector.numberly.io/uuid"] = strings.Join(podUuids, ",")
 
-		logger.Infof("%s: returning injected pod %s", contextId, mutatedPod.Namespace)
+		logger.WithValues(log.Kv{"contextId": contextId}).Infof("returning injected pod %s", mutatedPod.Namespace)
 		promInjector.MutatedPodWithSucessCount.WithLabelValues().Inc()
 		return &kwhmutating.MutatorResult{
 			MutatedObject: mutatedPod,
@@ -89,7 +89,7 @@ func handlePodConfiguration(ctx context.Context, contextId string, cfg *config.C
 			// Configure vault connection using serviceAccount token
 			err := checkConfiguration(dbConf)
 			if err != nil {
-				logger.Errorf("%s: Their is an issue with the db Configuration", contextId)
+				logger.WithValues(log.Kv{"contextId": contextId}).Errorf("Their is an issue with the db Configuration")
 				return nil, "db-role not found", nil, err
 			}
 			vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, vaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
@@ -97,7 +97,7 @@ func handlePodConfiguration(ctx context.Context, contextId string, cfg *config.C
 				return nil, dbConf.Role, nil, errors.Newf("cannot authenticate vault role: %s", err.Error())
 			}
 			vaultConn.K8sSaVaultToken = vaultConn.GetToken()
-			logger.Debugf("%s: authenticated to vault using role %s/%s", contextId, cfg.VaultAuthPath, dbConf.Role)
+			logger.WithValues(log.Kv{"contextId": contextId}).Debugf("authenticated to vault using role %s/%s", cfg.VaultAuthPath, dbConf.Role)
 
 			serviceAccountName := pod.Spec.ServiceAccountName
 			ok, err := vaultConn.CanIGetRoles(contextId, serviceAccountName, pod.Namespace, cfg.VaultAuthPath, dbConf.Role)
@@ -113,9 +113,9 @@ func handlePodConfiguration(ctx context.Context, contextId string, cfg *config.C
 				vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
 				return nil, dbConf.Role, nil, errors.Newf("cannot get database credentials from role %s: %s", dbConf.Role, err.Error())
 			}
-			logger.Debugf("%s: got DB credentials using role %s", contextId, dbConf.Role)
+			logger.WithValues(log.Kv{"contextId": contextId}).Debugf("got DB credentials using role %s", dbConf.Role)
 
-			logger.Infof("%s: DbConfMode is equal to : %s", contextId, dbConf.Mode)
+			logger.WithValues(log.Kv{"contextId": contextId}).Infof("DbConfMode is equal to : %s", dbConf.Mode)
 
 			if dbConf.Mode == "" || dbConf.Mode == "classic" {
 				dbUserKeys := strings.Split(dbConf.DbUserEnvKey, ",")
@@ -146,7 +146,7 @@ func handlePodConfiguration(ctx context.Context, contextId string, cfg *config.C
 
 				dsnURL, err := url.Parse(dbConf.Template)
 				if err != nil {
-					logger.Infof("%s: Error parsing DSN: %v\n", contextId, err)
+					logger.WithValues(log.Kv{"contextId": contextId}).Infof("Error parsing DSN: %v\n", err)
 					vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
 					return nil, dbConf.Role, nil, err
 				}

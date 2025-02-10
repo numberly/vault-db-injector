@@ -10,6 +10,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	promInjector "github.com/numberly/vault-db-injector/pkg/prometheus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 )
 
@@ -58,7 +59,7 @@ func (c *Connector) StoreData(ctx context.Context, contextId string, vaultInform
 
 	_, err := kv.Put(ctx, fullPath, data)
 	if err != nil {
-		c.Log.Errorf("%s: Vault Information couldn't be stored in Vault KV: %v", contextId, err)
+		c.Log.WithFields(logrus.Fields{"contextId": contextId}).Errorf("Vault Information couldn't be stored in Vault KV: %v", err)
 		promInjector.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
 		return "Error !", err
 	}
@@ -69,6 +70,7 @@ func (c *Connector) StoreData(ctx context.Context, contextId string, vaultInform
 
 func (c *Connector) StoreDataAsync(ctx context.Context, contextId string, vaultInformation *KeyInformation, secretName, uuid, namespace, prefix string) {
 	go func() {
+		start := time.Now()
 		asyncCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
@@ -92,19 +94,27 @@ func (c *Connector) StoreDataAsync(ctx context.Context, contextId string, vaultI
 		policies = append(policies, c.authRole)
 		_, err := asyncConn.CreateOrphanToken(asyncCtx, "5m", policies)
 		if err != nil {
-			c.Log.Errorf("%s: Failed to create token for async operation: %v", contextId, err)
+			c.Log.WithFields(logrus.Fields{"contextId": contextId}).Errorf("Failed to create token for async operation: %v", err)
 			return
 		}
 
 		status, err := asyncConn.StoreData(asyncCtx, contextId, vaultInformation, secretName, uuid, namespace, prefix)
 		if err != nil {
-			c.Log.Errorf("%s: Async store operation failed: %v", contextId, err)
+			c.Log.WithFields(logrus.Fields{"contextId": contextId}).Errorf("Async store operation failed: %v", err)
 			asyncConn.RevokeOrphanToken(asyncCtx, asyncConn.vaultToken, uuid, namespace)
 			return
 		}
 
 		asyncConn.RevokeOrphanToken(asyncCtx, asyncConn.vaultToken, uuid, namespace)
-		c.Log.Infof("%s: Async store operation completed: %s", contextId, status)
+		duration := time.Since(start)
+		durationMs := float64(duration.Microseconds()) / 1000.0
+		c.Log.WithFields(
+			logrus.Fields{
+				"duration_in_ms": fmt.Sprintf("%.2f", durationMs),
+				"contextId":      contextId,
+			},
+		).Infof("Async store operation completed: %s", status)
+
 	}()
 }
 

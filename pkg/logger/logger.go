@@ -26,6 +26,7 @@ type Logger interface {
 	Errorf(format string, args ...interface{})
 	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
+	WithFields(fields logrus.Fields) *logrus.Entry
 }
 
 var logInstance *logrus.Logger
