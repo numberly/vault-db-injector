@@ -6,6 +6,7 @@ import (
 
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/logger"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
@@ -67,12 +68,12 @@ func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 			// Extract the database name and configuration type (e.g., dbname, dbaddress) from the key
 			keyParts := strings.SplitN(key, "/", 2)
 			if (len(keyParts) < 2 && key != "role") || (len(keyParts) < 2 && key != "cluster") {
-				s.log.Printf("%s: Warning: Annotation '%s' does not follow the expected format 'db-creds-injector.numberly.io/dbname.configtype'", contextId, key)
+				s.log.WithFields(logrus.Fields{"contextId": contextId}).Printf("Warning: Annotation '%s' does not follow the expected format 'db-creds-injector.numberly.io/dbname.configtype'", key)
 				continue // Skip if the annotation doesn't follow the expected format
 			}
 			dbConfigKeyParts := strings.SplitN(keyParts[1], ".", 2)
 			if (len(dbConfigKeyParts) < 2 && key != "role") || (len(dbConfigKeyParts) < 2 && key != "cluster") {
-				s.log.Printf("%s: Warning: Configuration for '%s' does not include a database name and type", contextId, key)
+				s.log.WithFields(logrus.Fields{"contextId": contextId}).Printf("Warning: Configuration for '%s' does not include a database name and type", key)
 				continue // Skip if the configuvaultConnation doesn't include a database name and type
 			}
 			dbName := dbConfigKeyParts[0]
@@ -98,7 +99,7 @@ func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 
 			}
 
-			s.log.Infof("%s: The role value is : %s", contextId, dbc.Role)
+			s.log.WithFields(logrus.Fields{"contextId": contextId}).Infof("The role value is : %s", dbc.Role)
 
 			// Assign the configuration value based on the type
 			switch configType {
@@ -115,7 +116,7 @@ func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 			case "role":
 				dbc.Role = value
 			default:
-				s.log.Infof("%s db configuration is not handled : %s", contextId, configType)
+				s.log.WithFields(logrus.Fields{"contextId": contextId}).Infof("db configuration is not handled : %s", configType)
 			}
 
 		}

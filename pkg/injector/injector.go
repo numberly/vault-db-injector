@@ -51,10 +51,10 @@ func NewWebhookStartor(cfg *config.Config, errChan chan<- error, successChan cha
 
 func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) error {
 
-	logger := kwhlogrus.NewLogrus(logger.GetEntry())
+	whLogger := kwhlogrus.NewLogrus(logger.GetEntry())
 	k8sClient := k8s.NewClient()
 
-	mt := k8smutator.CreateMutator(ctx, logger, s.cfg)
+	mt := k8smutator.CreateMutator(ctx, whLogger, s.cfg)
 
 	// Prepare metrics
 	reg := prometheus.NewRegistry()
@@ -70,7 +70,7 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	mcfg := kwhmutating.WebhookConfig{
 		ID:      "pod-annotate",
 		Mutator: mt,
-		Logger:  logger,
+		Logger:  whLogger,
 	}
 	wh, err := kwhmutating.NewWebhook(mcfg)
 	if err != nil {
@@ -96,14 +96,14 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	certByte, err := os.ReadFile(s.cfg.CertFile)
 	if err != nil {
 		s.sentry.CaptureError(err)
-		logger.Errorf(err.Error())
+		whLogger.Errorf(err.Error())
 	}
 	caCertPool.AppendCertsFromPEM(certByte)
 
 	// Get HTTP handler from webhook
 	whHandler, err := kwhhttp.HandlerFor(kwhhttp.HandlerConfig{
 		Webhook: kwhwebhook.NewMeasuredWebhook(metricsRec, wh),
-		Logger:  logger,
+		Logger:  whLogger,
 	})
 	if err != nil {
 		close(stopChan)
@@ -133,7 +133,7 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	errCh := make(chan error)
 	// Serve webhook
 	go func() {
-		logger.Infof("Listening on :8443")
+		whLogger.Infof("Listening on :8443")
 		err = httpServer.ListenAndServeTLS("", "")
 		if err != nil {
 			s.sentry.CaptureError(err)
@@ -145,7 +145,7 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 
 	// Serve metrics
 	go func() {
-		logger.Infof("Listening metrics on :8080")
+		whLogger.Infof("Listening metrics on :8080")
 		err = http.ListenAndServe(":8080", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 		if err != nil {
 			s.sentry.CaptureError(err)
