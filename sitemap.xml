@@ -2,238 +2,238 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
         <loc>https://numberly.github.io/vault-db-injector/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/getting-started/build/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/build/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/build/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/getting-started/comparison/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/comparison/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/getting-started/contributing/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/contributing/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/contributing/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/getting-started/getting-started/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/getting-started/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/getting-started/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/configuration/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/configuration/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/configuration/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/healthcheck/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/healthcheck/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/healthcheck/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/how-it-work/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/how-it-work/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/how-it-work/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/injector/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/injector/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/injector/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/kubernetes/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/kubernetes/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/kubernetes/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/leaderelection/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/leaderelection/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/leaderelection/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/renewer/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/renewer/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/renewer/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/revoker/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/revoker/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/revoker/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/how-it-works/vault/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/vault/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/vault/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/monitoring/alertmanager/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/alertmanager/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/alertmanager/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/monitoring/grafana/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/grafana/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/grafana/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/monitoring/prometheus/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/prometheus/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/prometheus/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/build/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/build/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/build/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/comparison/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/contributing/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/contributing/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/contributing/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/getting-started/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/getting-started/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/getting-started/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/configuration/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/configuration/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/configuration/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/healthcheck/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/healthcheck/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/healthcheck/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/how-it-work/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/how-it-work/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/how-it-work/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/injector/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/injector/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/injector/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/kubernetes/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/kubernetes/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/kubernetes/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/leaderelection/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/leaderelection/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/leaderelection/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/renewer/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/renewer/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/renewer/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/revoker/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/revoker/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/revoker/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/vault/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/vault/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/vault/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/monitoring/alertmanager/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/alertmanager/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/alertmanager/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/monitoring/grafana/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/grafana/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/grafana/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/monitoring/prometheus/</loc>
-        <lastmod>2024-09-17</lastmod>
+        <lastmod>2025-02-10</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/prometheus/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/prometheus/"/>
