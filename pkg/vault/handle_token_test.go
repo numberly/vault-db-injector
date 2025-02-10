@@ -108,7 +108,7 @@ func TestStoreData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := connector.StoreData(context.Background(), tt.vaultInfo, tt.secretName, tt.uuid, tt.namespace, tt.prefix)
+			result, err := connector.StoreData(context.Background(), "id-A", tt.vaultInfo, tt.secretName, tt.uuid, tt.namespace, tt.prefix)
 
 			if tt.expectError {
 				assert.Error(t, err)

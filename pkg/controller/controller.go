@@ -12,6 +12,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/prometheus"
 	"github.com/numberly/vault-db-injector/pkg/renewer"
 	"github.com/numberly/vault-db-injector/pkg/revoker"
+	"github.com/numberly/vault-db-injector/pkg/sentry"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
@@ -24,19 +25,21 @@ type Controller struct {
 	Lock      *resourcelock.LeaseLock
 	PodName   string
 	log       logger.Logger
+	sentry    sentry.SentryService
 }
 
-func NewController(cfg *config.Config, Clientset *kubernetes.Clientset) *Controller {
+func NewController(cfg *config.Config, Clientset *kubernetes.Clientset, sentrySvc sentry.SentryService) *Controller {
 	return &Controller{
 		Cfg:       cfg,
 		Clientset: Clientset,
 		log:       logger.GetLogger(),
+		sentry:    sentrySvc,
 	}
 }
 
 func (c *Controller) RunInjector(ctx context.Context, errChan chan<- error, runSuccess chan<- bool) {
 	c.log.Info("Starting server in mode injector")
-	is := injector.NewWebhookStartor(c.Cfg, errChan, runSuccess)
+	is := injector.NewWebhookStartor(c.Cfg, errChan, runSuccess, c.sentry)
 	hcService := healthcheck.NewService()
 	hcService.RegisterHandlers()
 	go hcService.Start(ctx, stopChan)
