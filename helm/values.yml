@@ -22,7 +22,7 @@ vaultDbInjector:
       runAsUser: 65534
     image:
       repository: numberly/vault-db-injector
-      tag: 2.0.5
+      tag: 2.0.12
     imagePullPolicy: Always
     ports:
     - port: 8443
@@ -43,7 +43,7 @@ vaultDbInjector:
     replicas: 4
     image:
       repository: numberly/vault-db-injector
-      tag: 2.0.5
+      tag: 2.0.12
     imagePullPolicy: Always
   revoker:
     args:
@@ -57,5 +57,5 @@ vaultDbInjector:
     replicas: 4
     image:
       repository: numberly/vault-db-injector
-      tag: 2.0.5
+      tag: 2.0.12
     imagePullPolicy: Always

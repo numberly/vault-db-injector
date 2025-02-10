@@ -41,7 +41,7 @@ jobs:
         file: Dockerfile
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: numberlyinfra/vault-injector:${{ github.ref_name }}
+        tags: numberly/vault-db-injector:${{ github.ref_name }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
