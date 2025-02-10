@@ -110,7 +110,6 @@ func (c *Connector) Login(ctx context.Context) error {
 }
 
 func (c *Connector) CheckHealth(ctx context.Context) error {
-	// Create a client for health check only
 	config := vault.DefaultConfig()
 	config.Address = c.address
 	client, err := vault.NewClient(config)

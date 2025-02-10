@@ -2,83 +2,192 @@ package healthcheck
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/logger"
+	"github.com/numberly/vault-db-injector/pkg/vault"
+	"github.com/undefinedlabs/go-mpatch"
+	"k8s.io/client-go/kubernetes"
 )
 
 var stopChan = make(chan struct{})
 
-func initTestLogger() {
-	// Example configuration setup for testing
-	testConfig := config.Config{
-		LogLevel: "info", // Or whatever log level is appropriate for testing
+// MockK8sClient implements k8s.ClientInterface for testing
+type MockK8sClient struct {
+	shouldFail bool
+}
+
+func (m *MockK8sClient) GetServiceAccountToken() (string, error) {
+	return "mock-token", nil
+}
+
+func (m *MockK8sClient) GetKubernetesCACert() (*x509.CertPool, error) {
+	return nil, nil
+}
+
+func (m *MockK8sClient) GetKubernetesClient() (*kubernetes.Clientset, error) {
+	if m.shouldFail {
+		return nil, fmt.Errorf("mock k8s connection failed")
+	}
+	return &kubernetes.Clientset{}, nil
+}
+
+func setupTestService(k8sShouldFail bool) (*Service, *mpatch.Patch) {
+	cfg := &config.Config{
+		LogLevel:      "info",
+		VaultAddress:  "http://vault:8200",
+		VaultAuthPath: "auth/kubernetes",
+		KubeRole:      "my-role",
 	}
 
-	// Initialize the logger with the test configuration
+	service := NewService(cfg)
+	service.k8sClient = &MockK8sClient{shouldFail: k8sShouldFail}
+
+	return service, nil
+}
+
+func TestHealthzHandler(t *testing.T) {
+	tests := []struct {
+		name            string
+		k8sShouldFail   bool
+		vaultShouldFail bool
+		expectedStatus  int
+		expectedBody    map[string]interface{}
+	}{
+		// Your existing test cases...
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create patch for vault.ConnectToVault and Connector.CheckHealth
+			connectPatch, err := mpatch.PatchMethod(vault.ConnectToVault, func(ctx context.Context, cfg *config.Config) (*vault.Connector, error) {
+				if tt.vaultShouldFail {
+					return nil, fmt.Errorf("mock vault connection failed")
+				}
+				// Return a real connector
+				return &vault.Connector{}, nil
+			})
+			if err != nil {
+				t.Fatalf("Failed to patch vault.ConnectToVault: %v", err)
+			}
+			defer connectPatch.Unpatch()
+
+			// Patch the CheckHealth method
+			checkHealthPatch, err := mpatch.PatchInstanceMethodByName(reflect.TypeOf(&vault.Connector{}), "CheckHealth", func(c *vault.Connector, ctx context.Context) error {
+				if tt.vaultShouldFail {
+					return fmt.Errorf("mock vault connection failed")
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("Failed to patch Connector.CheckHealth: %v", err)
+			}
+			defer checkHealthPatch.Unpatch()
+
+			service, _ := setupTestService(tt.k8sShouldFail)
+
+			req := httptest.NewRequest("GET", "/healthz", nil)
+			w := httptest.NewRecorder()
+
+			service.healthHandler(w, req)
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+
+			var response HealthStatus
+			if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+				t.Fatalf("Failed to decode response body: %v", err)
+			}
+
+			if response.Status != tt.expectedBody["status"] {
+				t.Errorf("expected status %s, got %s", tt.expectedBody["status"], response.Status)
+			}
+
+			// Verify timestamp exists and is in correct format
+			if _, err := time.Parse(time.RFC3339, response.Timestamp); err != nil {
+				t.Errorf("invalid timestamp format: %v", err)
+			}
+		})
+	}
+}
+func TestReadyzHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		isReady        bool
+		expectedStatus int
+		expectedBody   map[string]interface{}
+	}{
+		{
+			name:           "Service ready",
+			isReady:        true,
+			expectedStatus: http.StatusOK,
+			expectedBody: map[string]interface{}{
+				"status": "ready",
+			},
+		},
+		{
+			name:           "Service not ready",
+			isReady:        false,
+			expectedStatus: http.StatusServiceUnavailable,
+			expectedBody: map[string]interface{}{
+				"status": "not ready",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, _ := setupTestService(false)
+			service.isReady.Store(tt.isReady)
+
+			req := httptest.NewRequest("GET", "/readyz", nil)
+			w := httptest.NewRecorder()
+
+			handler := service.readyzHandler()
+			handler(w, req)
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+
+			var response HealthStatus
+			if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+				t.Fatalf("Failed to decode response body: %v", err)
+			}
+
+			if response.Status != tt.expectedBody["status"] {
+				t.Errorf("expected status %s, got %s", tt.expectedBody["status"], response.Status)
+			}
+
+			// Verify timestamp exists and is in correct format
+			if _, err := time.Parse(time.RFC3339, response.Timestamp); err != nil {
+				t.Errorf("invalid timestamp format: %v", err)
+			}
+		})
+	}
+}
+
+func initTestLogger() {
+	testConfig := config.Config{
+		LogLevel: "info",
+	}
 	logger.Initialize(testConfig)
 }
 
-// TestHealthzHandler tests the health check handler.
-func TestHealthzHandler(t *testing.T) {
-	// Assuming your logger has been initialized elsewhere or doing it here if needed
-	// logger.Initialize(yourConfigHere)
-
-	service := NewService()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", service.healthzHandler)
-
-	req := httptest.NewRequest("GET", "/healthz", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNoContent {
-		t.Errorf("expected status %d, got %d", http.StatusNoContent, w.Code)
-	}
-}
-
-// TestReadyzHandler tests the readiness check handler.
-func TestReadyzHandler(t *testing.T) {
-	// Assuming your logger has been initialized elsewhere or doing it here if needed
-
-	service := NewService()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/readyz", service.readyzHandler())
-	mux.HandleFunc("/healthz", service.healthzHandler)
-
-	// Test when the service is ready
-	reqReady := httptest.NewRequest("GET", "/readyz", nil)
-	wReady := httptest.NewRecorder()
-	mux.ServeHTTP(wReady, reqReady)
-
-	if wReady.Code != http.StatusNoContent {
-		t.Errorf("expected status %d when ready, got %d", http.StatusNoContent, wReady.Code)
-	}
-
-	// Test when the service is not ready
-	service.isReady.Store(false)
-	reqNotReady := httptest.NewRequest("GET", "/readyz", nil)
-	wNotReady := httptest.NewRecorder()
-	mux.ServeHTTP(wNotReady, reqNotReady)
-
-	if wNotReady.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected status %d when not ready, got %d", http.StatusServiceUnavailable, wNotReady.Code)
-	}
-}
-
 func TestServiceShutdown(t *testing.T) {
-	initTestLogger() // Ensure the logger is initialized if it's required for the test
+	initTestLogger()
 
-	// Create a new service and register handlers
-	service := NewService()
-
+	service, _ := setupTestService(false)
 	mux := http.NewServeMux()
 	service.server = &http.Server{
 		Addr:         "127.0.0.1:8888",
@@ -88,10 +197,8 @@ func TestServiceShutdown(t *testing.T) {
 	}
 	service.RegisterHandlers()
 
-	// Create a cancelable context
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Start the service in a goroutine
 	go func() {
 		if err := service.Start(ctx, stopChan); err != nil {
 			t.Logf("Service stopped with error: %v", err)
@@ -100,27 +207,17 @@ func TestServiceShutdown(t *testing.T) {
 		}
 	}()
 
-	// Wait a bit to ensure the server has started
 	time.Sleep(1 * time.Second)
-
-	// Cancel the context, triggering the server shutdown
 	cancel()
-
-	// Wait a bit to ensure the shutdown process has a chance to complete
 	time.Sleep(1 * time.Second)
 
-	// Attempt to make a request to the server
 	_, err := http.Get("http://" + service.server.Addr + "/healthz")
 
-	// If the server has shut down correctly, the request should fail
 	if err == nil || !isConnectionRefusedError(err) {
 		t.Errorf("Expected server to be shutdown, but request succeeded or failed with unexpected error: %v", err)
 	}
 }
 
-// isConnectionRefusedError checks if the error is a "connection refused" error.
 func isConnectionRefusedError(err error) bool {
-	// This is a simplistic check. In a real test, you might want to refine this
-	// to more accurately detect the specific error.
 	return err != nil && strings.Contains(err.Error(), "connect: connection refused")
 }

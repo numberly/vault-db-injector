@@ -74,7 +74,6 @@ func (s *Service) checkKubernetesHealth() *ServiceHealth {
 }
 
 func (s *Service) checkVaultHealth(ctx context.Context) *ServiceHealth {
-	// Use your existing Vault connection pattern
 	k8sClient := k8s.NewClient()
 	tok, err := k8sClient.GetServiceAccountToken()
 	if err != nil {
