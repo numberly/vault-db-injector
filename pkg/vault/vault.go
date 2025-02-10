@@ -109,6 +109,31 @@ func (c *Connector) Login(ctx context.Context) error {
 	return nil
 }
 
+func (c *Connector) CheckHealth(ctx context.Context) error {
+	// Create a client for health check only
+	config := vault.DefaultConfig()
+	config.Address = c.address
+	client, err := vault.NewClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create Vault client: %v", err)
+	}
+
+	health, err := client.Sys().HealthWithContext(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check Vault health: %v", err)
+	}
+
+	if !health.Initialized {
+		return fmt.Errorf("vault is not initialized")
+	}
+
+	if health.Sealed {
+		return fmt.Errorf("vault is sealed")
+	}
+
+	return nil
+}
+
 func (c *Connector) CreateOrphanToken(ctx context.Context, ttl string, policies []string) (string, error) {
 	// Create an orphan token
 	secret, err := c.client.Auth().Token().CreateOrphanWithContext(ctx, &vault.TokenCreateRequest{
