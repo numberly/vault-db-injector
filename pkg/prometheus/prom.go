@@ -39,7 +39,7 @@ var (
 			Name: "vault_injector_revoke_token_count_success",
 			Help: "Vault injector token revoked with success count",
 		},
-		[]string{"uuid", "namespace"},
+		[]string{"namespace"},
 	)
 	RevokeTokenErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
