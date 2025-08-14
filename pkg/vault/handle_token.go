@@ -385,7 +385,7 @@ func (c *Connector) RevokeOrphanToken(ctx context.Context, tokenId, uuid, namesp
 		c.Log.Errorf("error while revoking token: %v", err)
 		return err
 	}
-	promInjector.RevokeTokenCount.WithLabelValues(uuid, namespace).Inc()
+	promInjector.RevokeTokenCount.WithLabelValues(namespace).Inc()
 	promInjector.TokenExpirationInTime.DeleteLabelValues(uuid, namespace)
 	return nil
 }
@@ -397,7 +397,7 @@ func (c *Connector) RevokeSelfToken(ctx context.Context, tokenId, uuid, namespac
 		promInjector.RevokeTokenErrorCount.WithLabelValues(uuid, namespace).Inc()
 		c.Log.Errorf("error while revoking token: %v", err)
 	}
-	promInjector.RevokeTokenCount.WithLabelValues(uuid, namespace).Inc()
+	promInjector.RevokeTokenCount.WithLabelValues(namespace).Inc()
 	promInjector.TokenExpirationInTime.DeleteLabelValues(uuid, namespace)
 }
 
