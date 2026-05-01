@@ -10,6 +10,16 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Mode represents the operational mode of the vault-db-injector.
+type Mode string
+
+const (
+	ModeInjector Mode = "injector"
+	ModeRenewer  Mode = "renewer"
+	ModeRevoker  Mode = "revoker"
+	ModeAll      Mode = "all"
+)
+
 type Config struct {
 	CertFile          string  `yaml:"certFile" envconfig:"cert_file"`
 	KeyFile           string  `yaml:"keyFile" envconfig:"key_file"`
@@ -20,7 +30,7 @@ type Config struct {
 	TokenTTL          string  `yaml:"tokenTTL" envconfig:"token_ttl"`
 	VaultSecretName   string  `yaml:"vaultSecretName" envconfig:"vault_secret_name"`
 	VaultSecretPrefix string  `yaml:"vaultSecretPrefix" envconfig:"vault_secret_prefix"`
-	Mode              string  `yaml:"mode" envconfig:"mode"`
+	Mode              Mode    `yaml:"mode" envconfig:"mode"`
 	Sentry            bool    `yaml:"sentry" envconfig:"sentry"`
 	SentryDsn         string  `yaml:"sentryDsn" envconfig:"sentry_dsn"`
 	SentryEnvironment string  `yaml:"sentryEnvironment" envconfig:"sentry_environment"`
@@ -42,7 +52,7 @@ func NewConfig(configFile string) (*Config, error) {
 		TokenTTL:          "768h",
 		VaultSecretName:   "",
 		VaultSecretPrefix: "",
-		Mode:              "all",
+		Mode:              ModeAll,
 		Sentry:            false,
 		SentryDsn:         "",
 		SentryEnvironment: "production",
@@ -82,9 +92,9 @@ func (cfg *Config) Validate() error {
 		bad    bool
 		errMsg string
 	}{
-		{cfg.Mode != "all" && cfg.Mode != "injector" && cfg.Mode != "renewer" && cfg.Mode != "revoker", "Wrong Mode : should be injector/renewer/all"},
-		{(cfg.Mode == "all" || cfg.Mode == "injector") && cfg.CertFile == "", "no certFile specified"},
-		{(cfg.Mode == "all" || cfg.Mode == "injector") && cfg.KeyFile == "", "no keyFile specified"},
+		{cfg.Mode != ModeAll && cfg.Mode != ModeInjector && cfg.Mode != ModeRenewer && cfg.Mode != ModeRevoker, "Wrong Mode : should be injector/renewer/revoker/all"},
+		{(cfg.Mode == ModeAll || cfg.Mode == ModeInjector) && cfg.CertFile == "", "no certFile specified"},
+		{(cfg.Mode == ModeAll || cfg.Mode == ModeInjector) && cfg.KeyFile == "", "no keyFile specified"},
 		{cfg.VaultAddress == "", "no vaultAddress specified"},
 		{cfg.VaultAuthPath == "", "no vaultAuthPath specified"},
 		{cfg.KubeRole == "", "no kubeRole specified"},
@@ -101,7 +111,7 @@ func (cfg *Config) Validate() error {
 	return nil
 }
 
-func GetLogLevel(level string) logrus.Level {
+func GetLogLevel(level string) (logrus.Level, error) {
 	m := map[string]logrus.Level{
 		"debug": logrus.DebugLevel,
 		"info":  logrus.InfoLevel,
@@ -110,9 +120,9 @@ func GetLogLevel(level string) logrus.Level {
 
 	l, ok := m[level]
 	if !ok {
-		panic(1)
+		return logrus.InfoLevel, errors.Newf("unsupported log level: %s", level)
 	}
-	return l
+	return l, nil
 }
 
 func GetHAEnvs() (string, string, error) {
