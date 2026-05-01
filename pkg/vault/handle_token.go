@@ -14,17 +14,17 @@ import (
 	"golang.org/x/time/rate"
 )
 
-type KeyInformation struct {
+type KeyInfo struct {
 	PodNameUID     string
-	LeaseId        string
-	TokenId        string
+	LeaseID        string
+	TokenID        string
 	Namespace      string
 	PodName        string
 	NodeName       string
 	ServiceAccount string
 }
 
-func NewKeyInformation(podUuid, leaseId, tokenId, namespace, serviceAccount string, podName ...string) *KeyInformation {
+func NewKeyInfo(podUuid, leaseID, tokenID, namespace, serviceAccount string, podName ...string) *KeyInfo {
 	var pn string
 	var nn string
 	if len(podName) > 0 {
@@ -33,10 +33,10 @@ func NewKeyInformation(podUuid, leaseId, tokenId, namespace, serviceAccount stri
 	if len(podName) > 1 {
 		nn = podName[1]
 	}
-	return &KeyInformation{
+	return &KeyInfo{
 		PodNameUID:     podUuid,
-		LeaseId:        leaseId,
-		TokenId:        tokenId,
+		LeaseID:        leaseID,
+		TokenID:        tokenID,
 		Namespace:      namespace,
 		PodName:        pn,
 		NodeName:       nn,
@@ -44,10 +44,10 @@ func NewKeyInformation(podUuid, leaseId, tokenId, namespace, serviceAccount stri
 	}
 }
 
-func (c *Connector) StoreData(ctx context.Context, contextId string, vaultInformation *KeyInformation, secretName, uuid, namespace, prefix string) (string, error) {
+func (c *Connector) StoreData(ctx context.Context, contextId string, vaultInformation *KeyInfo, secretName, uuid, namespace, prefix string) (string, error) {
 	data := map[string]interface{}{
-		"LeaseId":            vaultInformation.LeaseId,
-		"TokenId":            vaultInformation.TokenId,
+		"LeaseId":            vaultInformation.LeaseID,
+		"TokenId":            vaultInformation.TokenID,
 		"Namespace":          vaultInformation.Namespace,
 		"ServiceAccountName": vaultInformation.ServiceAccount,
 		"PodName":            vaultInformation.PodName,
@@ -68,7 +68,7 @@ func (c *Connector) StoreData(ctx context.Context, contextId string, vaultInform
 	return "Success !", nil
 }
 
-func (c *Connector) StoreDataAsync(ctx context.Context, contextId string, vaultInformation *KeyInformation, secretName, uuid, namespace, prefix string) {
+func (c *Connector) StoreDataAsync(ctx context.Context, contextId string, vaultInformation *KeyInfo, secretName, uuid, namespace, prefix string) {
 	go func() {
 		start := time.Now()
 		asyncCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -147,7 +147,7 @@ func safeString(v interface{}) string {
 	return s
 }
 
-func (c *Connector) GetKeyInformations(ctx context.Context, podName, uuid, path, prefix string) (*KeyInformation, error) {
+func (c *Connector) GetKeyInfo(ctx context.Context, podName, uuid, path, prefix string) (*KeyInfo, error) {
 	dataPath := fmt.Sprintf("%s/data/%s/%s", path, prefix, uuid)
 	podSecret, err := c.client.Logical().ReadWithContext(ctx, dataPath)
 	if err != nil {
@@ -164,7 +164,7 @@ func (c *Connector) GetKeyInformations(ctx context.Context, podName, uuid, path,
 		c.Log.Errorf("Invalid data format for %s", uuid)
 		return nil, err
 	}
-	keyInfo := NewKeyInformation(
+	keyInfo := NewKeyInfo(
 		uuid,
 		safeString(dataMap["LeaseId"]),
 		safeString(dataMap["TokenId"]),
@@ -177,7 +177,7 @@ func (c *Connector) GetKeyInformations(ctx context.Context, podName, uuid, path,
 	return keyInfo, nil
 }
 
-func (c *Connector) ListKeyInformations(ctx context.Context, path, prefix string) ([]*KeyInformation, error) {
+func (c *Connector) ListKeyInfo(ctx context.Context, path, prefix string) ([]*KeyInfo, error) {
 	// Utiliser le préfixe pour lister les clés dans KV v2
 	kvPath := fmt.Sprintf("%s/metadata/%s", path, prefix)
 
@@ -187,12 +187,12 @@ func (c *Connector) ListKeyInformations(ctx context.Context, path, prefix string
 	}
 
 	if secret == nil || secret.Data["keys"] == nil {
-		return []*KeyInformation{}, nil
+		return []*KeyInfo{}, nil
 	}
 
 	keys := secret.Data["keys"].([]interface{})
 	var wg sync.WaitGroup
-	keyInformationsChan := make(chan *KeyInformation, len(keys))
+	keyInfoChan := make(chan *KeyInfo, len(keys))
 
 	// Create a rate limiter
 	rateLimit := rate.Limit(c.VaultRateLimit) // requests per second
@@ -232,7 +232,7 @@ func (c *Connector) ListKeyInformations(ctx context.Context, path, prefix string
 				c.Log.Errorf("Invalid data format for %s", podName)
 				return
 			}
-			keyInfo := NewKeyInformation(
+			keyInfo := NewKeyInfo(
 				podName,
 				safeString(dataMap["LeaseId"]),
 				safeString(dataMap["TokenId"]),
@@ -241,23 +241,23 @@ func (c *Connector) ListKeyInformations(ctx context.Context, path, prefix string
 				safeString(dataMap["PodName"]),
 				safeString(dataMap["NodeName"]),
 			)
-			keyInformationsChan <- keyInfo
+			keyInfoChan <- keyInfo
 		}(k)
 	}
 
 	wg.Wait()
-	close(keyInformationsChan)
+	close(keyInfoChan)
 
-	var keyInformations []*KeyInformation
-	for keyInfo := range keyInformationsChan {
-		keyInformations = append(keyInformations, keyInfo)
+	var keyInfos []*KeyInfo
+	for ki := range keyInfoChan {
+		keyInfos = append(keyInfos, ki)
 	}
 
-	return keyInformations, nil
+	return keyInfos, nil
 }
 
-func (c *Connector) HandlePodDeletionToken(ctx context.Context, keysInformation *KeyInformation, secretName, prefix string) error {
-	err := c.RevokeOrphanToken(ctx, keysInformation.TokenId, keysInformation.PodNameUID, keysInformation.Namespace)
+func (c *Connector) HandlePodDeletionToken(ctx context.Context, keysInformation *KeyInfo, secretName, prefix string) error {
+	err := c.RevokeOrphanToken(ctx, keysInformation.TokenID, keysInformation.PodNameUID, keysInformation.Namespace)
 	if err != nil {
 		c.Log.Errorf("Can't revok Token with UUID : %s", keysInformation.PodNameUID)
 		c.RevokeSelfToken(ctx, c.client.Token(), "", "")
@@ -270,7 +270,7 @@ func (c *Connector) HandlePodDeletionToken(ctx context.Context, keysInformation 
 	return nil
 }
 
-func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysInformations []*KeyInformation, secretName, prefix string, clientset k8s.KubernetesClient, SyncTTLSecond int) bool {
+func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config, keysInformations []*KeyInfo, secretName, prefix string, clientset k8s.KubernetesClient, SyncTTLSecond int) bool {
 	podServer := k8s.NewPodService(clientset, cfg)
 	podsInformations, err := podServer.GetAllPodAndNamespace(ctx)
 	if err != nil {
@@ -279,7 +279,7 @@ func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysIn
 	}
 
 	// Create a map for quick lookup of pod information
-	podInfoMap := make(map[string]k8s.PodInformations)
+	podInfoMap := make(map[string]k8s.PodInfo)
 	for _, pi := range podsInformations {
 		for _, uuid := range pi.PodNameUUIDs {
 			podInfoMap[uuid] = pi
@@ -304,7 +304,7 @@ func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysIn
 
 	for _, ki := range keysInformations {
 		wg.Add(1)
-		go func(ki *KeyInformation) {
+		go func(ki *KeyInfo) {
 			defer wg.Done()
 
 			// Wait for the rate limiter
@@ -315,36 +315,36 @@ func (c *Connector) HandleTokens(ctx context.Context, cfg *config.Config, keysIn
 			}
 
 			if _, found := podInfoMap[ki.PodNameUID]; found {
-				err := c.RenewToken(ctx, ki.TokenId, ki.PodNameUID, ki.Namespace, SyncTTLSecond)
+				err := c.RenewToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace, SyncTTLSecond)
 				if err != nil {
 					c.Log.Errorf("Can't renew Token with pod UUID: %s", ki.PodNameUID)
 					isOk = false
 					return
 				}
-				err = c.RenewLease(ctx, ki.LeaseId, 86400*5, ki.PodNameUID, ki.Namespace) // Renew for 1 week
+				err = c.RenewLease(ctx, ki.LeaseID, 86400*5, ki.PodNameUID, ki.Namespace) // Renew for 1 week
 				if err != nil {
 					c.Log.Errorf("Can't renew Lease with pod UUID: %s", ki.PodNameUID)
 					isOk = false
 					return
 				}
 				if ki.ServiceAccount == "" || ki.NodeName == "" || ki.PodName == "" {
-					fullyKiInformations := NewKeyInformation(ki.PodNameUID, ki.LeaseId, ki.TokenId, ki.Namespace, podInfoMap[ki.PodNameUID].ServiceAccountName, podInfoMap[ki.PodNameUID].PodName, podInfoMap[ki.PodNameUID].NodeName)
+					fullyKiInfo := NewKeyInfo(ki.PodNameUID, ki.LeaseID, ki.TokenID, ki.Namespace, podInfoMap[ki.PodNameUID].ServiceAccountName, podInfoMap[ki.PodNameUID].PodName, podInfoMap[ki.PodNameUID].NodeName)
 					c.Log.Debugf("Renewing information for UUID %s", ki.PodNameUID)
-					status, err := c.StoreData(ctx, "id-handle-token", fullyKiInformations, secretName, ki.PodNameUID, ki.Namespace, prefix)
+					status, err := c.StoreData(ctx, "id-handle-token", fullyKiInfo, secretName, ki.PodNameUID, ki.Namespace, prefix)
 					if err != nil {
 						c.Log.Infof("%s : Extended vault information could not been saved, process will continue : %v", status, err)
 					}
 				}
 			} else {
-				leaseTooYoung, err := c.isLeaseTooYoung(ctx, ki.LeaseId)
+				leaseTooYoung, err := c.isLeaseTooYoung(ctx, ki.LeaseID)
 				if err != nil {
 					c.Log.Debug("Error while trying to retrieve lease age, lease will be cleaned")
 				}
 				if leaseTooYoung {
-					c.Log.Infof("This lease: %s is too young to be cleaned up.", ki.LeaseId)
+					c.Log.Infof("This lease: %s is too young to be cleaned up.", ki.LeaseID)
 					return
 				}
-				err = c.RevokeOrphanToken(ctx, ki.TokenId, ki.PodNameUID, ki.Namespace)
+				err = c.RevokeOrphanToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace)
 				if err != nil {
 					c.Log.Errorf("Can't revoke Token with UUID: %s", ki.PodNameUID)
 					isOk = false

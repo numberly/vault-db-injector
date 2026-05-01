@@ -87,12 +87,12 @@ func (le *leaderElectorImpl) RunLeaderElection(ctx context.Context, stopChan cha
 				// It's a good practice to recreate the stopChan if the instance can become a leader again later
 				//stopChan = make(chan struct{})
 			},
-			OnNewLeader: func(current_id string) {
-				if current_id == le.id {
+			OnNewLeader: func(currentID string) {
+				if currentID == le.id {
 					le.log.Info("still the leader!")
 					return
 				}
-				le.log.Infof("new leader is %s", current_id)
+				le.log.Infof("new leader is %s", currentID)
 			},
 		},
 	})

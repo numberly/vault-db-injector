@@ -49,8 +49,8 @@ func NewSentry(dsn string, sentryEnabled bool, environment string) *SentryImpl {
 	}
 }
 
-// recordSentry initializes the Sentry client.
-func (s *SentryImpl) recordSentry(dsn string) {
+// initSentry initializes the Sentry client.
+func (s *SentryImpl) initSentry(dsn string) {
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:              s.dsn,
 		Environment:      s.environment,
@@ -68,7 +68,7 @@ func (s *SentryImpl) recordSentry(dsn string) {
 // StartSentry checks if Sentry is enabled in the configuration and initiates it.
 func (s *SentryImpl) StartSentry() {
 	if s.sentryEnabled {
-		s.recordSentry(s.dsn)
+		s.initSentry(s.dsn)
 	} else {
 		s.log.Info("Sentry is not enabled")
 	}

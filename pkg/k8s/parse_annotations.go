@@ -44,7 +44,7 @@ type podDbConfig struct {
 	DbConfigurations *[]DbConfiguration
 }
 
-func NewService(cfg config.Config, pod *corev1.Pod) *ParserService {
+func NewParserService(cfg config.Config, pod *corev1.Pod) *ParserService {
 	return &ParserService{
 		cfg: cfg,
 		pod: pod,

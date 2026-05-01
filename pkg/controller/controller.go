@@ -48,11 +48,11 @@ func (c *Controller) RunInjector(ctx context.Context, errChan chan<- error, runS
 
 func (c *Controller) RunRenewer(ctx context.Context, metricsSuccess chan<- bool) {
 	c.log.Info("Starting server in mode renewer")
-	c.GetLock("lock-injector-renewer")
+	c.initLock("lock-injector-renewer")
 	prometheus.IsLeader.WithLabelValues(c.Lock.LeaseMeta.GetName()).Set(0)
 	le := leadership.NewLeaderElector(c.Lock, c.Cfg, c.PodName, c.Clientset, RenewTokenJobWrapper)
 	go le.RunLeaderElection(ctx, stopChan)
-	metricsService := prometheus.NewService(metricsSuccess)
+	metricsService := prometheus.NewMetricsService(metricsSuccess)
 	go metricsService.RunMetrics()
 	hcService := healthcheck.NewService(c.Cfg)
 	hcService.RegisterHandlers()
@@ -61,18 +61,18 @@ func (c *Controller) RunRenewer(ctx context.Context, metricsSuccess chan<- bool)
 
 func (c *Controller) RunRevoker(ctx context.Context, metricsSuccess chan<- bool) {
 	c.log.Info("Starting server in mode revoker")
-	c.GetLock("lock-injector-revoker")
+	c.initLock("lock-injector-revoker")
 	prometheus.IsLeader.WithLabelValues(c.Lock.LeaseMeta.GetName()).Set(0)
 	le := leadership.NewLeaderElector(c.Lock, c.Cfg, c.PodName, c.Clientset, RevokeTokenJobWrapper)
 	go le.RunLeaderElection(ctx, stopChan)
-	metricsService := prometheus.NewService(metricsSuccess)
+	metricsService := prometheus.NewMetricsService(metricsSuccess)
 	go metricsService.RunMetrics()
 	hcService := healthcheck.NewService(c.Cfg)
 	hcService.RegisterHandlers()
 	go hcService.Start(ctx, stopChan)
 }
 
-func (c *Controller) GetLock(lockName string) {
+func (c *Controller) initLock(lockName string) {
 	var podNamespace string
 	var err error
 
@@ -88,11 +88,11 @@ func (c *Controller) GetLock(lockName string) {
 }
 
 func RenewTokenJobWrapper(ctx context.Context, stopChan chan struct{}, cfg *config.Config, clientset k8s.KubernetesClient) {
-	tri := renewer.NewTokenRenewor(cfg, clientset, stopChan)
-	tri.RenewTokenJob(ctx)
+	r := renewer.NewTokenRenewer(cfg, clientset, stopChan)
+	r.RenewTokenJob(ctx)
 }
 
 func RevokeTokenJobWrapper(ctx context.Context, stopChan chan struct{}, cfg *config.Config, clientset k8s.KubernetesClient) {
-	tri := revoker.NewTokenRevokor(cfg, clientset, stopChan)
-	tri.RevokeTokenJob(ctx)
+	r := revoker.NewTokenRevoker(cfg, clientset, stopChan)
+	r.RevokeTokenJob(ctx)
 }

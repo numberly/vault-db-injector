@@ -43,17 +43,17 @@ func setupTestVault(t *testing.T) (*api.Client, *vault.TestCluster) {
 	return client, cluster
 }
 
-func TestNewKeyInformation(t *testing.T) {
+func TestNewKeyInfo(t *testing.T) {
 	podName := "test-pod"
-	leaseId := "lease-id"
-	tokenId := "token-id"
+	leaseID := "lease-id"
+	tokenID := "token-id"
 	namespace := "test-namespace"
 	serviceaccount := "sa"
 
-	keyInfo := NewKeyInformation(podName, leaseId, tokenId, namespace, serviceaccount)
+	keyInfo := NewKeyInfo(podName, leaseID, tokenID, namespace, serviceaccount)
 	assert.Equal(t, podName, keyInfo.PodNameUID)
-	assert.Equal(t, leaseId, keyInfo.LeaseId)
-	assert.Equal(t, tokenId, keyInfo.TokenId)
+	assert.Equal(t, leaseID, keyInfo.LeaseID)
+	assert.Equal(t, tokenID, keyInfo.TokenID)
 	assert.Equal(t, namespace, keyInfo.Namespace)
 }
 
@@ -66,7 +66,7 @@ func TestStoreData(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		vaultInfo      *KeyInformation
+		vaultInfo      *KeyInfo
 		secretName     string
 		uuid           string
 		namespace      string
@@ -76,10 +76,10 @@ func TestStoreData(t *testing.T) {
 	}{
 		{
 			name: "Success",
-			vaultInfo: &KeyInformation{
+			vaultInfo: &KeyInfo{
 				PodNameUID: "pod-uid",
-				LeaseId:    "lease-id",
-				TokenId:    "token-id",
+				LeaseID:    "lease-id",
+				TokenID:    "token-id",
 				Namespace:  "namespace",
 			},
 			secretName:     vaultSecretBackend,
@@ -91,10 +91,10 @@ func TestStoreData(t *testing.T) {
 		},
 		{
 			name: "Error storing data",
-			vaultInfo: &KeyInformation{
+			vaultInfo: &KeyInfo{
 				PodNameUID: "pod-uid",
-				LeaseId:    "lease-id",
-				TokenId:    "token-id",
+				LeaseID:    "lease-id",
+				TokenID:    "token-id",
 				Namespace:  "namespace",
 			},
 			secretName:     "prout",
@@ -123,8 +123,8 @@ func TestStoreData(t *testing.T) {
 				require.NotNil(t, secret)
 
 				data := secret.Data["data"].(map[string]interface{})
-				assert.Equal(t, tt.vaultInfo.LeaseId, data["LeaseId"])
-				assert.Equal(t, tt.vaultInfo.TokenId, data["TokenId"])
+				assert.Equal(t, tt.vaultInfo.LeaseID, data["LeaseId"])
+				assert.Equal(t, tt.vaultInfo.TokenID, data["TokenId"])
 				assert.Equal(t, tt.vaultInfo.Namespace, data["Namespace"])
 				assert.Equal(t, tt.vaultInfo.ServiceAccount, data["ServiceAccountName"])
 			}

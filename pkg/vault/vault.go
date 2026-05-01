@@ -43,9 +43,9 @@ func (c *Connector) SetToken(token string) {
 type DbCreds struct {
 	Username    string
 	Password    string
-	DbLeaseId   string
-	AuthLeaseId string
-	DbTokenId   string
+	DbLeaseID   string
+	AuthLeaseID string
+	DbTokenID   string
 }
 
 func NewConnector(address string, authPath string, authRole string, dbMountPath string, dbRole string, token string, VaultRateLimit int) *Connector {
@@ -207,7 +207,7 @@ func (c *Connector) GetDbCredentials(ctx context.Context, contextId, ttl, PodNam
 	}
 
 	creds := &DbCreds{}
-	creds.AuthLeaseId = authLeaseId
+	creds.AuthLeaseID = authLeaseId
 	path := fmt.Sprintf("/%s/creds/%s", c.dbMountPath, c.dbRole)
 	c.Log.WithFields(logrus.Fields{"contextId": contextId}).Infof("Get credentials from Vault database engine")
 	start := time.Now()
@@ -235,10 +235,10 @@ func (c *Connector) GetDbCredentials(ctx context.Context, contextId, ttl, PodNam
 
 	creds.Username = username.(string)
 	creds.Password = password.(string)
-	creds.DbLeaseId = secret.LeaseID
-	creds.DbTokenId = c.vaultToken
+	creds.DbLeaseID = secret.LeaseID
+	creds.DbTokenID = c.vaultToken
 
-	vaultInformation := NewKeyInformation(PodNameUID, creds.DbLeaseId, creds.DbTokenId, namespace, serviceAccount, "", "")
+	vaultInformation := NewKeyInfo(PodNameUID, creds.DbLeaseID, creds.DbTokenID, namespace, serviceAccount, "", "")
 
 	c.StoreDataAsync(ctx, contextId, vaultInformation, secretName, PodNameUID, namespace, prefix)
 

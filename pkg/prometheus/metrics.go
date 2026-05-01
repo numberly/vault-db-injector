@@ -18,7 +18,7 @@ type MetricsImpl struct {
 	log         logger.Logger
 }
 
-func NewService(successChan chan<- bool) *MetricsImpl {
+func NewMetricsService(successChan chan<- bool) *MetricsImpl {
 	reg := prometheus.NewRegistry()
 	Init(reg)
 	return &MetricsImpl{

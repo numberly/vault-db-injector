@@ -9,7 +9,7 @@ var (
 	RenewTokenCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "vault_injector_renew_token_count_success",
-			Help: "Vault injoctor token renewed with success count",
+			Help: "Vault injector token renewed with success count",
 		},
 		[]string{"uuid", "namespace"},
 	)
@@ -23,7 +23,7 @@ var (
 	RenewLeaseCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "vault_injector_renew_lease_count_success",
-			Help: "Vault injoctor lease renewed with success count",
+			Help: "Vault injector lease renewed with success count",
 		},
 		[]string{"uuid", "namespace"},
 	)
@@ -98,7 +98,7 @@ var (
 		},
 		[]string{},
 	)
-	LastTokenSynchronisationSuccess = prometheus.NewGaugeVec(
+	LastTokenSynchronizationSuccess = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "vault_injector_last_synchronization_success",
 			Help: "Last vault token successful renewal",
@@ -214,7 +214,7 @@ var (
 			Help: "Count that increase when their is an error retrieving pods",
 		}, []string{},
 	)
-	MutatedPodWithSucessCount = prometheus.NewCounterVec(
+	MutatedPodWithSuccessCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "vault_injector_mutated_pods_success_count",
 			Help: "Count that increase when their is an error mutating pods",
@@ -231,7 +231,7 @@ var (
 func Init(prom *prometheus.Registry) {
 	prom.MustRegister(
 		MutatedPodWithErrorCount,
-		MutatedPodWithSucessCount,
+		MutatedPodWithSuccessCount,
 		GetAllPodErrorCount,
 		GetAllPodSuccessCount,
 		RenewTokenCount,
@@ -246,7 +246,7 @@ func Init(prom *prometheus.Registry) {
 		LastTokenRenewSuccessInTime,
 		SynchronizationCount,
 		SynchronizationErrorCount,
-		LastTokenSynchronisationSuccess,
+		LastTokenSynchronizationSuccess,
 		OrphanTicketCreatedCount,
 		OrphanErrorTicketCreatedCount,
 		DataStoredCount,

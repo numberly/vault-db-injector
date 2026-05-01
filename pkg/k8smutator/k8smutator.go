@@ -46,7 +46,7 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		}
 		logger.WithValues(log.Kv{"contextId": contextId}).Infof("mutating pod %s/%s", pod.Namespace, pod.UID)
 		// Get config from pod annotations
-		podLib := k8s.NewService(*cfg, pod)
+		podLib := k8s.NewParserService(*cfg, pod)
 		podDbConfig, err := podLib.GetPodDbConfig(contextId)
 		if err != nil {
 			if err.Error() == "this pod is going to be ignored, old annotation from vault injector v1 detected" {
@@ -62,7 +62,7 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		}
 		logger.WithValues(log.Kv{"contextId": contextId}).Debugf("got token from serviceAccount Successfully")
 
-		mutatedPod, role, podUuids, err := handlePodConfiguration(ctx, contextId, cfg, podDbConfig.DbConfigurations, logger, podDbConfig.VaultDbPath, tok, pod)
+		mutatedPod, role, podUuids, err := injectCredentialsIntoPod(ctx, contextId, cfg, podDbConfig.DbConfigurations, logger, podDbConfig.VaultDbPath, tok, pod)
 		if err != nil || mutatedPod == nil {
 			promInjector.MutatedPodWithErrorCount.WithLabelValues().Inc()
 			return defaultResult, errors.Wrapf(err, "cannot get database credentials from role %s", role)
@@ -75,14 +75,14 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		mutatedPod.Annotations["db-creds-injector.numberly.io/uuid"] = strings.Join(podUuids, ",")
 
 		logger.WithValues(log.Kv{"contextId": contextId}).Infof("returning injected pod %s", mutatedPod.Namespace)
-		promInjector.MutatedPodWithSucessCount.WithLabelValues().Inc()
+		promInjector.MutatedPodWithSuccessCount.WithLabelValues().Inc()
 		return &kwhmutating.MutatorResult{
 			MutatedObject: mutatedPod,
 		}, nil
 	})
 }
 
-func handlePodConfiguration(ctx context.Context, contextId string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
+func injectCredentialsIntoPod(ctx context.Context, contextId string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
 	if len(*dbConfs) > 0 {
 		podUuids := make([]string, 0, len(*dbConfs))
 		for _, dbConf := range *dbConfs {

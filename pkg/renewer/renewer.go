@@ -11,21 +11,21 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/vault"
 )
 
-var _ TokenRenewor = (*tokenReneworImpl)(nil)
+var _ TokenRenewer = (*tokenRenewerImpl)(nil)
 
-type TokenRenewor interface {
+type TokenRenewer interface {
 	RenewTokenJob(ctx context.Context)
 }
 
-type tokenReneworImpl struct {
+type tokenRenewerImpl struct {
 	cfg       *config.Config
 	stopChan  <-chan struct{}
 	clientset k8s.KubernetesClient
 	log       logger.Logger
 }
 
-func NewTokenRenewor(cfg *config.Config, clientset k8s.KubernetesClient, stopchan <-chan struct{}) TokenRenewor {
-	return &tokenReneworImpl{
+func NewTokenRenewer(cfg *config.Config, clientset k8s.KubernetesClient, stopchan <-chan struct{}) TokenRenewer {
+	return &tokenRenewerImpl{
 		cfg:       cfg,
 		stopChan:  stopchan,
 		clientset: clientset,
@@ -33,25 +33,25 @@ func NewTokenRenewor(cfg *config.Config, clientset k8s.KubernetesClient, stopcha
 	}
 }
 
-func (tri *tokenReneworImpl) RenewTokenJob(ctx context.Context) {
-	vaultConn, err := vault.ConnectToVault(ctx, tri.cfg)
+func (r *tokenRenewerImpl) RenewTokenJob(ctx context.Context) {
+	vaultConn, err := vault.ConnectToVault(ctx, r.cfg)
 	if err != nil {
-		tri.log.Fatalf("Error connecting to Vault: %v", err)
+		r.log.Fatalf("Error connecting to Vault: %v", err)
 	}
-	tri.log.Debugf("authenticated to vault using role %s", tri.cfg.VaultAuthPath)
+	r.log.Debugf("authenticated to vault using role %s", r.cfg.VaultAuthPath)
 	vaultConn.RenewalInterval = time.Duration(600) * time.Second
-	vaultConn.StartTokenRenewal(ctx, tri.cfg)
+	vaultConn.StartTokenRenewal(ctx, r.cfg)
 
 	syncToken := func(vaultConn *vault.Connector) bool {
 
-		keyInfos, err := vaultConn.ListKeyInformations(ctx, tri.cfg.VaultSecretName, tri.cfg.VaultSecretPrefix)
+		keyInfos, err := vaultConn.ListKeyInfo(ctx, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
 		if err != nil {
-			tri.log.Errorf("Error while retrieving informations: %v", err)
+			r.log.Errorf("Error while retrieving informations: %v", err)
 			promInjector.SynchronizationErrorCount.WithLabelValues().Inc()
 			return false
 		}
 
-		ok := vaultConn.HandleTokens(ctx, tri.cfg, keyInfos, tri.cfg.VaultSecretName, tri.cfg.VaultSecretPrefix, tri.clientset, tri.cfg.SyncTTLSecond)
+		ok := vaultConn.SyncAndCleanupTokens(ctx, r.cfg, keyInfos, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix, r.clientset, r.cfg.SyncTTLSecond)
 		if !ok {
 			promInjector.SynchronizationErrorCount.WithLabelValues().Inc()
 			return false
@@ -60,28 +60,28 @@ func (tri *tokenReneworImpl) RenewTokenJob(ctx context.Context) {
 		return true
 	}
 
-	ticker := time.NewTicker(time.Duration(tri.cfg.SyncTTLSecond) * time.Second)
+	ticker := time.NewTicker(time.Duration(r.cfg.SyncTTLSecond) * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			tri.log.Info("Token Synchronization has been started!")
+			r.log.Info("Token Synchronization has been started!")
 			startTime := time.Now()
 			if !syncToken(vaultConn) {
-				tri.log.Error("Token Synchronization Error!")
+				r.log.Error("Token Synchronization Error!")
 			} else {
-				tri.log.Info("Token Synchronization Successful!")
-				promInjector.LastTokenSynchronisationSuccess.WithLabelValues().Set(float64(time.Now().Unix()))
+				r.log.Info("Token Synchronization Successful!")
+				promInjector.LastTokenSynchronizationSuccess.WithLabelValues().Set(float64(time.Now().Unix()))
 			}
 			promInjector.SynchronizationCount.WithLabelValues().Inc()
 			duration := time.Since(startTime).Seconds()
-			tri.log.Debugf("The token synchronization has taken : %vs", time.Since(startTime).Seconds())
+			r.log.Debugf("The token synchronization has taken : %vs", time.Since(startTime).Seconds())
 			promInjector.LastSynchronizationDuration.Observe(duration)
 
-		case <-tri.stopChan:
+		case <-r.stopChan:
 			vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
-			tri.log.Warn("Stopping TokenSync1Hours due to lost leadership")
+			r.log.Warn("Stopping TokenSync1Hours due to lost leadership")
 			return
 		}
 	}

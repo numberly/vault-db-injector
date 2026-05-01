@@ -18,7 +18,7 @@ func TestGetPodDbConfigWithoutAnnotations(t *testing.T) {
 	}
 	pod := &corev1.Pod{} // Mock pod without any annotations
 
-	service := k8s.NewService(cfg, pod)
+	service := k8s.NewParserService(cfg, pod)
 	podDbConfig, err := service.GetPodDbConfig("id-1")
 
 	assert.NoError(t, err)
@@ -52,7 +52,7 @@ func TestGetPodDbConfigWithAnnotationsModeURI(t *testing.T) {
 		},
 	}
 
-	service := k8s.NewService(cfg, pod)
+	service := k8s.NewParserService(cfg, pod)
 	podDbConfig, err := service.GetPodDbConfig("id-1")
 
 	assert.NoError(t, err)
@@ -83,7 +83,7 @@ func TestGetPodDbConfigWithAnnotationsModeClassic(t *testing.T) {
 		},
 	}
 
-	service := k8s.NewService(cfg, pod)
+	service := k8s.NewParserService(cfg, pod)
 	podDbConfig, err := service.GetPodDbConfig("id-1")
 
 	assert.NoError(t, err)
@@ -113,7 +113,7 @@ func TestGetPodDbConfigWithAnnotationsModeClassicWithoutDbPath(t *testing.T) {
 		},
 	}
 
-	service := k8s.NewService(cfg, pod)
+	service := k8s.NewParserService(cfg, pod)
 	podDbConfig, err := service.GetPodDbConfig("id-1")
 
 	assert.NoError(t, err)

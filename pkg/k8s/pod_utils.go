@@ -14,7 +14,7 @@ import (
 )
 
 type PodService interface {
-	GetAllPodAndNamespace(ctx context.Context) ([]PodInformations, error)
+	GetAllPodAndNamespace(ctx context.Context) ([]PodInfo, error)
 }
 
 type KubernetesClient interface {
@@ -35,7 +35,7 @@ func NewPodService(clientset KubernetesClient, cfg *config.Config) PodService {
 	}
 }
 
-type PodInformations struct {
+type PodInfo struct {
 	PodNameUUIDs       []string
 	Namespace          string
 	ServiceAccountName string
@@ -43,7 +43,7 @@ type PodInformations struct {
 	NodeName           string
 }
 
-func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInformations, error) {
+func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInfo, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=true", p.cfg.InjectorLabel),
 	}
@@ -59,11 +59,11 @@ func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInform
 	}
 
 	estimatedSize := len(pods.Items)
-	podInfos := make([]PodInformations, 0, estimatedSize)
+	podInfos := make([]PodInfo, 0, estimatedSize)
 
 	for _, pod := range pods.Items {
 		if uuid, exists := pod.GetAnnotations()[ANNOTATION_VAULT_POD_UUID]; exists {
-			podInfos = append(podInfos, PodInformations{
+			podInfos = append(podInfos, PodInfo{
 				PodNameUUIDs:       strings.Split(uuid, ","),
 				Namespace:          pod.Namespace,
 				PodName:            pod.Name,
