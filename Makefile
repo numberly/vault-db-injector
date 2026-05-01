@@ -4,7 +4,7 @@ VERSION ?= $(shell ./hack/get-version.sh)
 
 GO_IMG ?= golang:alpine3.20@sha256:1b455a3f7786e5765dbeb4f7ab32a36cdc0c3f4ddd35406606df612dc6e3269b
 
-.PHONY: fmt vet build unit-test
+.PHONY: fmt vet build unit-test integration-test
 
 DOCKER_CMD = docker run --rm -v $(PWD):/app -w /app ${GO_IMG}
 
@@ -27,6 +27,10 @@ ifeq ($(USE_DOCKER), 1)
 else
 	go test -v ./... ;
 endif
+
+## integration-test: Run integration tests (requires vault binary or Docker)
+integration-test:
+	go test -tags=integration -v ./...
 
 ## build-image: Build image
 build-docker: vet
