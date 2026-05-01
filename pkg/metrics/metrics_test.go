@@ -1,4 +1,4 @@
-package prometheus_test
+package metrics_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/logger"
-	prom "github.com/numberly/vault-db-injector/pkg/prometheus"
+	prom "github.com/numberly/vault-db-injector/pkg/metrics"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +32,7 @@ func TestRunMetrics(t *testing.T) {
 	successChan := make(chan bool, 1)
 
 	// Initialize the metric service
-	service := prom.NewService(successChan)
+	service := prom.NewMetricsService(successChan)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -51,7 +51,7 @@ func TestRunMetrics(t *testing.T) {
 	var err error
 
 	// Retry mechanism
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		resp, err = http.Get(serverURL)
 		if err == nil {
 			break

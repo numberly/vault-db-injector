@@ -1,10 +1,8 @@
-package k8s_test
+package k8s
 
 import (
 	"os"
 	"testing"
-
-	"github.com/numberly/vault-db-injector/pkg/k8s"
 )
 
 // Temporarily replace the tokenFilePath for testing.
@@ -24,7 +22,7 @@ func TestGetServiceAccountToken(t *testing.T) {
 		t.Fatalf("Failed to close temp file: %v", err)
 	}
 
-	token, err := k8s.GetServiceAccountTokenImpl(tempFile.Name())
+	token, err := getServiceAccountTokenImpl(tempFile.Name())
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}

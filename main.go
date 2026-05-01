@@ -32,10 +32,11 @@ func main() {
 	sentryService.StartSentry()
 
 	k8sClient := k8s.NewClient()
-	clientset, err := k8sClient.GetKubernetesClient()
+	rawClientset, err := k8sClient.GetKubernetesClient()
 	if err != nil {
 		log.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
+	clientset := k8s.NewKubernetesClientAdapter(rawClientset)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -43,11 +44,15 @@ func main() {
 	c := controller.NewController(cfg, clientset, sentryService)
 
 	switch cfg.Mode {
-	case "injector":
+	case config.ModeInjector:
 		go c.RunInjector(ctx, errChan, runSuccess)
-	case "renewer":
+	case config.ModeRenewer:
 		go c.RunRenewer(ctx, metricsSuccess)
-	case "revoker":
+	case config.ModeRevoker:
+		go c.RunRevoker(ctx, metricsSuccess)
+	case config.ModeAll:
+		go c.RunInjector(ctx, errChan, runSuccess)
+		go c.RunRenewer(ctx, metricsSuccess)
 		go c.RunRevoker(ctx, metricsSuccess)
 	}
 

@@ -8,8 +8,9 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/logger"
-	promInjector "github.com/numberly/vault-db-injector/pkg/prometheus"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
@@ -19,6 +20,8 @@ type PodService interface {
 
 type KubernetesClient interface {
 	CoreV1() v1.CoreV1Interface
+	CoordinationV1() coordinationv1.CoordinationV1Interface
+	GetServiceAccountToken() (string, error)
 }
 
 type podServiceImpl struct {
@@ -49,12 +52,12 @@ func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInfo, 
 	}
 	pods, err := p.clientset.CoreV1().Pods("").List(ctx, listOptions)
 	if err != nil {
-		promInjector.GetAllPodErrorCount.WithLabelValues().Inc()
+		metrics.GetAllPodErrorCount.WithLabelValues().Inc()
 		return nil, err
 	}
 
 	if len(pods.Items) == 0 {
-		promInjector.GetAllPodErrorCount.WithLabelValues().Inc()
+		metrics.GetAllPodErrorCount.WithLabelValues().Inc()
 		return nil, errors.Newf("no pods found in the cluster")
 	}
 
@@ -73,6 +76,6 @@ func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInfo, 
 		}
 	}
 
-	promInjector.GetAllPodSuccessCount.WithLabelValues().Inc()
+	metrics.GetAllPodSuccessCount.WithLabelValues().Inc()
 	return podInfos, nil
 }

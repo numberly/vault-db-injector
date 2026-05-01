@@ -9,16 +9,37 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
+	corev1iface "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/stretchr/testify/assert"
 )
 
+// fakeKubernetesClientAdapter wraps fake.Clientset to satisfy k8s.KubernetesClient.
+type fakeKubernetesClientAdapter struct {
+	inner *fake.Clientset
+}
+
+func (f *fakeKubernetesClientAdapter) CoreV1() corev1iface.CoreV1Interface {
+	return f.inner.CoreV1()
+}
+
+func (f *fakeKubernetesClientAdapter) CoordinationV1() coordinationv1.CoordinationV1Interface {
+	return f.inner.CoordinationV1()
+}
+
+func (f *fakeKubernetesClientAdapter) GetServiceAccountToken() (string, error) {
+	return "fake-token", nil
+}
+
+var _ k8s.KubernetesClient = (*fakeKubernetesClientAdapter)(nil)
+
 func TestGetAllPodAndNamespace_NoPodsFound(t *testing.T) {
 	ctx := context.TODO()
 	cfg := &config.Config{}
 	cfg.InjectorLabel = "vault-db-injector"
-	clientset := fake.NewSimpleClientset() // This gives us a mock Kubernetes client
+	clientset := &fakeKubernetesClientAdapter{inner: fake.NewSimpleClientset()}
 
 	podService := k8s.NewPodService(clientset, cfg)
 
@@ -46,7 +67,7 @@ func TestGetAllPodAndNamespace_PodsFound(t *testing.T) {
 	}
 
 	// Create a fake clientset with the mock pod
-	clientset := fake.NewSimpleClientset(mockPod)
+	clientset := &fakeKubernetesClientAdapter{inner: fake.NewSimpleClientset(mockPod)}
 
 	podService := k8s.NewPodService(clientset, cfg)
 
@@ -85,11 +106,12 @@ func TestGetAllPodAndNamespace_PodsWithAnnotations(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset()
+	inner := fake.NewSimpleClientset()
 	for _, pod := range pods {
-		_, err := clientset.CoreV1().Pods(pod.Namespace).Create(ctx, &pod, metav1.CreateOptions{})
+		_, err := inner.CoreV1().Pods(pod.Namespace).Create(ctx, &pod, metav1.CreateOptions{})
 		assert.NoError(t, err)
 	}
+	clientset := &fakeKubernetesClientAdapter{inner: inner}
 
 	podService := k8s.NewPodService(clientset, cfg)
 
@@ -121,7 +143,7 @@ func TestGetAllPodAndNamespace_PodsWithoutAnnotations(t *testing.T) {
 	}
 
 	// Create a fake clientset with the non-annotated pod
-	clientset := fake.NewSimpleClientset(&nonAnnotatedPod)
+	clientset := &fakeKubernetesClientAdapter{inner: fake.NewSimpleClientset(&nonAnnotatedPod)}
 
 	podService := k8s.NewPodService(clientset, cfg)
 

@@ -63,13 +63,40 @@ func TestHealthzHandler(t *testing.T) {
 		expectedStatus  int
 		expectedBody    map[string]interface{}
 	}{
-		// Your existing test cases...
+		{
+			name:            "vault healthy and k8s healthy",
+			k8sShouldFail:   false,
+			vaultShouldFail: false,
+			expectedStatus:  http.StatusOK,
+			expectedBody:    map[string]interface{}{"status": "healthy"},
+		},
+		{
+			name:            "vault unhealthy returns 424 FailedDependency",
+			k8sShouldFail:   false,
+			vaultShouldFail: true,
+			expectedStatus:  http.StatusFailedDependency,
+			expectedBody:    map[string]interface{}{"status": "unhealthy"},
+		},
+		{
+			name:            "k8s unhealthy returns 502 BadGateway",
+			k8sShouldFail:   true,
+			vaultShouldFail: false,
+			expectedStatus:  http.StatusBadGateway,
+			expectedBody:    map[string]interface{}{"status": "unhealthy"},
+		},
+		{
+			name:            "both unhealthy returns 503 ServiceUnavailable",
+			k8sShouldFail:   true,
+			vaultShouldFail: true,
+			expectedStatus:  http.StatusServiceUnavailable,
+			expectedBody:    map[string]interface{}{"status": "unhealthy"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create patch for vault.ConnectToVault and Connector.CheckHealth
-			connectPatch, err := mpatch.PatchMethod(vault.ConnectToVault, func(ctx context.Context, cfg *config.Config) (*vault.Connector, error) {
+			connectPatch, err := mpatch.PatchMethod(vault.ConnectToVault, func(ctx context.Context, cfg *config.Config, saToken string) (*vault.Connector, error) {
 				if tt.vaultShouldFail {
 					return nil, fmt.Errorf("mock vault connection failed")
 				}
@@ -109,7 +136,7 @@ func TestHealthzHandler(t *testing.T) {
 				t.Fatalf("Failed to decode response body: %v", err)
 			}
 
-			if response.Status != tt.expectedBody["status"] {
+			if response.Status != HealthStatusValue(tt.expectedBody["status"].(string)) {
 				t.Errorf("expected status %s, got %s", tt.expectedBody["status"], response.Status)
 			}
 
@@ -125,22 +152,22 @@ func TestReadyzHandler(t *testing.T) {
 		name           string
 		isReady        bool
 		expectedStatus int
-		expectedBody   map[string]interface{}
+		expectedBody   map[string]HealthStatusValue
 	}{
 		{
 			name:           "Service ready",
 			isReady:        true,
 			expectedStatus: http.StatusOK,
-			expectedBody: map[string]interface{}{
-				"status": "ready",
+			expectedBody: map[string]HealthStatusValue{
+				"status": StatusReady,
 			},
 		},
 		{
 			name:           "Service not ready",
 			isReady:        false,
 			expectedStatus: http.StatusServiceUnavailable,
-			expectedBody: map[string]interface{}{
-				"status": "not ready",
+			expectedBody: map[string]HealthStatusValue{
+				"status": StatusNotReady,
 			},
 		},
 	}
@@ -199,17 +226,32 @@ func TestServiceShutdown(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	serverDone := make(chan struct{})
 	go func() {
-		if err := service.Start(ctx, stopChan); err != nil {
-			t.Logf("Service stopped with error: %v", err)
-		} else {
-			t.Log("Service stopped successfully")
-		}
+		service.Start(ctx, stopChan)
+		t.Log("Service stopped")
+		close(serverDone)
 	}()
 
-	time.Sleep(1 * time.Second)
+	// Wait until server is accepting connections before cancelling context.
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get("http://" + service.server.Addr + "/healthz")
+		if err == nil {
+			resp.Body.Close()
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
 	cancel()
-	time.Sleep(1 * time.Second)
+
+	// Wait for server to shut down instead of sleeping unconditionally.
+	select {
+	case <-serverDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("server did not shut down within 5 seconds")
+	}
 
 	_, err := http.Get("http://" + service.server.Addr + "/healthz")
 

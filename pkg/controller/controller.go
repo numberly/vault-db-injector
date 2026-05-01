@@ -9,26 +9,21 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/leadership"
 	"github.com/numberly/vault-db-injector/pkg/logger"
-	"github.com/numberly/vault-db-injector/pkg/prometheus"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
 	"github.com/numberly/vault-db-injector/pkg/renewer"
 	"github.com/numberly/vault-db-injector/pkg/revoker"
 	"github.com/numberly/vault-db-injector/pkg/sentry"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
-var stopChan = make(chan struct{})
-
 type Controller struct {
 	Cfg       *config.Config
-	Clientset *kubernetes.Clientset
-	Lock      *resourcelock.LeaseLock
-	PodName   string
+	Clientset k8s.KubernetesClient
 	log       logger.Logger
 	sentry    sentry.SentryService
 }
 
-func NewController(cfg *config.Config, Clientset *kubernetes.Clientset, sentrySvc sentry.SentryService) *Controller {
+func NewController(cfg *config.Config, Clientset k8s.KubernetesClient, sentrySvc sentry.SentryService) *Controller {
 	return &Controller{
 		Cfg:       cfg,
 		Clientset: Clientset,
@@ -39,7 +34,8 @@ func NewController(cfg *config.Config, Clientset *kubernetes.Clientset, sentrySv
 
 func (c *Controller) RunInjector(ctx context.Context, errChan chan<- error, runSuccess chan<- bool) {
 	c.log.Info("Starting server in mode injector")
-	is := injector.NewWebhookStartor(c.Cfg, errChan, runSuccess, c.sentry)
+	stopChan := make(chan struct{})
+	is := injector.NewWebhookStarter(c.Cfg, errChan, runSuccess, c.sentry)
 	hcService := healthcheck.NewService(c.Cfg)
 	hcService.RegisterHandlers()
 	go hcService.Start(ctx, stopChan)
@@ -48,51 +44,49 @@ func (c *Controller) RunInjector(ctx context.Context, errChan chan<- error, runS
 
 func (c *Controller) RunRenewer(ctx context.Context, metricsSuccess chan<- bool) {
 	c.log.Info("Starting server in mode renewer")
-	c.initLock("lock-injector-renewer")
-	prometheus.IsLeader.WithLabelValues(c.Lock.LeaseMeta.GetName()).Set(0)
-	le := leadership.NewLeaderElector(c.Lock, c.Cfg, c.PodName, c.Clientset, RenewTokenJobWrapper)
+	stopChan := make(chan struct{})
+	podName, lock := c.buildLock("lock-injector-renewer")
+	metrics.IsLeader.WithLabelValues(lock.LeaseMeta.GetName()).Set(0)
+	clientset := c.Clientset
+	cfg := c.Cfg
+	le := leadership.NewLeaderElector(lock, podName, func(ctx context.Context, stopChan chan struct{}) {
+		renewer.NewTokenRenewer(cfg, clientset, stopChan).RenewTokenJob(ctx)
+	})
 	go le.RunLeaderElection(ctx, stopChan)
-	metricsService := prometheus.NewMetricsService(metricsSuccess)
+	metricsService := metrics.NewMetricsService(metricsSuccess)
 	go metricsService.RunMetrics()
 	hcService := healthcheck.NewService(c.Cfg)
+	hcService.RegisterLivenessProbe(le.IsHealthy)
 	hcService.RegisterHandlers()
 	go hcService.Start(ctx, stopChan)
 }
 
 func (c *Controller) RunRevoker(ctx context.Context, metricsSuccess chan<- bool) {
 	c.log.Info("Starting server in mode revoker")
-	c.initLock("lock-injector-revoker")
-	prometheus.IsLeader.WithLabelValues(c.Lock.LeaseMeta.GetName()).Set(0)
-	le := leadership.NewLeaderElector(c.Lock, c.Cfg, c.PodName, c.Clientset, RevokeTokenJobWrapper)
+	stopChan := make(chan struct{})
+	podName, lock := c.buildLock("lock-injector-revoker")
+	metrics.IsLeader.WithLabelValues(lock.LeaseMeta.GetName()).Set(0)
+	clientset := c.Clientset
+	cfg := c.Cfg
+	le := leadership.NewLeaderElector(lock, podName, func(ctx context.Context, stopChan chan struct{}) {
+		revoker.NewTokenRevoker(cfg, clientset, stopChan).RevokeTokenJob(ctx)
+	})
 	go le.RunLeaderElection(ctx, stopChan)
-	metricsService := prometheus.NewMetricsService(metricsSuccess)
+	metricsService := metrics.NewMetricsService(metricsSuccess)
 	go metricsService.RunMetrics()
 	hcService := healthcheck.NewService(c.Cfg)
+	hcService.RegisterLivenessProbe(le.IsHealthy)
 	hcService.RegisterHandlers()
 	go hcService.Start(ctx, stopChan)
 }
 
-func (c *Controller) initLock(lockName string) {
-	var podNamespace string
-	var err error
-
-	// Properly assign the value to c.PodName and initialize podNamespace and err.
-	c.PodName, podNamespace, err = config.GetHAEnvs()
-
+// buildLock resolves HA environment variables and constructs the leader-election lock.
+// It is called at the start of RunRenewer/RunRevoker rather than mutating controller fields,
+// so the Controller struct carries no implicit initialization order dependency.
+func (c *Controller) buildLock(lockName string) (string, *resourcelock.LeaseLock) {
+	podName, podNamespace, err := config.GetHAEnvs()
 	if err != nil {
 		c.log.Fatalf("%s", err)
 	}
-
-	// Now c.PodName contains the value from GetHAEnvs and can be used to get a new lock.
-	c.Lock = leadership.GetNewLock(c.Clientset.CoordinationV1(), lockName, c.PodName, podNamespace)
-}
-
-func RenewTokenJobWrapper(ctx context.Context, stopChan chan struct{}, cfg *config.Config, clientset k8s.KubernetesClient) {
-	r := renewer.NewTokenRenewer(cfg, clientset, stopChan)
-	r.RenewTokenJob(ctx)
-}
-
-func RevokeTokenJobWrapper(ctx context.Context, stopChan chan struct{}, cfg *config.Config, clientset k8s.KubernetesClient) {
-	r := revoker.NewTokenRevoker(cfg, clientset, stopChan)
-	r.RevokeTokenJob(ctx)
+	return podName, leadership.NewLock(c.Clientset.CoordinationV1(), lockName, podName, podNamespace)
 }

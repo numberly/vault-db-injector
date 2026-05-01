@@ -1,4 +1,4 @@
-package prometheus
+package metrics
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 )
 
 type ServMetrics interface {
-	RunMetrics() error
+	RunMetrics()
 }
 
 type MetricsImpl struct {
@@ -31,8 +31,7 @@ func NewMetricsService(successChan chan<- bool) *MetricsImpl {
 	}
 }
 
-func (mi *MetricsImpl) RunMetrics() error {
-
+func (mi *MetricsImpl) RunMetrics() {
 	go func() {
 		mi.log.Infof("Listening metrics on %s", mi.Server.Addr)
 		if err := mi.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -41,5 +40,4 @@ func (mi *MetricsImpl) RunMetrics() error {
 	}()
 
 	mi.successChan <- true
-	return nil
 }

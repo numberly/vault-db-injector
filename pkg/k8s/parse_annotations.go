@@ -1,9 +1,9 @@
 package k8s
 
 import (
-	"errors"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/logger"
 	"github.com/sirupsen/logrus"
@@ -16,16 +16,19 @@ const (
 	ANNOTATION_ROLE           string = "db-creds-injector.numberly.io/role"
 	ANNOTATION_MODE           string = "db-creds-injector.numberly.io/mode" // DEFAULT_TO : classic. can be : classic, uri, file
 	ANNOTATION_VAULT_POD_UUID string = "db-creds-injector.numberly.io/uuid"
+
+	// DbMode constants for database credential injection mode.
+	DbModeClassic = "classic"
+	DbModeURI     = "uri"
 )
+
+// ErrV1AnnotationDetected is returned when a pod uses the deprecated vault injector v1 annotation (revoke-ttl).
+var ErrV1AnnotationDetected = errors.New("this pod is going to be ignored, old annotation from vault injector v1 detected")
 
 type ParserService struct {
 	cfg config.Config
 	log logger.Logger
 	pod *corev1.Pod
-}
-
-type Parser interface {
-	GetPodDbConfig() (*podDbConfig, error)
 }
 
 type DbConfiguration struct {
@@ -38,7 +41,7 @@ type DbConfiguration struct {
 	Role             string
 }
 
-type podDbConfig struct {
+type PodDbConfig struct {
 	VaultDbPath      string
 	Mode             string
 	DbConfigurations *[]DbConfiguration
@@ -52,7 +55,7 @@ func NewParserService(cfg config.Config, pod *corev1.Pod) *ParserService {
 	}
 }
 
-func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
+func (s *ParserService) GetPodDbConfig(contextID string) (*PodDbConfig, error) {
 	estimatedSize := len(s.pod.Annotations)
 	dbConfigurations := make([]DbConfiguration, 0, estimatedSize)
 	vaultDbPath, ok := s.pod.Annotations[ANNOTATION_VAULT_DB_PATH]
@@ -62,18 +65,18 @@ func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 
 	for key, value := range s.pod.Annotations {
 		if strings.HasPrefix(key, "db-creds-injector.numberly.io/revoke-ttl") {
-			return nil, errors.New("this pod is going to be ignored, old annotation from vault injector v1 detected")
+			return nil, ErrV1AnnotationDetected
 		}
 		if strings.HasPrefix(key, "db-creds-injector.numberly.io/") {
 			// Extract the database name and configuration type (e.g., dbname, dbaddress) from the key
 			keyParts := strings.SplitN(key, "/", 2)
-			if (len(keyParts) < 2 && key != "role") || (len(keyParts) < 2 && key != "cluster") {
-				s.log.WithFields(logrus.Fields{"contextId": contextId}).Printf("Warning: Annotation '%s' does not follow the expected format 'db-creds-injector.numberly.io/dbname.configtype'", key)
+			if len(keyParts) < 2 {
+				s.log.WithFields(logrus.Fields{"contextID": contextID}).Printf("Warning: Annotation '%s' does not follow the expected format 'db-creds-injector.numberly.io/dbname.configtype'", key)
 				continue // Skip if the annotation doesn't follow the expected format
 			}
 			dbConfigKeyParts := strings.SplitN(keyParts[1], ".", 2)
-			if (len(dbConfigKeyParts) < 2 && key != "role") || (len(dbConfigKeyParts) < 2 && key != "cluster") {
-				s.log.WithFields(logrus.Fields{"contextId": contextId}).Printf("Warning: Configuration for '%s' does not include a database name and type", key)
+			if len(dbConfigKeyParts) < 2 {
+				s.log.WithFields(logrus.Fields{"contextID": contextID}).Printf("Warning: Configuration for '%s' does not include a database name and type", key)
 				continue // Skip if the configuvaultConnation doesn't include a database name and type
 			}
 			dbName := dbConfigKeyParts[0]
@@ -92,14 +95,11 @@ func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 				newDbc := DbConfiguration{DbName: dbName}
 				dbConfigurations = append(dbConfigurations, newDbc)
 				dbc = &dbConfigurations[len(dbConfigurations)-1]
-				dbc.Role, ok = s.pod.Annotations[ANNOTATION_ROLE]
-				if !ok || dbc.Role == "" {
-					dbc.Role = ""
-				}
+				dbc.Role = s.pod.Annotations[ANNOTATION_ROLE]
 
 			}
 
-			s.log.WithFields(logrus.Fields{"contextId": contextId}).Infof("The role value is : %s", dbc.Role)
+			s.log.WithFields(logrus.Fields{"contextID": contextID}).Infof("The role value is : %s", dbc.Role)
 
 			// Assign the configuration value based on the type
 			switch configType {
@@ -108,7 +108,7 @@ func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 			case "template":
 				dbc.Template = value
 			case "mode":
-				dbc.Mode = value
+				dbc.Mode = strings.ToLower(value)
 			case "env-key-dbuser":
 				dbc.DbUserEnvKey = value
 			case "env-key-dbpassword":
@@ -116,16 +116,16 @@ func (s *ParserService) GetPodDbConfig(contextId string) (*podDbConfig, error) {
 			case "role":
 				dbc.Role = value
 			default:
-				s.log.WithFields(logrus.Fields{"contextId": contextId}).Infof("db configuration is not handled : %s", configType)
+				s.log.WithFields(logrus.Fields{"contextID": contextID}).Infof("db configuration is not handled : %s", configType)
 			}
 
 		}
 	}
 
-	podDbConfig := podDbConfig{
+	PodDbConfig := PodDbConfig{
 		VaultDbPath:      vaultDbPath,
 		DbConfigurations: &dbConfigurations,
 	}
 
-	return &podDbConfig, nil
+	return &PodDbConfig, nil
 }

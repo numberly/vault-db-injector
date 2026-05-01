@@ -5,50 +5,51 @@ import (
 	"sync"
 	"time"
 
-	"github.com/numberly/vault-db-injector/pkg/config"
-	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/logger"
-	"github.com/numberly/vault-db-injector/pkg/prometheus"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
-var (
-	// Used for liveness probe
-	m       sync.Mutex
-	healthy bool = true
-)
 var _ LeaderElector = (*leaderElectorImpl)(nil)
 
 type LeaderElector interface {
 	RunLeaderElection(ctx context.Context, stopChan chan struct{})
+	IsHealthy() bool
 }
 
 type leaderElectorImpl struct {
 	lock       *resourcelock.LeaseLock
-	cfg        *config.Config
 	id         string
-	clientset  k8s.KubernetesClient
 	leaderFunc LeaderFunc
 	log        logger.Logger
+	mu         sync.Mutex
+	healthy    bool
 }
 
-func NewLeaderElector(lock *resourcelock.LeaseLock, cfg *config.Config, id string, clientset k8s.KubernetesClient, leaderFunc LeaderFunc) LeaderElector {
+func (le *leaderElectorImpl) IsHealthy() bool {
+	le.mu.Lock()
+	defer le.mu.Unlock()
+	return le.healthy
+}
+
+func NewLeaderElector(lock *resourcelock.LeaseLock, id string, leaderFunc LeaderFunc) LeaderElector {
 	return &leaderElectorImpl{
 		lock:       lock,
-		cfg:        cfg,
 		id:         id,
-		clientset:  clientset,
 		leaderFunc: leaderFunc,
 		log:        logger.GetLogger(),
+		healthy:    true,
 	}
 }
 
-type LeaderFunc func(ctx context.Context, stopChan chan struct{}, cfg *config.Config, clientset k8s.KubernetesClient)
+// LeaderFunc is the callback invoked when this instance becomes leader.
+// cfg and clientset are NOT passed as parameters; callers must capture them in a closure.
+type LeaderFunc func(ctx context.Context, stopChan chan struct{})
 
-func GetNewLock(client coordinationv1.CoordinationV1Interface, lockName, podname, namespace string) *resourcelock.LeaseLock {
+func NewLock(client coordinationv1.CoordinationV1Interface, lockName, podname, namespace string) *resourcelock.LeaseLock {
 	return &resourcelock.LeaseLock{
 		LeaseMeta: v1.ObjectMeta{
 			Name:      lockName,
@@ -64,10 +65,7 @@ func GetNewLock(client coordinationv1.CoordinationV1Interface, lockName, podname
 // runLeaderElection runs leadership election. If an instance of the controller is the leader and stops leading it will shutdown.
 
 func (le *leaderElectorImpl) RunLeaderElection(ctx context.Context, stopChan chan struct{}) {
-
-	//log.SetOutput(new(logger.LogrusWriter))
-
-	prometheus.LeaseElectionAttempts.WithLabelValues(le.lock.LeaseMeta.GetName()).Inc()
+	metrics.LeaseElectionAttempts.WithLabelValues(le.lock.LeaseMeta.GetName()).Inc()
 	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 		Lock:            le.lock,
 		ReleaseOnCancel: true,
@@ -76,16 +74,14 @@ func (le *leaderElectorImpl) RunLeaderElection(ctx context.Context, stopChan cha
 		RetryPeriod:     2 * time.Second,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
-				prometheus.IsLeader.WithLabelValues(le.lock.LeaseMeta.GetName()).Set(1)
+				metrics.IsLeader.WithLabelValues(le.lock.LeaseMeta.GetName()).Set(1)
 				le.log.Info("Became leader, starting process")
-				go le.leaderFunc(ctx, stopChan, le.cfg, le.clientset)
+				go le.leaderFunc(ctx, stopChan)
 			},
 			OnStoppedLeading: func() {
-				prometheus.IsLeader.WithLabelValues(le.lock.LeaseMeta.GetName()).Set(0)
+				metrics.IsLeader.WithLabelValues(le.lock.LeaseMeta.GetName()).Set(0)
 				le.log.Info("No longer leader, stopping process")
-				close(stopChan) // Signal TokenSync1Hours to stop
-				// It's a good practice to recreate the stopChan if the instance can become a leader again later
-				//stopChan = make(chan struct{})
+				close(stopChan)
 			},
 			OnNewLeader: func(currentID string) {
 				if currentID == le.id {

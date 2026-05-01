@@ -1,4 +1,4 @@
-package prometheus
+package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
@@ -59,14 +59,6 @@ var (
 		prometheus.GaugeOpts{
 			Name: "vault_injector_lease_expiration",
 			Help: "Vault injector expiration time",
-		},
-		[]string{"uuid", "namespace"},
-	)
-	// Not used
-	LastTokenRenewSuccessInTime = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "vault_injector_token_last_renewed",
-			Help: "Last vault token successful renewal",
 		},
 		[]string{"uuid", "namespace"},
 	)
@@ -243,7 +235,6 @@ func Init(prom *prometheus.Registry) {
 		RevokeTokenCount,
 		RevokeTokenErrorCount,
 		TokenExpirationInTime,
-		LastTokenRenewSuccessInTime,
 		SynchronizationCount,
 		SynchronizationErrorCount,
 		LastTokenSynchronizationSuccess,
