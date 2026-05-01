@@ -3,14 +3,13 @@ package revoker
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/logger"
-	promInjector "github.com/numberly/vault-db-injector/pkg/prometheus"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
 	"github.com/numberly/vault-db-injector/pkg/vault"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,45 +39,41 @@ func NewTokenRevoker(cfg *config.Config, clientset k8s.KubernetesClient, stopcha
 }
 
 func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
-	vaultConn, err := vault.ConnectToVault(ctx, r.cfg)
+	saToken, err := r.clientset.GetServiceAccountToken()
+	if err != nil {
+		r.log.Fatalf("Error getting ServiceAccount token: %v", err)
+	}
+	vaultConn, err := vault.ConnectAndRenew(ctx, r.cfg, saToken)
 	if err != nil {
 		r.log.Fatalf("Error connecting to Vault: %v", err)
 	}
 	r.log.Debugf("authenticated to vault using role %s", r.cfg.VaultAuthPath)
-	vaultConn.RenewalInterval = time.Duration(600) * time.Second
-	vaultConn.StartTokenRenewal(ctx, r.cfg)
 
-	// Create a child context that will be cancelled on stopChan signal
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Start watching for stopChan signals to cancel the context
 	go func() {
-		<-r.stopChan
-		r.log.Info("Received stop signal, stopping RevokeTokenJob.")
-		cancel() // This cancels the context
-	}()
-
-	go func() {
-		var watch watch.Interface
+		var watcher watch.Interface
 		var err error
 
-		// Initial watch setup
-		watch, err = r.startWatchingPods(ctx)
+		watcher, err = r.startWatchingPods(ctx)
 		if err != nil {
 			r.log.Errorf("Failed to start watching pods: %v", err)
 			return
 		}
 		for {
 			select {
+			case <-r.stopChan:
+				r.log.Info("Received stop signal, stopping RevokeTokenJob.")
+				cancel()
+				return
 			case <-ctx.Done():
-				// If the context is cancelled, stop the goroutine
 				r.log.Info("Context cancelled, stopping pod watcher.")
 				return
-			case event, ok := <-watch.ResultChan():
+			case event, ok := <-watcher.ResultChan():
 				if !ok {
 					r.log.Warn("Pod watch channel closed, attempting to restart...")
-					watch, err = r.startWatchingPods(ctx)
+					watcher, err = r.startWatchingPods(ctx)
 					if err != nil {
 						r.log.Errorf("Failed to restart watching pods: %v", err)
 						cancel()
@@ -86,7 +81,7 @@ func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
 					}
 					continue
 				}
-				if event.Type == "DELETED" {
+				if event.Type == watch.Deleted {
 					pod, ok := event.Object.(*corev1.Pod)
 					if !ok {
 						r.log.Infof("Unexpected type\n")
@@ -96,25 +91,28 @@ func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
 						uuids := strings.Split(uuidsString, ",")
 						for _, uuid := range uuids {
 							keyInformation, err := vaultConn.GetKeyInfo(ctx, pod.Name, uuid, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
-							if err != nil || keyInformation == nil {
-								r.log.Errorf("Error while retrieving information or keyInformation is nil: %v", err)
-								promInjector.PodCleanupErrorCount.WithLabelValues().Inc()
+							if err != nil {
+								if errors.Is(err, vault.ErrKeyNotFound) {
+									r.log.Debugf("No vault data found for uuid %s (pod %s), skipping revocation", uuid, pod.Name)
+								} else {
+									r.log.Errorf("Error while retrieving key information for uuid %s: %v", uuid, err)
+									metrics.PodCleanupErrorCount.WithLabelValues().Inc()
+								}
 								continue
 							}
-							if vaultConn != nil {
-								err = vaultConn.HandlePodDeletionToken(ctx, keyInformation, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
-								if err != nil {
-									r.log.Errorf("Error in HandlePodDeletionToken: %v", err)
-									promInjector.PodCleanupErrorCount.WithLabelValues().Inc()
-									continue
-								}
-							} else {
-								r.log.Errorf("vaultConn or keyInformation is nil")
-								promInjector.PodCleanupErrorCount.WithLabelValues().Inc()
+							if keyInformation == nil {
+								r.log.Errorf("keyInformation unexpectedly nil for uuid %s", uuid)
+								metrics.PodCleanupErrorCount.WithLabelValues().Inc()
+								continue
+							}
+							err = vaultConn.HandlePodDeletionToken(ctx, keyInformation, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
+							if err != nil {
+								r.log.Errorf("Error in HandlePodDeletionToken: %v", err)
+								metrics.PodCleanupErrorCount.WithLabelValues().Inc()
 								continue
 							}
 						}
-						promInjector.PodCleanupSuccessCount.WithLabelValues().Inc()
+						metrics.PodCleanupSuccessCount.WithLabelValues().Inc()
 					}
 				}
 			}
@@ -123,7 +121,9 @@ func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
 
 	// Keep the main goroutine alive until context is cancelled
 	<-ctx.Done()
-	vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
+	if err := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); err != nil {
+		r.log.Errorf("RevokeSelfToken failed: %v", err)
+	}
 	r.log.Info("RevokeTokenJob stopped.")
 }
 
