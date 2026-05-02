@@ -7,9 +7,14 @@
 // stack but before exec completes. Gives access to bprm->p (top of envp).
 //
 // Behavior: for each cgroup that has mappings registered in
-// cgroup_mappings, scan envp memory. For every byte run that exactly
-// matches a placeholder, overwrite it with the real value (NUL-padded to
-// the same length) using bpf_probe_write_user.
+// cgroup_mappings, scan envp memory byte-by-byte. For every byte run that
+// exactly matches a placeholder, overwrite it with the real value (NUL-padded
+// to the same length) using bpf_probe_write_user.
+//
+// Scan strategy: bpf_loop() (Linux 5.17+) iterates every byte offset in the
+// envp region up to ENVP_SCAN_LIMIT. This is the only correct approach because
+// env values like "KEY=VALUE" have no alignment guarantee — a placeholder
+// starts at offset len("KEY="), which is never aligned to a power of two.
 //
 // All sizes are constants matching pkg/placeholder/placeholder.go and
 // pkg/bpf/loader.go.
@@ -56,31 +61,49 @@ struct {
     __type(value, char[PLACEHOLDER_LEN]);
 } scratch SEC(".maps");
 
-// Try to substitute one mapping at a single envp address. Returns 1 if
-// substituted, 0 otherwise. The caller is responsible for advancing the
-// scan offset.
-static __always_inline int try_substitute(void *envp_addr, struct mapping *m, char *buf)
+struct scan_ctx {
+    void *base;                          // bprm->p (start of envp region)
+    struct mappings_for_cgroup *mfc;
+    char *buf;                           // per-cpu scratch buffer
+};
+
+// bpf_loop() callback: called once per byte offset i in [0, ENVP_SCAN_LIMIT).
+// Reads PLACEHOLDER_LEN bytes at base+i, compares against each registered
+// placeholder, and overwrites on match.
+static long scan_callback(__u32 i, void *ctx_)
 {
-    if (bpf_probe_read_user(buf, PLACEHOLDER_LEN, envp_addr) != 0)
-        return 0;
+    struct scan_ctx *ctx = (struct scan_ctx *)ctx_;
+    void *addr = (char *)ctx->base + i;
 
-    // Strict prefix match. The verifier requires bounded loops.
-    #pragma unroll
-    for (int i = 0; i < PLACEHOLDER_LEN; i++) {
-        if (buf[i] != m->placeholder[i])
-            return 0;
-    }
+    if (bpf_probe_read_user(ctx->buf, PLACEHOLDER_LEN, addr) != 0)
+        return 0; // unreadable page — continue
 
-    // Build NUL-padded value of exactly PLACEHOLDER_LEN bytes.
-    char padded[PLACEHOLDER_LEN] = {0};
-    __u32 len = m->value_len;
-    if (len > VALUE_MAX) len = VALUE_MAX;
-    #pragma unroll
-    for (int i = 0; i < VALUE_MAX; i++) {
-        if (i < len) padded[i] = m->value[i];
+    for (__u32 j = 0; j < ctx->mfc->count && j < MAX_MAPPINGS_PER_CGROUP; j++) {
+        struct mapping *m = &ctx->mfc->entries[j];
+
+        // Byte-for-byte comparison of all PLACEHOLDER_LEN bytes.
+        bool match = true;
+        #pragma unroll
+        for (int k = 0; k < PLACEHOLDER_LEN; k++) {
+            if (ctx->buf[k] != m->placeholder[k]) {
+                match = false;
+                break;
+            }
+        }
+        if (!match)
+            continue;
+
+        // Build NUL-padded replacement of exactly PLACEHOLDER_LEN bytes.
+        char padded[PLACEHOLDER_LEN] = {0};
+        __u32 len = m->value_len;
+        if (len > VALUE_MAX) len = VALUE_MAX;
+        #pragma unroll
+        for (int k = 0; k < VALUE_MAX; k++) {
+            if (k < len) padded[k] = m->value[k];
+        }
+        bpf_probe_write_user(addr, padded, PLACEHOLDER_LEN);
     }
-    bpf_probe_write_user(envp_addr, padded, PLACEHOLDER_LEN);
-    return 1;
+    return 0; // always continue — multiple placeholders may share the envp region
 }
 
 SEC("lsm/bprm_check_security")
@@ -97,21 +120,16 @@ int BPF_PROG(substitute_envp, struct linux_binprm *bprm)
         return 0;
 
     unsigned long p = BPF_CORE_READ(bprm, p);
+    struct scan_ctx sctx = {
+        .base = (void *)p,
+        .mfc  = mfc,
+        .buf  = buf,
+    };
 
-    // Bounded scan. 256 strides at 64-byte stride = 16 KB envp coverage.
-    // The stride leaves no gap that could hide a placeholder, since
-    // placeholders are aligned by writer (env values are NUL-separated
-    // entries; we scan every byte position via a smaller stride below
-    // would be too verifier-expensive — instead we rely on the fact
-    // that Go writes placeholders as whole env *values*, which always
-    // start on a byte boundary the kernel preserves).
-    #pragma unroll
-    for (int s = 0; s < 256; s++) {
-        unsigned long addr = p + (s * 64);
-        for (__u32 i = 0; i < mfc->count && i < MAX_MAPPINGS_PER_CGROUP; i++) {
-            try_substitute((void *)addr, &mfc->entries[i], buf);
-        }
-    }
+    // Walk every byte offset from 0 to ENVP_SCAN_LIMIT - PLACEHOLDER_LEN.
+    // bpf_loop() (Linux 5.17+) is verifier-safe for large iteration counts
+    // and avoids the #pragma unroll stack-pressure of an inlined 16K loop.
+    bpf_loop(ENVP_SCAN_LIMIT - PLACEHOLDER_LEN, scan_callback, &sctx, 0);
 
     return 0;
 }

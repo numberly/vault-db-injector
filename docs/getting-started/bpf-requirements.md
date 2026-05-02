@@ -7,8 +7,9 @@ node in your cluster meets the requirements below.
 
 ## Kernel requirements
 
-BPF mode requires **Linux ≥ 5.7** (≥ 5.11 recommended). Three kernel
-configuration options must be present:
+BPF mode requires **Linux ≥ 5.17**. The envp scan uses `bpf_loop()` (added in
+5.17) to walk every byte of envp without verifier complexity limits — earlier
+kernels are not supported. Three kernel configuration options must be present:
 
 | Kernel option | Purpose |
 |---------------|---------|
