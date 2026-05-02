@@ -218,7 +218,10 @@ BPF mode intentionally does not protect against:
 - **`kubectl exec` with shell access.** A user who can exec into the container
   and run `env` or read `/proc/<pid>/environ` sees the real credentials after
   substitution. A future lineage-detection extension (not in scope) would
-  address this.
+  address this. To reduce exposure, restrict `kubectl exec` via Kubernetes
+  RBAC and enforce Pod Security Admission's `restricted` profile on namespaces
+  that hold high-sensitivity credentials (see
+  [bpf-requirements.md](../getting-started/bpf-requirements.md#recommended-pod-hardening)).
 - **Sidecars sharing the PID namespace.** Any container with `shareProcessNamespace: true`
   that can read `/proc` of the application container can observe the substituted
   environment.

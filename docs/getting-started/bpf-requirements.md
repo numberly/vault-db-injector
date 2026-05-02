@@ -173,3 +173,22 @@ password_policy "vault-db-injector-policy" {
 
 Most Vault-generated usernames and passwords are well within this range
 by default.
+
+---
+
+## Recommended pod hardening
+
+The BPF substitution layer protects against K8s API leaks but does NOT prevent
+`kubectl exec` users from reading credentials via `env` (the exec'd shell sees
+the substituted real values). For pods that hold high-sensitivity credentials,
+restrict `kubectl exec` access via Kubernetes RBAC AND consider enforcing
+Pod Security Admission's `restricted` profile to deny certain elevation paths:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-secure-namespace
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+```
