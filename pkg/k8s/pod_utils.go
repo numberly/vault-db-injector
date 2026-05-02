@@ -10,6 +10,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/logger"
 	"github.com/numberly/vault-db-injector/pkg/metrics"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -22,6 +23,7 @@ type KubernetesClient interface {
 	CoreV1() v1.CoreV1Interface
 	CoordinationV1() coordinationv1.CoordinationV1Interface
 	GetServiceAccountToken() (string, error)
+	RawClientset() kubernetes.Interface
 }
 
 type podServiceImpl struct {

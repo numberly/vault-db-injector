@@ -45,6 +45,10 @@ func (a *KubernetesClientAdapter) GetServiceAccountToken() (string, error) {
 	return getServiceAccountTokenImpl(tokenFilePath)
 }
 
+func (a *KubernetesClientAdapter) RawClientset() kubernetes.Interface {
+	return a.Clientset
+}
+
 var _ KubernetesClient = (*KubernetesClientAdapter)(nil)
 
 const tokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"

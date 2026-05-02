@@ -9,6 +9,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/sentry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -28,6 +29,7 @@ type fakeKubernetesClient struct{}
 func (f *fakeKubernetesClient) CoreV1() corev1.CoreV1Interface                          { return nil }
 func (f *fakeKubernetesClient) CoordinationV1() coordinationv1.CoordinationV1Interface  { return nil }
 func (f *fakeKubernetesClient) GetServiceAccountToken() (string, error)                 { return "fake-token", nil }
+func (f *fakeKubernetesClient) RawClientset() kubernetes.Interface                      { return nil }
 
 var _ k8s.KubernetesClient = (*fakeKubernetesClient)(nil)
 

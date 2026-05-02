@@ -8,6 +8,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -26,6 +27,8 @@ func (f *fakeKubernetesClient) CoordinationV1() coordinationv1.CoordinationV1Int
 func (f *fakeKubernetesClient) GetServiceAccountToken() (string, error) {
 	return "fake-token", nil
 }
+
+func (f *fakeKubernetesClient) RawClientset() kubernetes.Interface { return nil }
 
 func TestNewTokenRevoker_NotNil(t *testing.T) {
 	cfg := &config.Config{}

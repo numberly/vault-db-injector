@@ -9,6 +9,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	corev1iface "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -31,6 +32,10 @@ func (f *fakeKubernetesClientAdapter) CoordinationV1() coordinationv1.Coordinati
 
 func (f *fakeKubernetesClientAdapter) GetServiceAccountToken() (string, error) {
 	return "fake-token", nil
+}
+
+func (f *fakeKubernetesClientAdapter) RawClientset() kubernetes.Interface {
+	return f.inner
 }
 
 var _ k8s.KubernetesClient = (*fakeKubernetesClientAdapter)(nil)
