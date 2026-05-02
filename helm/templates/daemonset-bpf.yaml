@@ -22,25 +22,17 @@ spec:
         prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
     spec:
-      hostPID: true
       containers:
       - name: vault-db-bpf
         image: "{{ .Values.bpf.image.repository | default .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.bpf.image.tag | default .Values.vaultDbInjector.injector.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.bpf.imagePullPolicy | default "IfNotPresent" }}
         args:
         - "--config=/bpf/config.yaml"
-        - "--mode=bpf"
         env:
         - name: NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        - name: BPF_ENABLED
-          value: "true"
-        - name: BPF_WRAP_TOKEN_TTL
-          value: {{ .Values.bpf.wrapTokenTTL | quote }}
-        - name: BPF_TMPFS_PATH
-          value: "/run/vault-db-injector/bpf"
         ports:
         - containerPort: 8080
           name: metrics

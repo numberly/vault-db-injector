@@ -117,8 +117,10 @@ func (cfg *Config) Validate() error {
 		{cfg.VaultAddress == "", "no vaultAddress specified"},
 		{cfg.VaultAuthPath == "", "no vaultAuthPath specified"},
 		{cfg.KubeRole == "", "no kubeRole specified"},
-		{cfg.VaultSecretName == "", "no vaultSecretName specified"},
-		{cfg.VaultSecretPrefix == "", "no vaultSecretPrefix specified"},
+		// VaultSecretName and VaultSecretPrefix are only used by the KV read path
+		// (injector/renewer/revoker/all). BPF mode only unwraps tokens — never reads KV.
+		{cfg.Mode != ModeBPF && cfg.VaultSecretName == "", "no vaultSecretName specified"},
+		{cfg.Mode != ModeBPF && cfg.VaultSecretPrefix == "", "no vaultSecretPrefix specified"},
 		{cfg.Sentry && cfg.SentryDsn == "", "no sentryDsn specified"},
 	}
 

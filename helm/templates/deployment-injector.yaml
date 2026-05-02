@@ -27,9 +27,9 @@ spec:
         name: vault-db-injector
         {{- if .Values.bpf.enabled }}
         env:
-        - name: BPF_ENABLED
+        - name: INJECTOR_BPF_ENABLED
           value: "true"
-        - name: BPF_WRAP_TOKEN_TTL
+        - name: INJECTOR_BPF_WRAP_TOKEN_TTL
           value: {{ .Values.bpf.wrapTokenTTL | quote }}
         {{- end }}
         ports:
