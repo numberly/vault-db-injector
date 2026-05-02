@@ -31,15 +31,19 @@ func ResolveCgroupID(podUID, containerID string) (uint64, error) {
 
 // resolveCgroupIDAt is the testable variant accepting a custom cgroup root.
 func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
-	// systemd escapes hyphens in unit names by replacing them with underscores;
-	// kubelet applies the same escaping when converting pod UIDs into cgroup
-	// slice names. Mirror that here so we can find the cgroup directory.
-	cleanPodUID := strings.ReplaceAll(podUID, "-", "_")
 	// Strip the runtime URI scheme (containerd://, cri-o://, docker://).
 	cid := containerID
 	if i := strings.Index(cid, "://"); i >= 0 {
 		cid = cid[i+3:]
 	}
+
+	var tried []string
+
+	// --- Phase 1: systemd cgroup driver ---
+	// systemd escapes hyphens in unit names by replacing them with underscores;
+	// kubelet applies the same escaping when converting pod UIDs into cgroup
+	// slice names. Mirror that here so we can find the cgroup directory.
+	cleanPodUID := strings.ReplaceAll(podUID, "-", "_")
 
 	// kubelet's systemd cgroup driver only creates intermediate QoS slices
 	// for Burstable and BestEffort pods. Guaranteed pods land directly under
@@ -47,7 +51,7 @@ func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
 	// kubelet/cm/qos_container_manager_linux.go which sets
 	// QOSContainersInfo.Guaranteed = rootContainer (= "kubepods").
 	// We search the standard QoS slices in priority order.
-	podSlices := []string{
+	systemdPodSlices := []string{
 		filepath.Join(root, "kubepods.slice",
 			fmt.Sprintf("kubepods-pod%s.slice", cleanPodUID)),
 		filepath.Join(root, "kubepods.slice", "kubepods-burstable.slice",
@@ -59,8 +63,7 @@ func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
 	// Each runtime uses a different prefix for the container scope filename.
 	runtimePrefixes := []string{"cri-containerd-", "crio-", "docker-"}
 
-	var tried []string
-	for _, podDir := range podSlices {
+	for _, podDir := range systemdPodSlices {
 		for _, prefix := range runtimePrefixes {
 			scope := filepath.Join(podDir, fmt.Sprintf("%s%s.scope", prefix, cid))
 			tried = append(tried, scope)
@@ -70,15 +73,31 @@ func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
 		}
 	}
 
+	// --- Phase 2: cgroupfs cgroup driver ---
+	// K3s, K3D, and other lightweight distributions use the cgroupfs driver.
+	// Pod UIDs keep their raw hyphen form; container IDs are bare (no prefix,
+	// no .scope suffix); QoS classes map to plain subdirectories.
+	cgroupfsPodDirs := []string{
+		filepath.Join(root, "kubepods", fmt.Sprintf("pod%s", podUID)),
+		filepath.Join(root, "kubepods", "burstable", fmt.Sprintf("pod%s", podUID)),
+		filepath.Join(root, "kubepods", "besteffort", fmt.Sprintf("pod%s", podUID)),
+	}
+
+	for _, podDir := range cgroupfsPodDirs {
+		path := filepath.Join(podDir, cid)
+		tried = append(tried, path)
+		if id, ok := inodeOf(path); ok {
+			return id, nil
+		}
+	}
+
 	return 0, errors.Newf(
-		"cgroup not found for podUID=%s containerID=%s under %s; tried:\n  %s",
+		"cgroup not found for podUID=%s containerID=%s under %s; tried (systemd then cgroupfs):\n  %s",
 		podUID, containerID, root, strings.Join(tried, "\n  "))
 }
 
-// checkCgroupSetup verifies the host runs cgroup v2 with systemd driver.
-// kubelet on cgroupfs uses /sys/fs/cgroup/kubepods/pod<UID>/<containerID>
-// paths which the resolver doesn't search; emit a clear error rather than
-// per-pod "cgroup not found" diagnostics.
+// checkCgroupSetup verifies the host runs cgroup v2 with either the systemd
+// or cgroupfs cgroup driver. Both are supported by the resolver.
 func checkCgroupSetup() error {
 	return checkCgroupSetupAt("/sys/fs/cgroup")
 }
@@ -89,9 +108,13 @@ func checkCgroupSetupAt(root string) error {
 	if _, err := os.Stat(filepath.Join(root, "cgroup.controllers")); err != nil {
 		return errors.Wrap(err, "cgroup v2 not detected (need cgroupv2 unified hierarchy)")
 	}
-	// systemd driver: kubepods.slice exists
-	if _, err := os.Stat(filepath.Join(root, "kubepods.slice")); err != nil {
-		return errors.Wrap(err, "kubelet systemd cgroup driver not detected (need cgroupDriver: systemd)")
+	// Either the systemd driver (kubepods.slice) or the cgroupfs driver
+	// (kubepods/) must be present; both layouts are resolved by the resolver.
+	_, errSystemd := os.Stat(filepath.Join(root, "kubepods.slice"))
+	_, errCgroupfs := os.Stat(filepath.Join(root, "kubepods"))
+	if errSystemd != nil && errCgroupfs != nil {
+		return errors.New("kubelet cgroup hierarchy not detected: " +
+			"neither kubepods.slice (systemd driver) nor kubepods/ (cgroupfs driver) found")
 	}
 	return nil
 }

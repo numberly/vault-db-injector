@@ -59,6 +59,9 @@ spec:
           readOnly: true
         - name: bpffs
           mountPath: /sys/fs/bpf
+        - name: kernel-security
+          mountPath: /sys/kernel/security
+          readOnly: true
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -96,6 +99,10 @@ spec:
       - name: bpffs
         hostPath:
           path: /sys/fs/bpf
+          type: DirectoryOrCreate
+      - name: kernel-security
+        hostPath:
+          path: /sys/kernel/security
           type: DirectoryOrCreate
       {{- if .Values.bpf.tolerations }}
       tolerations:

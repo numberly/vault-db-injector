@@ -41,7 +41,7 @@ classic mode.
 BPF mode relies on cgroup-v2 path naming to resolve a pod's cgroup ID:
 
 - **containerd** or **cri-o** (both supported)
-- **cgroup-v2** with the **systemd** cgroup driver
+- **cgroup-v2** with either the **systemd** or **cgroupfs** cgroup driver
 
 Verify cgroup-v2:
 
@@ -51,6 +51,17 @@ stat -f --format="%T" /sys/fs/cgroup
 ```
 
 Docker's cgroupfs driver with cgroup-v1 is not supported.
+
+### Cgroup driver compatibility
+
+Both kubelet cgroup drivers are supported:
+
+| Driver | Path layout | Distributions |
+|--------|------------|---------------|
+| **systemd** | `kubepods.slice/kubepods-pod<UID_underscored>.slice/<runtime>-<cid>.scope` | Bottlerocket, Talos, Ubuntu 22.04+, GKE COS, AKS |
+| **cgroupfs** | `kubepods/[burstable\|besteffort/]pod<UID>/<containerID>` | K3s, K3D, lightweight distros |
+
+The resolver tries systemd paths first (more common in production), then falls back to cgroupfs paths.
 
 ---
 
@@ -114,6 +125,12 @@ The following distributions have been validated in CI or manual testing:
 | GKE Container-Optimized OS (COS) | BPF LSM available on COS-101+. Verify with the kernel check above. |
 | AKS Ubuntu | BPF LSM available on Ubuntu 22.04 node pools. |
 | Flatcar Container Linux | BPF LSM supported since channel stable-3760+. |
+
+### Documented compatible (community-validated)
+
+| Distribution | Notes |
+|-------------|-------|
+| **K3s / K3D** | Uses cgroupfs driver. BPF LSM must be enabled on the host kernel (see kernel requirements). |
 
 ### Documented incompatible
 
