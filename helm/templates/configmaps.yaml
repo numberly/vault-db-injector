@@ -51,12 +51,12 @@ data:
     sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
     sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
     injectorLabel: {{ .Values.vaultDbInjector.configuration.injectorLabel }}
-{{- if .Values.bpf.enabled }}
+{{- if .Values.nri.enabled }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "vault-db-injector.fullname" . }}-bpf
+  name: {{ include "vault-db-injector.fullname" . }}-nri
 data:
   config.yaml: |
     vaultAddress: {{ .Values.vaultDbInjector.configuration.vaultAddress }}
@@ -64,14 +64,11 @@ data:
     logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
     kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
     tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
-    vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
-    vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}
-    mode: bpf
+    mode: nri
     sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
     sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
-    bpf:
+    nri:
       enabled: true
-      wrapTokenTTL: {{ .Values.bpf.wrapTokenTTL }}
-      tmpfsPath: /run/vault-db-injector/bpf
-      maxMappingsPerNode: {{ .Values.bpf.maxMappingsPerNode }}
+      wrapTokenTTL: {{ .Values.nri.wrapTokenTTL }}
+      socketPath: /var/run/nri/nri.sock
 {{- end }}

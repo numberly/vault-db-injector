@@ -60,12 +60,15 @@ vaultDbInjector:
       tag: 2.0.12
     imagePullPolicy: Always
 
-bpf:
-  # When true, deploys the BPF DaemonSet AND tells the injector to wrap
+nri:
+  # When true, deploys the NRI DaemonSet AND tells the injector to wrap
   # every credential it issues. Both pieces are tied to this single switch
   # so the cluster cannot end up in a "webhook produces placeholders but
   # nothing substitutes" state. When false, behavior is byte-identical to
   # legacy modes (literal credentials in env vars).
+  #
+  # Requires containerd >= 1.7 with NRI enabled in containerd config.toml,
+  # OR CRI-O >= 1.26.
   enabled: false
   image:
     repository: ""  # defaults to vaultDbInjector.injector.image.repository
@@ -84,7 +87,3 @@ bpf:
   # the PodSpec. Must outlive the longest expected scheduling + image-pull
   # delay on the cluster.
   wrapTokenTTL: 5m
-  # Maximum number of cgroup entries in the BPF map. Matches MAX_CGROUPS
-  # in substitute.bpf.c (default 4096). Raise if your node runs more than
-  # ~500 pods (each pod has multiple containers, each with its own entry).
-  maxMappingsPerNode: 4096
