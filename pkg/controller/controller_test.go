@@ -53,12 +53,10 @@ func TestNewController_Fields(t *testing.T) {
 }
 
 
-func TestController_RunRenewer_InitLock_MissingEnv(t *testing.T) {
-	// RunRenewer calls initLock → config.GetHAEnvs() which requires env vars.
-	// Without them, it calls log.Fatalf. We test only what we can:
-	// that the controller was constructed properly.
+func TestController_BuildLock_MissingEnv(t *testing.T) {
+	// buildLock → config.GetHAEnvs() requires env vars; without them it returns an error.
 	cfg := &config.Config{}
 	c := NewController(cfg, fakeClientset(), &fakeSentryService{})
-	assert.NotNil(t, c.Cfg)
-	assert.NotNil(t, c.Clientset)
+	_, _, err := c.buildLock("test-lock")
+	assert.Error(t, err, "buildLock must return an error when HA env vars are missing")
 }

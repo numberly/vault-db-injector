@@ -31,20 +31,16 @@ type Starter interface {
 }
 
 type starterImpl struct {
-	cfg         *config.Config
-	errChan     chan<- error
-	successChan chan<- bool
-	log         logger.Logger
-	sentry      sentry.SentryService
+	cfg    *config.Config
+	log    logger.Logger
+	sentry sentry.SentryService
 }
 
-func NewWebhookStarter(cfg *config.Config, errChan chan<- error, successChan chan<- bool, sentrySvc sentry.SentryService) Starter {
+func NewWebhookStarter(cfg *config.Config, sentrySvc sentry.SentryService) Starter {
 	return &starterImpl{
-		cfg:         cfg,
-		errChan:     errChan,
-		successChan: successChan,
-		log:         logger.GetLogger(),
-		sentry:      sentrySvc,
+		cfg:    cfg,
+		log:    logger.GetLogger(),
+		sentry: sentrySvc,
 	}
 }
 
@@ -127,8 +123,6 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 		Handler:      wrappedHandler,
 	}
 
-	s.successChan <- true
-
 	errCh := make(chan error)
 	// Serve webhook
 	go func() {
@@ -161,13 +155,12 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 				s.sentry.CaptureError(err)
 				s.log.Errorf("Server error: %v", err)
 				close(stopChan)
-				s.errChan <- err
 			}
 		case <-ctx.Done():
 			shutdownMess := "Shutting down servers due to context cancellation"
 			s.sentry.CaptureMessage(shutdownMess)
 			s.log.Info(shutdownMess)
-			httpServer.Shutdown(ctx)
+			httpServer.Shutdown(ctx) //nolint:errcheck
 			close(stopChan)
 			// Shutdown metrics server as well
 		}

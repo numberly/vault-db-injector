@@ -5,68 +5,81 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	sentrygo "github.com/getsentry/sentry-go"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/controller"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/logger"
 	"github.com/numberly/vault-db-injector/pkg/sentry"
+	"golang.org/x/sync/errgroup"
 
+	"github.com/cockroachdb/errors"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 func main() {
-	errChan := make(chan error)
-	runSuccess := make(chan bool)
-	metricsSuccess := make(chan bool)
-	cfgFile := flag.String("config", "", "The config file to use.")
-	flag.Parse()
-	cfg, err := config.NewConfig(*cfgFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not parse config file: %s", err)
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func run() error {
+	cfgFile := flag.String("config", "", "The config file to use.")
+	flag.Parse()
+
+	cfg, err := config.NewConfig(*cfgFile)
+	if err != nil {
+		return errors.Wrap(err, "could not parse config file")
+	}
+
 	logger.Initialize(*cfg)
 	log := logger.GetLogger()
+
 	sentryService := sentry.NewSentry(cfg.SentryDsn, cfg.Sentry, cfg.SentryEnvironment)
 	sentryService.StartSentry()
+	defer sentrygo.Flush(2 * time.Second)
 
 	k8sClient := k8s.NewClient()
 	rawClientset, err := k8sClient.GetKubernetesClient()
 	if err != nil {
-		log.Fatalf("Unable to create Kubernetes client error = %v", err)
+		return errors.Wrap(err, "unable to create Kubernetes client")
 	}
 	clientset := k8s.NewKubernetesClientAdapter(rawClientset)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	c := controller.NewController(cfg, clientset, sentryService)
 
+	log.Infof("Starting vault-db-injector in mode %q", cfg.Mode)
+
+	var runErr error
 	switch cfg.Mode {
 	case config.ModeInjector:
-		go c.RunInjector(ctx, errChan, runSuccess)
+		runErr = c.RunInjector(ctx)
 	case config.ModeRenewer:
-		go c.RunRenewer(ctx, metricsSuccess)
+		runErr = c.RunRenewer(ctx)
 	case config.ModeRevoker:
-		go c.RunRevoker(ctx, metricsSuccess)
+		runErr = c.RunRevoker(ctx)
 	case config.ModeAll:
-		go c.RunInjector(ctx, errChan, runSuccess)
-		go c.RunRenewer(ctx, metricsSuccess)
-		go c.RunRevoker(ctx, metricsSuccess)
+		g, gCtx := errgroup.WithContext(ctx)
+		g.Go(func() error { return c.RunInjector(gCtx) })
+		g.Go(func() error { return c.RunRenewer(gCtx) })
+		g.Go(func() error { return c.RunRevoker(gCtx) })
+		runErr = g.Wait()
+	default:
+		return errors.Newf("unknown mode %q", cfg.Mode)
 	}
 
-	// Wait for success or failure from the run and runMetrics goroutines
-	successCount := 0
-	for {
-		select {
-		case err := <-errChan:
-			log.Errorf("error running app: %s", err)
-			os.Exit(1)
-		case <-runSuccess:
-			successCount++
-		case <-metricsSuccess:
-			successCount++
-		}
+	log.Info("vault-db-injector stopped")
+
+	if errors.Is(runErr, context.Canceled) {
+		return nil
 	}
+	return runErr
 }

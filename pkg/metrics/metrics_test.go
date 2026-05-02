@@ -1,7 +1,6 @@
 package metrics_test
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"testing"
@@ -15,43 +14,26 @@ import (
 )
 
 func initTestLogger() {
-	// Example configuration setup for testing
 	testConfig := config.Config{
-		LogLevel: "info", // Or whatever log level is appropriate for testing
+		LogLevel: "info",
 	}
-
-	// Initialize the logger with the test configuration
 	logger.Initialize(testConfig)
 }
 
 func TestRunMetrics(t *testing.T) {
-	// Initialize logger for testing
 	initTestLogger()
 
-	// Create a channel to receive the success signal
-	successChan := make(chan bool, 1)
+	service := prom.NewMetricsService()
 
-	// Initialize the metric service
-	service := prom.NewMetricsService(successChan)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+	// RunMetrics blocks; run it in a goroutine.
 	go service.RunMetrics()
-
-	select {
-	case success := <-successChan:
-		assert.True(t, success, "RunMetrics should send true into successChan")
-	case <-ctx.Done():
-		t.Fatal("Test timed out waiting for RunMetrics to send success signal")
-	}
 
 	serverURL := "http://127.0.0.1:8080/metrics"
 	var resp *http.Response
 	var err error
 
-	// Retry mechanism
-	for range 5 {
+	// Retry until the server is up (up to 5 seconds).
+	for range 10 {
 		resp, err = http.Get(serverURL)
 		if err == nil {
 			break

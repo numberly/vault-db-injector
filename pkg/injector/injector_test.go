@@ -12,8 +12,8 @@ import (
 // noopSentry is a minimal SentryService that discards all events.
 type noopSentry struct{}
 
-func (n *noopSentry) StartSentry()           {}
-func (n *noopSentry) CaptureError(_ error)   {}
+func (n *noopSentry) StartSentry()            {}
+func (n *noopSentry) CaptureError(_ error)    {}
 func (n *noopSentry) CaptureMessage(_ string) {}
 
 var _ sentry.SentryService = (*noopSentry)(nil)
@@ -24,30 +24,24 @@ func TestNewWebhookStarter_NotNil(t *testing.T) {
 		CertFile: "/tmp/nonexistent.crt",
 		KeyFile:  "/tmp/nonexistent.key",
 	}
-	errChan := make(chan error, 1)
-	successChan := make(chan bool, 1)
 
-	s := NewWebhookStarter(cfg, errChan, successChan, &noopSentry{})
+	s := NewWebhookStarter(cfg, &noopSentry{})
 	require.NotNil(t, s, "NewWebhookStarter must return a non-nil Starter")
 }
 
 // TestNewWebhookStarter_ImplementsInterface verifies that the returned value implements Starter.
 func TestNewWebhookStarter_ImplementsInterface(t *testing.T) {
 	cfg := &config.Config{}
-	errChan := make(chan error, 1)
-	successChan := make(chan bool, 1)
 
-	var _ Starter = NewWebhookStarter(cfg, errChan, successChan, &noopSentry{})
+	var _ Starter = NewWebhookStarter(cfg, &noopSentry{})
 }
 
 // TestNewWebhookStarter_ConfigIsStored verifies that the config passed to the constructor
 // is accessible on the concrete type (regression guard for nil-config crashes).
 func TestNewWebhookStarter_ConfigIsStored(t *testing.T) {
 	cfg := &config.Config{CertFile: "test.crt", KeyFile: "test.key"}
-	errChan := make(chan error, 1)
-	successChan := make(chan bool, 1)
 
-	s := NewWebhookStarter(cfg, errChan, successChan, &noopSentry{})
+	s := NewWebhookStarter(cfg, &noopSentry{})
 	impl, ok := s.(*starterImpl)
 	require.True(t, ok, "NewWebhookStarter must return a *starterImpl")
 	assert.Equal(t, cfg.CertFile, impl.cfg.CertFile)
