@@ -83,3 +83,25 @@ func TestResolveCgroupID_NotFound(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
+
+func TestResolveCgroupID_BareContainerID(t *testing.T) {
+	// k8s normalizes container IDs to "<runtime>://<id>", but the resolver
+	// must also accept a pre-stripped bare ID. Strip is a no-op when the
+	// scheme is absent.
+	root := t.TempDir()
+	podUID := "stu-987-vwx"
+	bareID := "2222222222222222222222222222222222222222222222222222222222222222"
+	dir := filepath.Join(root, "kubepods.slice",
+		"kubepods-pod"+strings.ReplaceAll(podUID, "-", "_")+".slice",
+		"cri-containerd-2222222222222222222222222222222222222222222222222222222222222222.scope")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := resolveCgroupIDAt(root, podUID, bareID)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if got == 0 {
+		t.Fatal("expected non-zero")
+	}
+}

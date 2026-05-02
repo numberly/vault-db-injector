@@ -31,6 +31,9 @@ func ResolveCgroupID(podUID, containerID string) (uint64, error) {
 
 // resolveCgroupIDAt is the testable variant accepting a custom cgroup root.
 func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
+	// systemd escapes hyphens in unit names by replacing them with underscores;
+	// kubelet applies the same escaping when converting pod UIDs into cgroup
+	// slice names. Mirror that here so we can find the cgroup directory.
 	cleanPodUID := strings.ReplaceAll(podUID, "-", "_")
 	// Strip the runtime URI scheme (containerd://, cri-o://, docker://).
 	cid := containerID
@@ -38,7 +41,12 @@ func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
 		cid = cid[i+3:]
 	}
 
-	// Search the standard QoS slices in priority order.
+	// kubelet's systemd cgroup driver only creates intermediate QoS slices
+	// for Burstable and BestEffort pods. Guaranteed pods land directly under
+	// kubepods.slice with no kubepods-guaranteed.slice level — see
+	// kubelet/cm/qos_container_manager_linux.go which sets
+	// QOSContainersInfo.Guaranteed = rootContainer (= "kubepods").
+	// We search the standard QoS slices in priority order.
 	podSlices := []string{
 		filepath.Join(root, "kubepods.slice",
 			fmt.Sprintf("kubepods-pod%s.slice", cleanPodUID)),
@@ -51,9 +59,11 @@ func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
 	// Each runtime uses a different prefix for the container scope filename.
 	runtimePrefixes := []string{"cri-containerd-", "crio-", "docker-"}
 
+	var tried []string
 	for _, podDir := range podSlices {
 		for _, prefix := range runtimePrefixes {
 			scope := filepath.Join(podDir, fmt.Sprintf("%s%s.scope", prefix, cid))
+			tried = append(tried, scope)
 			if id, ok := inodeOf(scope); ok {
 				return id, nil
 			}
@@ -61,8 +71,8 @@ func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
 	}
 
 	return 0, errors.Newf(
-		"cgroup not found for podUID=%s containerID=%s under %s",
-		podUID, containerID, root)
+		"cgroup not found for podUID=%s containerID=%s under %s; tried:\n  %s",
+		podUID, containerID, root, strings.Join(tried, "\n  "))
 }
 
 func inodeOf(path string) (uint64, bool) {
