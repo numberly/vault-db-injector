@@ -143,19 +143,8 @@ func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfigurati
 	passVal := creds.Password
 
 	if bpfEnabled {
-		userPH := placeholder.Generate()
-		passPH := placeholder.Generate()
-		token, err := vw.WrapValues(ctx, map[string]string{
-			"username": creds.Username,
-			"password": creds.Password,
-		}, 0)
+		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, "vault wrap classic creds")
 		if err != nil {
-			return errors.Wrap(err, "vault wrap classic creds")
-		}
-		if err := annotateBPFMapping(pod, token, map[string]string{
-			userPH: "username",
-			passPH: "password",
-		}); err != nil {
 			return err
 		}
 		userVal = userPH
@@ -193,19 +182,8 @@ func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, 
 	pass := creds.Password
 
 	if bpfEnabled {
-		userPH := placeholder.Generate()
-		passPH := placeholder.Generate()
-		token, err := vw.WrapValues(ctx, map[string]string{
-			"username": creds.Username,
-			"password": creds.Password,
-		}, 0)
+		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, "vault wrap uri creds")
 		if err != nil {
-			return errors.Wrap(err, "vault wrap uri creds")
-		}
-		if err := annotateBPFMapping(pod, token, map[string]string{
-			userPH: "username",
-			passPH: "password",
-		}); err != nil {
 			return err
 		}
 		user = userPH
@@ -239,17 +217,38 @@ func annotateBPFMapping(pod *corev1.Pod, wrapToken string, placeholders map[stri
 	if _, exists := pod.Annotations[k8s.ANNOTATION_BPF_MAPPING]; exists {
 		return errors.New("BPF mode currently supports a single DbConfiguration per pod")
 	}
-	type bpfMapping struct {
-		WrapToken    string            `json:"wrap_token"`
-		Placeholders map[string]string `json:"placeholders"`
-	}
-	m := bpfMapping{WrapToken: wrapToken, Placeholders: placeholders}
+	m := k8s.BPFMapping{WrapToken: wrapToken, Placeholders: placeholders}
 	b, err := json.Marshal(m)
 	if err != nil {
 		return errors.Wrap(err, "marshal bpf-mapping")
 	}
 	pod.Annotations[k8s.ANNOTATION_BPF_MAPPING] = string(b)
 	return nil
+}
+
+// wrapAndAnnotate wraps the credentials via Vault response-wrapping, generates
+// a fixed-length placeholder for username and password, and attaches the
+// resulting (wrap_token, placeholders) map as the bpf-mapping annotation.
+// Returns the two placeholders so the caller can substitute them into the
+// per-shape env vars.
+func wrapAndAnnotate(ctx context.Context, pod *corev1.Pod, creds *vault.DbCreds, vw vaultWrapper, errContext string) (userPH, passPH string, err error) {
+	userPH = placeholder.Generate()
+	passPH = placeholder.Generate()
+	// TODO(Task 8): thread cfg.BPF.WrapTokenTTL here instead of 0 (server default).
+	token, err := vw.WrapValues(ctx, map[string]string{
+		"username": creds.Username,
+		"password": creds.Password,
+	}, 0)
+	if err != nil {
+		return "", "", errors.Wrap(err, errContext)
+	}
+	if err := annotateBPFMapping(pod, token, map[string]string{
+		userPH: "username",
+		passPH: "password",
+	}); err != nil {
+		return "", "", err
+	}
+	return userPH, passPH, nil
 }
 
 func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
