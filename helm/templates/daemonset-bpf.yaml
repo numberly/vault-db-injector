@@ -28,6 +28,7 @@ spec:
         image: "{{ .Values.bpf.image.repository | default .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.bpf.image.tag | default .Values.vaultDbInjector.injector.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.bpf.imagePullPolicy | default "IfNotPresent" }}
         args:
+        - "--config=/bpf/config.yaml"
         - "--mode=bpf"
         env:
         - name: NODE_NAME
