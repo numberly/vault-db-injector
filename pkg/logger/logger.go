@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync/atomic"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -12,25 +13,29 @@ import (
 )
 
 type Logger interface {
-	Trace(args ...interface{})
-	Tracef(format string, args ...interface{})
-	Info(args ...interface{})
-	Infof(format string, args ...interface{})
-	Debug(args ...interface{})
-	Debugf(format string, args ...interface{})
-	Print(args ...interface{})
-	Printf(format string, args ...interface{})
-	Warn(args ...interface{})
-	Warnf(format string, args ...interface{})
-	Error(args ...interface{})
-	Errorf(format string, args ...interface{})
-	Fatal(args ...interface{})
-	Fatalf(format string, args ...interface{})
+	Trace(args ...any)
+	Tracef(format string, args ...any)
+	Info(args ...any)
+	Infof(format string, args ...any)
+	Debug(args ...any)
+	Debugf(format string, args ...any)
+	Print(args ...any)
+	Printf(format string, args ...any)
+	Warn(args ...any)
+	Warnf(format string, args ...any)
+	Error(args ...any)
+	Errorf(format string, args ...any)
+	Fatal(args ...any)
+	Fatalf(format string, args ...any)
 	WithFields(fields logrus.Fields) *logrus.Entry
 }
 
-var logInstance *logrus.Logger
+var logPtr atomic.Pointer[logrus.Logger]
 var _ Logger = (*logrus.Logger)(nil)
+
+func init() {
+	logPtr.Store(logrus.New())
+}
 
 type LogrusWriter struct{}
 
@@ -77,7 +82,7 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	return nil
 }
 
-func typeof(v interface{}) string {
+func typeof(v any) string {
 	return fmt.Sprintf("%T", v)
 }
 
@@ -101,45 +106,52 @@ func sentryLevel(level logrus.Level) sentry.Level {
 // This will permit to fetch leaderelection log and use logrus with good formatting to forward them
 func (w LogrusWriter) Write(p []byte) (n int, err error) {
 	message := string(p)
+	log := logPtr.Load()
 
 	errorRegex := regexp.MustCompile(`(?i)\berror\b`)
 	warnRegex := regexp.MustCompile(`(?i)\bwarn\b|warning`)
 
 	switch {
 	case errorRegex.MatchString(message):
-		logInstance.Error(message) // Use logInstance instead of logrus.Error
+		log.Error(message)
 	case warnRegex.MatchString(message):
-		logInstance.Warn(message) // Use logInstance instead of logrus.Warn
+		log.Warn(message)
 	default:
-		logInstance.Info(message) // Use logInstance instead of logrus.Info
+		log.Info(message)
 	}
 	return len(p), nil
 }
 
 func Initialize(cfg config.Config) {
-	if logInstance == nil {
-		logInstance = logrus.New()
-		logInstance.Out = os.Stdout
-		logInstance.Formatter = &logrus.JSONFormatter{
-			FieldMap: logrus.FieldMap{
-				logrus.FieldKeyMsg: "message",
-			},
-			TimestampFormat: time.RFC3339,
-		}
-		logInstance.SetLevel(config.GetLogLevel(cfg.LogLevel))
-
-		if cfg.Sentry {
-			logInstance.AddHook(NewSentryHook(cfg.SentrySampleRate))
-		}
+	newLogger := logrus.New()
+	newLogger.Out = os.Stdout
+	newLogger.Formatter = &logrus.JSONFormatter{
+		FieldMap: logrus.FieldMap{
+			logrus.FieldKeyMsg: "message",
+		},
+		TimestampFormat: time.RFC3339,
 	}
+	level, err := config.GetLogLevel(cfg.LogLevel)
+	if err != nil {
+		newLogger.Warnf("unknown log level %q, defaulting to info: %v", cfg.LogLevel, err)
+		level = logrus.InfoLevel
+	}
+	newLogger.SetLevel(level)
+
+	if cfg.Sentry {
+		newLogger.AddHook(NewSentryHook(cfg.SentrySampleRate))
+	}
+	logPtr.Store(newLogger)
 }
+
 func GetLogger() Logger {
-	return logInstance
+	return logPtr.Load()
 }
 
 func GetEntry() *logrus.Entry {
-	return logrus.NewEntry(logInstance)
+	return logrus.NewEntry(logPtr.Load())
 }
+
 func ResetLogger() {
-	logInstance = nil
+	logPtr.Store(logrus.New())
 }

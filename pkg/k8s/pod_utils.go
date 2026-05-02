@@ -8,17 +8,20 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/logger"
-	promInjector "github.com/numberly/vault-db-injector/pkg/prometheus"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 type PodService interface {
-	GetAllPodAndNamespace(ctx context.Context) ([]PodInformations, error)
+	GetAllPodAndNamespace(ctx context.Context) ([]PodInfo, error)
 }
 
 type KubernetesClient interface {
 	CoreV1() v1.CoreV1Interface
+	CoordinationV1() coordinationv1.CoordinationV1Interface
+	GetServiceAccountToken() (string, error)
 }
 
 type podServiceImpl struct {
@@ -35,7 +38,7 @@ func NewPodService(clientset KubernetesClient, cfg *config.Config) PodService {
 	}
 }
 
-type PodInformations struct {
+type PodInfo struct {
 	PodNameUUIDs       []string
 	Namespace          string
 	ServiceAccountName string
@@ -43,27 +46,27 @@ type PodInformations struct {
 	NodeName           string
 }
 
-func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInformations, error) {
+func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInfo, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=true", p.cfg.InjectorLabel),
 	}
 	pods, err := p.clientset.CoreV1().Pods("").List(ctx, listOptions)
 	if err != nil {
-		promInjector.GetAllPodErrorCount.WithLabelValues().Inc()
+		metrics.GetAllPodErrorCount.WithLabelValues().Inc()
 		return nil, err
 	}
 
 	if len(pods.Items) == 0 {
-		promInjector.GetAllPodErrorCount.WithLabelValues().Inc()
+		metrics.GetAllPodErrorCount.WithLabelValues().Inc()
 		return nil, errors.Newf("no pods found in the cluster")
 	}
 
 	estimatedSize := len(pods.Items)
-	podInfos := make([]PodInformations, 0, estimatedSize)
+	podInfos := make([]PodInfo, 0, estimatedSize)
 
 	for _, pod := range pods.Items {
 		if uuid, exists := pod.GetAnnotations()[ANNOTATION_VAULT_POD_UUID]; exists {
-			podInfos = append(podInfos, PodInformations{
+			podInfos = append(podInfos, PodInfo{
 				PodNameUUIDs:       strings.Split(uuid, ","),
 				Namespace:          pod.Namespace,
 				PodName:            pod.Name,
@@ -73,6 +76,6 @@ func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInform
 		}
 	}
 
-	promInjector.GetAllPodSuccessCount.WithLabelValues().Inc()
+	metrics.GetAllPodSuccessCount.WithLabelValues().Inc()
 	return podInfos, nil
 }

@@ -7,25 +7,25 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/logger"
-	promInjector "github.com/numberly/vault-db-injector/pkg/prometheus"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
 	"github.com/numberly/vault-db-injector/pkg/vault"
 )
 
-var _ TokenRenewor = (*tokenReneworImpl)(nil)
+var _ TokenRenewer = (*tokenRenewerImpl)(nil)
 
-type TokenRenewor interface {
+type TokenRenewer interface {
 	RenewTokenJob(ctx context.Context)
 }
 
-type tokenReneworImpl struct {
+type tokenRenewerImpl struct {
 	cfg       *config.Config
 	stopChan  <-chan struct{}
 	clientset k8s.KubernetesClient
 	log       logger.Logger
 }
 
-func NewTokenRenewor(cfg *config.Config, clientset k8s.KubernetesClient, stopchan <-chan struct{}) TokenRenewor {
-	return &tokenReneworImpl{
+func NewTokenRenewer(cfg *config.Config, clientset k8s.KubernetesClient, stopchan <-chan struct{}) TokenRenewer {
+	return &tokenRenewerImpl{
 		cfg:       cfg,
 		stopChan:  stopchan,
 		clientset: clientset,
@@ -33,55 +33,65 @@ func NewTokenRenewor(cfg *config.Config, clientset k8s.KubernetesClient, stopcha
 	}
 }
 
-func (tri *tokenReneworImpl) RenewTokenJob(ctx context.Context) {
-	vaultConn, err := vault.ConnectToVault(ctx, tri.cfg)
+func (r *tokenRenewerImpl) RenewTokenJob(ctx context.Context) {
+	saToken, err := r.clientset.GetServiceAccountToken()
 	if err != nil {
-		tri.log.Fatalf("Error connecting to Vault: %v", err)
+		r.log.Fatalf("Error getting ServiceAccount token: %v", err)
 	}
-	tri.log.Debugf("authenticated to vault using role %s", tri.cfg.VaultAuthPath)
-	vaultConn.RenewalInterval = time.Duration(600) * time.Second
-	vaultConn.StartTokenRenewal(ctx, tri.cfg)
+	vaultConn, err := vault.ConnectAndRenew(ctx, r.cfg, saToken)
+	if err != nil {
+		r.log.Fatalf("Error connecting to Vault: %v", err)
+	}
+	r.log.Debugf("authenticated to vault using role %s", r.cfg.VaultAuthPath)
 
 	syncToken := func(vaultConn *vault.Connector) bool {
 
-		keyInfos, err := vaultConn.ListKeyInformations(ctx, tri.cfg.VaultSecretName, tri.cfg.VaultSecretPrefix)
+		keyInfos, err := vaultConn.ListKeyInfo(ctx, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
 		if err != nil {
-			tri.log.Errorf("Error while retrieving informations: %v", err)
-			promInjector.SynchronizationErrorCount.WithLabelValues().Inc()
+			// ListKeyInfo may return partial results alongside a non-nil error;
+			// honor that contract so a single transient KV failure does not
+			// stall renewal of every other token until the next tick.
+			r.log.Warnf("Partial error while retrieving key info, continuing with available keys: %v", err)
+			metrics.SynchronizationErrorCount.WithLabelValues().Inc()
+		}
+		if len(keyInfos) == 0 {
 			return false
 		}
 
-		ok := vaultConn.HandleTokens(ctx, tri.cfg, keyInfos, tri.cfg.VaultSecretName, tri.cfg.VaultSecretPrefix, tri.clientset, tri.cfg.SyncTTLSecond)
+		podService := k8s.NewPodService(r.clientset, r.cfg)
+		ok := vaultConn.SyncAndCleanupTokens(ctx, r.cfg, keyInfos, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix, podService, r.cfg.SyncTTLSecond)
 		if !ok {
-			promInjector.SynchronizationErrorCount.WithLabelValues().Inc()
+			metrics.SynchronizationErrorCount.WithLabelValues().Inc()
 			return false
 		}
 
 		return true
 	}
 
-	ticker := time.NewTicker(time.Duration(tri.cfg.SyncTTLSecond) * time.Second)
+	ticker := time.NewTicker(time.Duration(r.cfg.SyncTTLSecond) * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			tri.log.Info("Token Synchronization has been started!")
+			r.log.Info("Token Synchronization has been started!")
 			startTime := time.Now()
 			if !syncToken(vaultConn) {
-				tri.log.Error("Token Synchronization Error!")
+				r.log.Error("Token Synchronization Error!")
 			} else {
-				tri.log.Info("Token Synchronization Successful!")
-				promInjector.LastTokenSynchronisationSuccess.WithLabelValues().Set(float64(time.Now().Unix()))
+				r.log.Info("Token Synchronization Successful!")
+				metrics.LastTokenSynchronizationSuccess.WithLabelValues().Set(float64(time.Now().Unix()))
 			}
-			promInjector.SynchronizationCount.WithLabelValues().Inc()
+			metrics.SynchronizationCount.WithLabelValues().Inc()
 			duration := time.Since(startTime).Seconds()
-			tri.log.Debugf("The token synchronization has taken : %vs", time.Since(startTime).Seconds())
-			promInjector.LastSynchronizationDuration.Observe(duration)
+			r.log.Debugf("The token synchronization has taken : %vs", time.Since(startTime).Seconds())
+			metrics.LastSynchronizationDuration.Observe(duration)
 
-		case <-tri.stopChan:
-			vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken, "", "")
-			tri.log.Warn("Stopping TokenSync1Hours due to lost leadership")
+		case <-r.stopChan:
+			if err := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); err != nil {
+				r.log.Errorf("RevokeSelfToken failed: %v", err)
+			}
+			r.log.Warn("Stopping TokenSync1Hours due to lost leadership")
 			return
 		}
 	}

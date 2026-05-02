@@ -44,15 +44,12 @@ func TestInitializeLogger(t *testing.T) {
 	assert.Equal(t, logrus.DebugLevel, logrusLogger.GetLevel(), "Log level should be set to debug")
 }
 
-// TestGetLoggerWithoutInitialization checks if GetLogger returns a nil or uninitialized logger when called before initialization.
+// TestGetLoggerWithoutInitialization checks that GetLogger never returns nil, even before Initialize is called.
+// logInstance is always set to a default logrus.Logger at package init time.
 func TestGetLoggerWithoutInitialization(t *testing.T) {
-	// Resetting logInstance to simulate the situation before Initialization
-	// Note: This can affect other tests if run in parallel or if tests depend on state.
-	// In a real-world scenario, this should be handled more carefully or by using dependency injection.
-	ResetLogger() // Assuming ResetLogger sets logInstance to nil; this function would need to be implemented.
+	ResetLogger()
 
 	logInstance := GetLogger()
 
-	// Before calling Initialize, logInstance should be nil
-	assert.Nil(t, logInstance, "Expected logInstance to be nil before initialization")
+	assert.NotNil(t, logInstance, "Expected logInstance to be non-nil even before explicit initialization")
 }

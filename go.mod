@@ -17,6 +17,7 @@ require (
 	github.com/slok/kubewebhook/v2 v2.7.0
 	github.com/stretchr/testify v1.10.0
 	github.com/undefinedlabs/go-mpatch v1.0.7
+	golang.org/x/sync v0.12.0
 	golang.org/x/time v0.10.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.32.1
@@ -274,7 +275,6 @@ require (
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect

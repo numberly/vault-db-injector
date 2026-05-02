@@ -7,6 +7,8 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"k8s.io/client-go/kubernetes"
+	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -20,6 +22,31 @@ type ClientInterface interface {
 	GetKubernetesClient() (*kubernetes.Clientset, error)
 }
 
+// KubernetesClientAdapter wraps a *kubernetes.Clientset and adds
+// GetServiceAccountToken so it satisfies KubernetesClient.
+type KubernetesClientAdapter struct {
+	*kubernetes.Clientset
+}
+
+// NewKubernetesClientAdapter returns a KubernetesClientAdapter for the given clientset.
+func NewKubernetesClientAdapter(cs *kubernetes.Clientset) *KubernetesClientAdapter {
+	return &KubernetesClientAdapter{Clientset: cs}
+}
+
+func (a *KubernetesClientAdapter) CoreV1() v1.CoreV1Interface {
+	return a.Clientset.CoreV1()
+}
+
+func (a *KubernetesClientAdapter) CoordinationV1() coordinationv1.CoordinationV1Interface {
+	return a.Clientset.CoordinationV1()
+}
+
+func (a *KubernetesClientAdapter) GetServiceAccountToken() (string, error) {
+	return getServiceAccountTokenImpl(tokenFilePath)
+}
+
+var _ KubernetesClient = (*KubernetesClientAdapter)(nil)
+
 const tokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 func NewClient() *Client {
@@ -27,10 +54,10 @@ func NewClient() *Client {
 }
 
 func (c *Client) GetServiceAccountToken() (string, error) {
-	return GetServiceAccountTokenImpl(tokenFilePath)
+	return getServiceAccountTokenImpl(tokenFilePath)
 }
 
-func GetServiceAccountTokenImpl(tokenFilePath string) (string, error) {
+func getServiceAccountTokenImpl(tokenFilePath string) (string, error) {
 	token, err := os.ReadFile(tokenFilePath)
 	if err != nil {
 		return "", errors.Newf("failed to read service account token: %w", err)
