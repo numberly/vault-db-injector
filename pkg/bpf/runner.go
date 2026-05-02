@@ -42,9 +42,9 @@ func Run(ctx context.Context, cfg *config.Config, clientset k8s.KubernetesClient
 	if err != nil {
 		return errors.Wrap(err, "get SA token for unwrap auth")
 	}
-	vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, "", "", saToken, cfg.VaultRateLimit)
-	if err := vaultConn.Login(ctx); err != nil {
-		return errors.Wrap(err, "vault login")
+	vaultConn, err := vault.ConnectAndRenew(ctx, cfg, saToken)
+	if err != nil {
+		return errors.Wrap(err, "vault connect")
 	}
 
 	r := &runner{
