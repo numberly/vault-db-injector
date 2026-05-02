@@ -153,11 +153,41 @@ static long scan_envp_entry(__u32 i, void *ctx_)
     return 0; // continue to next envp entry
 }
 
+// MAX_CGROUP_DEPTH bounds the ancestor walk performed below. cgroup paths in
+// kubelet hierarchies are at most ~5 levels deep (root / kubepods / qos / pod /
+// container); we walk up to 8 to cover cgroup namespace shifts and exotic
+// runtimes. Each level is a single map lookup so the cost stays trivial.
+#define MAX_CGROUP_DEPTH 8
+
 SEC("tracepoint/syscalls/sys_enter_execve")
 int sys_enter_execve(struct trace_event_raw_sys_enter *ctx)
 {
+    // 1. Try the leaf (container) cgroup first — this is the fast path for
+    //    long-running containers whose cgroup is already registered.
     __u64 cg = bpf_get_current_cgroup_id();
     struct mappings_for_cgroup *mfc = bpf_map_lookup_elem(&cgroup_mappings, &cg);
+
+    // 2. If the leaf is not registered (init container racing the DS,
+    //    container restart in CrashLoopBackoff, or any case where the
+    //    container cgroup was created after the pod-level cgroup was
+    //    programmed), walk up the hierarchy looking for a registered
+    //    ancestor. The pod-level cgroup is programmed by the userspace
+    //    runner at pod-add time, before any container starts.
+    //
+    //    bpf_get_current_ancestor_cgroup_id(level) returns the cgroup_id
+    //    at absolute level N from the cgroup root (level 0 = root). We do
+    //    not know the pod cgroup's exact level (it depends on the kubelet
+    //    cgroup driver and the pod's QoS class), so we probe levels 0..7.
+    if (!mfc) {
+        for (int level = 0; level < MAX_CGROUP_DEPTH; level++) {
+            __u64 anc = bpf_get_current_ancestor_cgroup_id(level);
+            if (anc == 0)
+                continue;
+            mfc = bpf_map_lookup_elem(&cgroup_mappings, &anc);
+            if (mfc)
+                break;
+        }
+    }
     if (!mfc)
         return 0;
 

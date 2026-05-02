@@ -29,6 +29,61 @@ func ResolveCgroupID(podUID, containerID string) (uint64, error) {
 	return resolveCgroupIDAt(defaultCgroupRoot, podUID, containerID)
 }
 
+// ResolvePodCgroupID returns the kernel inode (cgroup_id) of the POD-level
+// cgroup directory (the parent of every container's cgroup for this pod).
+//
+// The pod-level cgroup is created by kubelet at admission time, BEFORE any
+// container — including init containers — starts. Programming the BPF map
+// at this id lets the BPF program substitute env vars on the very first
+// execve of any container, eliminating the race where init containers exec
+// before our DS sees the pod and resolves per-container cgroup ids.
+//
+// The BPF program performs an ancestor walk (bpf_get_current_ancestor_cgroup_id)
+// when the leaf cgroup_id misses in the map, so registering only the
+// pod-level id is sufficient to cover all containers in the pod.
+func ResolvePodCgroupID(podUID string) (uint64, error) {
+	return resolvePodCgroupIDAt(defaultCgroupRoot, podUID)
+}
+
+// resolvePodCgroupIDAt is the testable variant accepting a custom cgroup root.
+func resolvePodCgroupIDAt(root, podUID string) (uint64, error) {
+	var tried []string
+
+	// systemd driver: hyphens in pod UID are escaped to underscores.
+	cleanPodUID := strings.ReplaceAll(podUID, "-", "_")
+	systemdPodSlices := []string{
+		filepath.Join(root, "kubepods.slice",
+			fmt.Sprintf("kubepods-pod%s.slice", cleanPodUID)),
+		filepath.Join(root, "kubepods.slice", "kubepods-burstable.slice",
+			fmt.Sprintf("kubepods-burstable-pod%s.slice", cleanPodUID)),
+		filepath.Join(root, "kubepods.slice", "kubepods-besteffort.slice",
+			fmt.Sprintf("kubepods-besteffort-pod%s.slice", cleanPodUID)),
+	}
+	for _, p := range systemdPodSlices {
+		tried = append(tried, p)
+		if id, ok := inodeOf(p); ok {
+			return id, nil
+		}
+	}
+
+	// cgroupfs driver: raw pod UID.
+	cgroupfsPodDirs := []string{
+		filepath.Join(root, "kubepods", fmt.Sprintf("pod%s", podUID)),
+		filepath.Join(root, "kubepods", "burstable", fmt.Sprintf("pod%s", podUID)),
+		filepath.Join(root, "kubepods", "besteffort", fmt.Sprintf("pod%s", podUID)),
+	}
+	for _, p := range cgroupfsPodDirs {
+		tried = append(tried, p)
+		if id, ok := inodeOf(p); ok {
+			return id, nil
+		}
+	}
+
+	return 0, errors.Newf(
+		"pod cgroup not found for podUID=%s under %s; tried:\n  %s",
+		podUID, root, strings.Join(tried, "\n  "))
+}
+
 // resolveCgroupIDAt is the testable variant accepting a custom cgroup root.
 func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
 	// Strip the runtime URI scheme (containerd://, cri-o://, docker://).

@@ -63,13 +63,14 @@ func Run(ctx context.Context, cfg *config.Config, clientset k8s.KubernetesClient
 	podLister := informerFactory.Core().V1().Pods().Lister()
 
 	r := &runner{
-		nodeName:  nodeName,
-		log:       log,
-		unwrapper: vaultConn,
-		mapWriter: loader,
-		persister: persister,
-		resolveCG: ResolveCgroupID,
-		processed: make(map[string]struct{}),
+		nodeName:     nodeName,
+		log:          log,
+		unwrapper:    vaultConn,
+		mapWriter:    loader,
+		persister:    persister,
+		resolveCG:    ResolveCgroupID,
+		resolvePodCG: ResolvePodCgroupID,
+		processed:    make(map[string]struct{}),
 	}
 
 	// Preload the processed set from tmpfs so that informer add events that
@@ -151,14 +152,16 @@ type bpfMapWriter interface {
 }
 
 type cgroupResolver func(podUID, containerID string) (uint64, error)
+type podCgroupResolver func(podUID string) (uint64, error)
 
 type runner struct {
-	nodeName  string
-	log       logger.Logger
-	unwrapper unwrapper
-	mapWriter bpfMapWriter
-	persister *Persister
-	resolveCG cgroupResolver
+	nodeName     string
+	log          logger.Logger
+	unwrapper    unwrapper
+	mapWriter    bpfMapWriter
+	persister    *Persister
+	resolveCG    cgroupResolver
+	resolvePodCG podCgroupResolver
 
 	mu        sync.Mutex
 	processed map[string]struct{}
@@ -177,27 +180,37 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 	if !ok {
 		return nil
 	}
-	// Check container IDs BEFORE setting processed or unwrapping. The wrap
-	// token is single-use server-side; if we unwrap before the kubelet has
-	// populated container statuses, retry events would burn the token and
-	// permanently fail. Wait for an UpdateFunc event with statuses populated.
-	containerIDs := collectContainerIDs(pod)
-	if len(containerIDs) == 0 {
-		return nil // silently wait for the next informer event
+
+	uid := string(pod.UID)
+
+	// Resolve the pod-level cgroup_id. kubelet creates the pod cgroup at
+	// admission time, BEFORE any container starts — so this id exists by the
+	// time the informer surfaces the pod to us. Programming the BPF map at
+	// the pod-level id (in addition to per-container ids) means the BPF
+	// program's ancestor walk catches an init container's first execve even
+	// if it races our discovery of per-container cgroup ids.
+	//
+	// If the pod cgroup is not yet visible (very tight race on slow nodes,
+	// or the pod is not actually scheduled to this node yet despite the
+	// nodeName match), we silently wait for the next informer event. We do
+	// NOT consume the wrap token until we have a cgroup to program.
+	podCgroupID, err := r.resolvePodCG(uid)
+	if err != nil {
+		return nil
 	}
 
 	r.mu.Lock()
-	if _, done := r.processed[string(pod.UID)]; done {
+	if _, done := r.processed[uid]; done {
 		r.mu.Unlock()
 		return nil
 	}
-	r.processed[string(pod.UID)] = struct{}{}
+	r.processed[uid] = struct{}{}
 	r.mu.Unlock()
 
 	var payload k8s.BPFMapping
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
 		r.mu.Lock()
-		delete(r.processed, string(pod.UID))
+		delete(r.processed, uid)
 		r.mu.Unlock()
 		return errors.Wrap(err, "parse bpf-mapping annotation")
 	}
@@ -208,7 +221,7 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 		// valid (e.g. transient Vault network blip — the API call may have
 		// failed before the token was actually consumed).
 		r.mu.Lock()
-		delete(r.processed, string(pod.UID))
+		delete(r.processed, uid)
 		r.mu.Unlock()
 		unwrapErrors.WithLabelValues("vault_unwrap").Inc()
 		return errors.Wrap(err, "unwrap")
@@ -222,7 +235,7 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 			// flag so observability shows the pod as failed (vs silently
 			// skipped on subsequent informer events).
 			r.mu.Lock()
-			delete(r.processed, string(pod.UID))
+			delete(r.processed, uid)
 			r.mu.Unlock()
 			unwrapErrors.WithLabelValues("missing_field").Inc()
 			return errors.Newf("unwrapped data missing field %q", field)
@@ -230,49 +243,49 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 		mappings[ph] = v
 	}
 
-	// Program the BPF map for every container: they all run in the same pod
-	// and need the same credential substitution.
-	uid := string(pod.UID)
-	var cgroupIDs []uint64
-	var programmed []uint64
-	for _, cid := range containerIDs {
+	// Program the pod-level cgroup FIRST. The BPF program's ancestor walk
+	// resolves any container in this pod via this single entry, so even if
+	// per-container resolution fails or runs late, substitution still works.
+	cgroupIDs := []uint64{podCgroupID}
+	programmed := []uint64{}
+	if err := r.mapWriter.PutMapping(podCgroupID, mappings); err != nil {
+		r.mu.Lock()
+		delete(r.processed, uid)
+		r.mu.Unlock()
+		return errors.Wrap(err, "BPF map put for pod cgroup")
+	}
+	programmed = append(programmed, podCgroupID)
+	mapSize.Inc()
+
+	// Best-effort: also program each container cgroup. Faster lookup at
+	// runtime (no ancestor walk) and a defence-in-depth if the kernel ever
+	// changes ancestor-id semantics. Skip silently on failure.
+	for _, cid := range collectContainerIDs(pod) {
 		cgroupID, err := r.resolveCG(uid, cid)
 		if err != nil {
-			// Best-effort: skip containers whose cgroup can't be resolved
-			// (e.g. already exited init containers).
-			r.log.Warnf("processPodAdded(%s/%s): resolve cgroup for %s: %v (skipped)", pod.Namespace, pod.Name, cid, err)
+			r.log.Warnf("processPodAdded(%s/%s): resolve cgroup for %s: %v (skipped, ancestor walk will cover)", pod.Namespace, pod.Name, cid, err)
 			continue
 		}
+		if cgroupID == podCgroupID {
+			continue // already programmed
+		}
 		if err := r.mapWriter.PutMapping(cgroupID, mappings); err != nil {
-			// Roll back any cgroups already programmed for this pod.
-			for _, cg := range programmed {
-				if delErr := r.mapWriter.DeleteMapping(cg); delErr == nil {
-					mapSize.Dec()
-				}
-			}
-			r.mu.Lock()
-			delete(r.processed, uid)
-			r.mu.Unlock()
-			return errors.Wrapf(err, "BPF map put for container %s", cid)
+			r.log.Warnf("processPodAdded(%s/%s): put container cgroup %d: %v (skipped)", pod.Namespace, pod.Name, cgroupID, err)
+			continue
 		}
 		programmed = append(programmed, cgroupID)
 		mapSize.Inc()
 		cgroupIDs = append(cgroupIDs, cgroupID)
 	}
-	if len(cgroupIDs) == 0 {
-		return errors.New("could not resolve any cgroup ID for pod containers")
-	}
 
 	pm := PersistedMapping{Mappings: mappings, CgroupIDs: cgroupIDs}
 	if err := r.persister.Save(uid, pm); err != nil {
 		persistErrors.WithLabelValues("save").Inc()
-		// Roll back all BPF map entries written above.
-		for _, cg := range cgroupIDs {
+		for _, cg := range programmed {
 			if delErr := r.mapWriter.DeleteMapping(cg); delErr == nil {
 				mapSize.Dec()
 			}
 		}
-		// Remove from processed so a future informer event can retry.
 		r.mu.Lock()
 		delete(r.processed, uid)
 		r.mu.Unlock()

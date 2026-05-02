@@ -118,13 +118,14 @@ func multiContainerPod(podUID, nodeName string, containerIDs []string, mapping k
 
 func makeRunner(nodeName string, unwrap unwrapper, mw *recordingMapWriter, dir string, resolver cgroupResolver) *runner {
 	return &runner{
-		nodeName:  nodeName,
-		log:       logrus.New(),
-		unwrapper: unwrap,
-		mapWriter: mw,
-		persister: NewPersister(dir),
-		resolveCG: resolver,
-		processed: make(map[string]struct{}),
+		nodeName:     nodeName,
+		log:          logrus.New(),
+		unwrapper:    unwrap,
+		mapWriter:    mw,
+		persister:    NewPersister(dir),
+		resolveCG:    resolver,
+		resolvePodCG: func(uid string) (uint64, error) { return 99000, nil },
+		processed:    make(map[string]struct{}),
 	}
 }
 
@@ -187,13 +188,14 @@ func TestProcessPodAdded_MultiContainer_PersistsBothCgroupIDs(t *testing.T) {
 	persister := NewPersister(dir)
 	cgroupByID := map[string]uint64{"containerd://aaa": 111, "containerd://bbb": 222}
 	r := &runner{
-		nodeName:  "node-A",
-		log:       logrus.New(),
-		unwrapper: unwrap,
-		mapWriter: mw,
-		persister: persister,
-		resolveCG: func(_, cid string) (uint64, error) { return cgroupByID[cid], nil },
-		processed: make(map[string]struct{}),
+		nodeName:     "node-A",
+		log:          logrus.New(),
+		unwrapper:    unwrap,
+		mapWriter:    mw,
+		persister:    persister,
+		resolveCG:    func(_, cid string) (uint64, error) { return cgroupByID[cid], nil },
+		resolvePodCG: func(string) (uint64, error) { return 333, nil },
+		processed:    make(map[string]struct{}),
 	}
 
 	if err := r.processPodAdded(context.Background(), pod); err != nil {
@@ -203,16 +205,18 @@ func TestProcessPodAdded_MultiContainer_PersistsBothCgroupIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(pm.CgroupIDs) != 2 {
-		t.Fatalf("expected 2 cgroup IDs persisted, got %v", pm.CgroupIDs)
+	// Three IDs persisted: the pod-level cgroup (333) + each container (111, 222).
+	// The pod-level entry is mandatory (covers init container races); the
+	// per-container entries are best-effort additions.
+	if len(pm.CgroupIDs) != 3 {
+		t.Fatalf("expected 3 cgroup IDs persisted (pod + 2 containers), got %v", pm.CgroupIDs)
 	}
-	// Both IDs must be present (order may vary).
 	found := map[uint64]bool{}
 	for _, id := range pm.CgroupIDs {
 		found[id] = true
 	}
-	if !found[111] || !found[222] {
-		t.Fatalf("persisted cgroup IDs mismatch: %v", pm.CgroupIDs)
+	if !found[111] || !found[222] || !found[333] {
+		t.Fatalf("persisted cgroup IDs mismatch (want 111,222,333): %v", pm.CgroupIDs)
 	}
 }
 
@@ -583,18 +587,21 @@ func TestProcessPodAdded_PutMappingFailureRollsBack(t *testing.T) {
 	pod := multiContainerPod("uid-putfail", "node-A", []string{"containerd://aaa", "containerd://bbb"}, mapping)
 
 	unwrap := &fakeUnwrapper{values: map[string]string{"password": "secret"}}
-	// failOnCall=1: first Put (cgroup 100) succeeds, second Put (cgroup 200) fails.
-	mw := &failAfterNMapWriter{failOnCall: 1}
+	// failOnCall=0: the very first Put fails. With the new ordering, that is
+	// the pod-level cgroup write — the only one whose failure aborts the
+	// whole operation. Per-container Puts are best-effort and do not roll back.
+	mw := &failAfterNMapWriter{failOnCall: 0}
 	cgroupByID := map[string]uint64{"containerd://aaa": 100, "containerd://bbb": 200}
 
 	r := &runner{
-		nodeName:  "node-A",
-		log:       logrus.New(),
-		unwrapper: unwrap,
-		mapWriter: mw,
-		persister: NewPersister(t.TempDir()),
-		resolveCG: func(_, cid string) (uint64, error) { return cgroupByID[cid], nil },
-		processed: make(map[string]struct{}),
+		nodeName:     "node-A",
+		log:          logrus.New(),
+		unwrapper:    unwrap,
+		mapWriter:    mw,
+		persister:    NewPersister(t.TempDir()),
+		resolveCG:    func(_, cid string) (uint64, error) { return cgroupByID[cid], nil },
+		resolvePodCG: func(string) (uint64, error) { return 999, nil },
+		processed:    make(map[string]struct{}),
 	}
 
 	sizeBefore := testutil.ToFloat64(mapSize)
@@ -605,13 +612,10 @@ func TestProcessPodAdded_PutMappingFailureRollsBack(t *testing.T) {
 		t.Fatal("expected error from PutMapping, got nil")
 	}
 
-	// Container A (cgroup 100) must have been rolled back.
-	deleted := map[uint64]bool{}
-	for _, cg := range mw.deletes {
-		deleted[cg] = true
-	}
-	if !deleted[100] {
-		t.Fatalf("cgroup 100 was not rolled back; deletes=%v", mw.deletes)
+	// No container Puts should have been attempted (we abort on pod-level fail).
+	// Container cgroups 100/200 must NOT appear in puts.
+	if _, ok := mw.puts[100]; ok {
+		t.Fatalf("container cgroup 100 should not have been programmed: %#v", mw.puts)
 	}
 
 	// processed must not contain the UID.
