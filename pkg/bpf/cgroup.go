@@ -75,6 +75,27 @@ func resolveCgroupIDAt(root, podUID, containerID string) (uint64, error) {
 		podUID, containerID, root, strings.Join(tried, "\n  "))
 }
 
+// checkCgroupSetup verifies the host runs cgroup v2 with systemd driver.
+// kubelet on cgroupfs uses /sys/fs/cgroup/kubepods/pod<UID>/<containerID>
+// paths which the resolver doesn't search; emit a clear error rather than
+// per-pod "cgroup not found" diagnostics.
+func checkCgroupSetup() error {
+	return checkCgroupSetupAt("/sys/fs/cgroup")
+}
+
+// checkCgroupSetupAt is the testable variant accepting a custom cgroup root.
+func checkCgroupSetupAt(root string) error {
+	// cgroup v2: /sys/fs/cgroup/cgroup.controllers exists
+	if _, err := os.Stat(filepath.Join(root, "cgroup.controllers")); err != nil {
+		return errors.Wrap(err, "cgroup v2 not detected (need cgroupv2 unified hierarchy)")
+	}
+	// systemd driver: kubepods.slice exists
+	if _, err := os.Stat(filepath.Join(root, "kubepods.slice")); err != nil {
+		return errors.Wrap(err, "kubelet systemd cgroup driver not detected (need cgroupDriver: systemd)")
+	}
+	return nil
+}
+
 func inodeOf(path string) (uint64, bool) {
 	st, err := os.Stat(path)
 	if err != nil {

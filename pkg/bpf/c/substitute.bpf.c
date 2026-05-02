@@ -102,8 +102,9 @@ static long scan_callback(__u32 i, void *ctx_)
             if (k < len) padded[k] = m->value[k];
         }
         bpf_probe_write_user(addr, padded, PLACEHOLDER_LEN);
+        break; // two distinct placeholders cannot match at the same byte offset
     }
-    return 0; // always continue — multiple placeholders may share the envp region
+    return 0; // always continue scanning — multiple placeholders at different offsets
 }
 
 SEC("lsm/bprm_check_security")

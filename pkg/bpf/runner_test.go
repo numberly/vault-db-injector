@@ -5,9 +5,11 @@ package bpf
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/numberly/vault-db-injector/pkg/k8s"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -292,6 +294,61 @@ func TestProcessPodDeleted_RemovesAllEntries(t *testing.T) {
 	}
 	if !deletedSet[42] || !deletedSet[99] {
 		t.Fatalf("expected deletes for cgroup IDs 42 and 99, got %v", mw.deletes)
+	}
+}
+
+func TestProcessPodAdded_SaveFailureRollsBackBPFMap(t *testing.T) {
+	mapping := k8s.BPFMapping{
+		WrapToken:    "hvs.test",
+		Placeholders: map[string]string{"__VDBI_PH_p___": "password"},
+	}
+	pod := annotatedPod("uid-rollback", "node-A", "containerd://abc", mapping)
+
+	unwrap := &fakeUnwrapper{values: map[string]string{"password": "supersecret"}}
+	mw := &recordingMapWriter{}
+
+	// Use a read-only directory so Save always fails.
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+
+	r := makeRunner("node-A", unwrap, mw, dir, func(_, _ string) (uint64, error) { return 12345, nil })
+
+	loadedBefore := testutil.ToFloat64(mappingsLoaded)
+
+	err := r.processPodAdded(context.Background(), pod)
+	if err == nil {
+		t.Fatal("expected error from Save, got nil")
+	}
+
+	// BPF map entries must have been rolled back.
+	if len(mw.deletes) == 0 {
+		t.Fatalf("expected delete rollback for cgroup 12345, got none; deletes=%v", mw.deletes)
+	}
+	found := false
+	for _, cg := range mw.deletes {
+		if cg == 12345 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("cgroup 12345 not in deletes: %v", mw.deletes)
+	}
+
+	// processed map must not contain the UID.
+	r.mu.Lock()
+	_, present := r.processed["uid-rollback"]
+	r.mu.Unlock()
+	if present {
+		t.Fatal("uid-rollback should have been removed from processed on Save failure")
+	}
+
+	// mappingsLoaded must not have been incremented (value unchanged).
+	loadedAfter := testutil.ToFloat64(mappingsLoaded)
+	if loadedAfter != loadedBefore {
+		t.Fatalf("mappingsLoaded changed from %v to %v after Save failure; expected no change", loadedBefore, loadedAfter)
 	}
 }
 

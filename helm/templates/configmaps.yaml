@@ -73,4 +73,5 @@ data:
       enabled: true
       wrapTokenTTL: {{ .Values.bpf.wrapTokenTTL }}
       tmpfsPath: /run/vault-db-injector/bpf
+      maxMappingsPerNode: {{ .Values.bpf.maxMappingsPerNode }}
 {{- end }}

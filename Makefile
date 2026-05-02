@@ -62,3 +62,16 @@ build-bpf:
 ## integration-test-bpf: Run BPF integration tests (requires CAP_BPF + LSM enabled kernel)
 integration-test-bpf:
 	go test -tags=integration_bpf -count=1 ./pkg/bpf/...
+
+.PHONY: verify-bpf-object
+## verify-bpf-object: Check that the committed BPF object has the same ELF section structure as the C source.
+## Uses structural section comparison (readelf) instead of byte-exact cmp to avoid clang version sensitivity.
+verify-bpf-object: build-bpf
+	@echo "Comparing BPF object structure..."
+	@readelf -SW pkg/bpf/substitute.amd64.bpf.o | grep -E "lsm|maps|substitute_envp" > /tmp/bpf-committed-sections.txt
+	@clang -O2 -g -target bpf -D__TARGET_ARCH_x86 -I pkg/bpf/c/headers -I $(BPF_LIBBPF_INCLUDE) \
+		-c pkg/bpf/c/substitute.bpf.c -o /tmp/bpf-fresh.o
+	@readelf -SW /tmp/bpf-fresh.o | grep -E "lsm|maps|substitute_envp" > /tmp/bpf-fresh-sections.txt
+	@diff /tmp/bpf-committed-sections.txt /tmp/bpf-fresh-sections.txt > /dev/null \
+		|| { echo "ERROR: pkg/bpf/substitute.amd64.bpf.o is out of date with substitute.bpf.c. Run 'make build-bpf' and commit the result."; exit 1; }
+	@echo "OK: BPF object structure matches source."

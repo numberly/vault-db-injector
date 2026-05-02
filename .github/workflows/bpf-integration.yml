@@ -1,3 +1,5 @@
+# Until a self-hosted runner with BPF LSM is provisioned, the integration step
+# is informational only. The structural BPF compile is enforced unconditionally.
 name: bpf-integration
 
 on:
@@ -7,8 +9,38 @@ on:
     branches: [main]
 
 jobs:
-  integration:
+  compile-bpf:
+    # Always-running job: confirms 'make build-bpf' works and the committed
+    # object matches the C source structurally.
     runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show kernel
+        run: uname -a
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Install clang and libbpf headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm libbpf-dev linux-libc-dev linux-headers-generic binutils
+
+      - name: Build BPF
+        run: make build-bpf
+
+      - name: Verify BPF object structure
+        run: make verify-bpf-object
+
+  integration:
+    # Optional job: requires BPF LSM-enabled kernel. Skips with a warning on
+    # GitHub-hosted runners (no BPF LSM). Runs on self-hosted runners once
+    # provisioned.
+    runs-on: ubuntu-24.04
+    needs: compile-bpf
     steps:
       - uses: actions/checkout@v4
 

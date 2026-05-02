@@ -26,7 +26,11 @@ import (
 
 // Run is the body of controller.RunBPF on Linux. Blocks until ctx is done.
 func Run(ctx context.Context, cfg *config.Config, clientset k8s.KubernetesClient, log logger.Logger) error {
-	loader, err := Load()
+	if err := checkCgroupSetup(); err != nil {
+		return errors.Wrap(err, "BPF runner precondition check")
+	}
+
+	loader, err := Load(cfg.BPF.MaxMappingsPerNode)
 	if err != nil {
 		return errors.Wrap(err, "load BPF program")
 	}
@@ -247,6 +251,17 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 
 	pm := PersistedMapping{Mappings: mappings, CgroupIDs: cgroupIDs}
 	if err := r.persister.Save(string(pod.UID), pm); err != nil {
+		persistErrors.WithLabelValues("save").Inc()
+		// Roll back all BPF map entries written above.
+		for _, cg := range cgroupIDs {
+			if delErr := r.mapWriter.DeleteMapping(cg); delErr == nil {
+				mapSize.Dec()
+			}
+		}
+		// Remove from processed so a future informer event can retry.
+		r.mu.Lock()
+		delete(r.processed, string(pod.UID))
+		r.mu.Unlock()
 		return errors.Wrap(err, "tmpfs persist")
 	}
 	mappingsLoaded.Inc()
@@ -254,30 +269,38 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 }
 
 func (r *runner) processPodDeleted(pod *corev1.Pod) {
-	if pod.Spec.NodeName != r.nodeName {
+	uid := string(pod.UID)
+
+	// Try to load the tmpfs entry first. If found, proceed with cleanup
+	// regardless of NodeName — a tombstone event may arrive with an empty
+	// NodeName after an informer re-sync, but the entry still needs cleaning.
+	pm, err := r.persister.Load(uid)
+	if err != nil {
+		// Not our pod (or tmpfs gone) — nothing to clean up.
 		return
 	}
+
 	r.mu.Lock()
-	delete(r.processed, string(pod.UID))
+	delete(r.processed, uid)
 	r.mu.Unlock()
 
 	// Use the cgroup_ids stored in tmpfs to delete ALL BPF map entries for
 	// the pod. This is more reliable than re-resolving cgroups from the pod
 	// object (which may already be stale at deletion time).
-	pm, err := r.persister.Load(string(pod.UID))
-	if err == nil {
-		deletedCount := 0
-		for _, cg := range pm.CgroupIDs {
-			if err := r.mapWriter.DeleteMapping(cg); err == nil {
-				mapSize.Dec()
-				deletedCount++
-			}
-		}
-		if deletedCount > 0 {
-			mappingsLoaded.Dec()
+	deletedCount := 0
+	for _, cg := range pm.CgroupIDs {
+		if err := r.mapWriter.DeleteMapping(cg); err == nil {
+			mapSize.Dec()
+			deletedCount++
 		}
 	}
-	_ = r.persister.Delete(string(pod.UID))
+	if deletedCount > 0 {
+		mappingsLoaded.Dec()
+	}
+
+	if err := r.persister.Delete(uid); err != nil {
+		persistErrors.WithLabelValues("delete").Inc()
+	}
 }
 
 // restoreFromTmpfs preloads the in-memory processed-set so we don't
@@ -401,8 +424,12 @@ var (
 		Name: "vault_injector_bpf_unwrap_errors_total",
 		Help: "Number of failed Vault unwraps from the BPF runner.",
 	}, []string{"reason"})
+	persistErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "vault_injector_bpf_persist_errors_total",
+		Help: "Number of tmpfs persist failures by operation.",
+	}, []string{"op"})
 )
 
 func init() {
-	prometheus.MustRegister(mappingsLoaded, mapSize, unwrapErrors)
+	prometheus.MustRegister(mappingsLoaded, mapSize, unwrapErrors, persistErrors)
 }

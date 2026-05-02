@@ -26,3 +26,11 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+    - name: Install clang for BPF verification
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang llvm libbpf-dev linux-libc-dev linux-headers-generic binutils
+
+    - name: Verify BPF object structure
+      run: make verify-bpf-object

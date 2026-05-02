@@ -84,3 +84,7 @@ bpf:
   # the PodSpec. Must outlive the longest expected scheduling + image-pull
   # delay on the cluster.
   wrapTokenTTL: 5m
+  # Maximum number of cgroup entries in the BPF map. Matches MAX_CGROUPS
+  # in substitute.bpf.c (default 4096). Raise if your node runs more than
+  # ~500 pods (each pod has multiple containers, each with its own entry).
+  maxMappingsPerNode: 4096

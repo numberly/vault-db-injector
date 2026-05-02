@@ -84,6 +84,38 @@ func TestResolveCgroupID_NotFound(t *testing.T) {
 	}
 }
 
+func TestCheckCgroupSetupAt_OK(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "cgroup.controllers"), []byte("cpu memory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "kubepods.slice"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkCgroupSetupAt(root); err != nil {
+		t.Fatalf("expected nil, got: %v", err)
+	}
+}
+
+func TestCheckCgroupSetupAt_NoCgroupV2(t *testing.T) {
+	root := t.TempDir()
+	// No cgroup.controllers file — simulate cgroup v1 or wrong mount.
+	if err := checkCgroupSetupAt(root); err == nil {
+		t.Fatal("expected error for missing cgroup v2, got nil")
+	}
+}
+
+func TestCheckCgroupSetupAt_NoSystemdDriver(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "cgroup.controllers"), []byte("cpu memory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// kubepods.slice absent — simulate cgroupfs driver.
+	if err := checkCgroupSetupAt(root); err == nil {
+		t.Fatal("expected error for missing kubepods.slice, got nil")
+	}
+}
+
 func TestResolveCgroupID_BareContainerID(t *testing.T) {
 	// k8s normalizes container IDs to "<runtime>://<id>", but the resolver
 	// must also accept a pre-stripped bare ID. Strip is a no-op when the

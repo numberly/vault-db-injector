@@ -18,7 +18,7 @@ func TestLoad_SkipsWithoutBPFLSM(t *testing.T) {
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
 		t.Skip("no /sys/kernel/security/lsm — running outside Linux, skipping")
 	}
-	_, err := Load()
+	_, err := Load(0)
 	if err != nil {
 		// Acceptable error shapes:
 		//   - BPF LSM not enabled (test env without lsm=bpf)

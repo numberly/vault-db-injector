@@ -36,7 +36,10 @@ type Loader struct {
 // kernel support, instantiates maps and program, and attaches the LSM
 // hook. The returned Loader is ready to accept PutMapping / DeleteMapping
 // calls. Caller MUST Close it on shutdown.
-func Load() (*Loader, error) {
+//
+// maxMappings controls the BPF map capacity (cgroup_mappings MaxEntries).
+// Pass 0 to use the compile-time default (MAX_CGROUPS = 4096).
+func Load(maxMappings int) (*Loader, error) {
 	if err := checkKernelSupport(); err != nil {
 		return nil, err
 	}
@@ -57,6 +60,11 @@ func Load() (*Loader, error) {
 	spec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(obj))
 	if err != nil {
 		return nil, errors.Wrap(err, "load BPF collection spec")
+	}
+	if maxMappings > 0 {
+		if mapSpec, ok := spec.Maps["cgroup_mappings"]; ok {
+			mapSpec.MaxEntries = uint32(maxMappings)
+		}
 	}
 	coll, err := ebpf.NewCollection(spec)
 	if err != nil {
