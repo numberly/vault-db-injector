@@ -75,6 +75,11 @@ func NewConfig(configFile string) (*Config, error) {
 		InjectorLabel:     "vault-db-injector",
 		DefaultEngine:     "databases",
 		VaultRateLimit:    30,
+		BPF: BPFConfig{
+			WrapTokenTTL:       5 * time.Minute,
+			TmpfsPath:          "/run/vault-db-injector/bpf",
+			MaxMappingsPerNode: 4096,
+		},
 	}
 	if configFile != "" {
 		data, err := os.ReadFile(configFile)
@@ -92,28 +97,12 @@ func NewConfig(configFile string) (*Config, error) {
 		return nil, errors.Newf("error processing environment variables for prefix %s: %v", "INJECTOR_", err)
 	}
 
-	cfg.applyBPFDefaults()
-
 	err = cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
 
 	return cfg, nil
-}
-
-// applyBPFDefaults fills zero-valued BPF fields with their production defaults.
-// Called from NewConfig after unmarshaling so callers always see populated values.
-func (c *Config) applyBPFDefaults() {
-	if c.BPF.WrapTokenTTL == 0 {
-		c.BPF.WrapTokenTTL = 5 * time.Minute
-	}
-	if c.BPF.TmpfsPath == "" {
-		c.BPF.TmpfsPath = "/run/vault-db-injector/bpf"
-	}
-	if c.BPF.MaxMappingsPerNode == 0 {
-		c.BPF.MaxMappingsPerNode = 4096
-	}
 }
 
 // Validate verifies all properties of config struct are intialized

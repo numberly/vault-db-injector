@@ -366,16 +366,75 @@ func TestModeBPF_Validates(t *testing.T) {
 	}
 }
 
+func newConfigForBPFTest(t *testing.T) *Config {
+	t.Helper()
+	// Use a minimal YAML that satisfies Validate (renewer doesn't need cert/key).
+	y := `
+mode: renewer
+vaultAddress: https://vault
+vaultAuthPath: kubernetes
+kubeRole: x
+vaultSecretName: secret
+vaultSecretPrefix: prefix
+`
+	f, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
+	require.NoError(t, err)
+	_, err = f.WriteString(y)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	for _, k := range []string{
+		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
+		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
+		"INJECTOR_BPF_WRAP_TOKEN_TTL", "INJECTOR_BPF_TMPFS_PATH", "INJECTOR_BPF_MAX_MAPPINGS_PER_NODE",
+	} {
+		t.Setenv(k, "")
+		os.Unsetenv(k)
+	}
+	cfg, err := NewConfig(f.Name())
+	require.NoError(t, err)
+	return cfg
+}
+
 func TestBPFConfig_Defaults(t *testing.T) {
-	cfg := &Config{}
-	cfg.applyBPFDefaults()
-	if cfg.BPF.WrapTokenTTL != 5*time.Minute {
-		t.Errorf("WrapTokenTTL = %v, want 5m", cfg.BPF.WrapTokenTTL)
+	cfg := newConfigForBPFTest(t)
+	assert.Equal(t, 5*time.Minute, cfg.BPF.WrapTokenTTL)
+	assert.Equal(t, "/run/vault-db-injector/bpf", cfg.BPF.TmpfsPath)
+	assert.Equal(t, 4096, cfg.BPF.MaxMappingsPerNode)
+}
+
+func TestBPFConfig_LoadsExplicitValues(t *testing.T) {
+	tmpfile, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
+	require.NoError(t, err)
+	y := `
+mode: renewer
+vaultAddress: https://vault
+vaultAuthPath: kubernetes
+kubeRole: x
+vaultSecretName: secret
+vaultSecretPrefix: prefix
+bpf:
+  enabled: true
+  wrapTokenTTL: 10m
+  tmpfsPath: /custom/path
+  maxMappingsPerNode: 100
+`
+	_, err = tmpfile.WriteString(y)
+	require.NoError(t, err)
+	require.NoError(t, tmpfile.Close())
+
+	for _, k := range []string{
+		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
+		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
+		"INJECTOR_BPF_ENABLED", "INJECTOR_BPF_WRAP_TOKEN_TTL", "INJECTOR_BPF_TMPFS_PATH", "INJECTOR_BPF_MAX_MAPPINGS_PER_NODE",
+	} {
+		t.Setenv(k, "")
+		os.Unsetenv(k)
 	}
-	if cfg.BPF.TmpfsPath != "/run/vault-db-injector/bpf" {
-		t.Errorf("TmpfsPath = %q", cfg.BPF.TmpfsPath)
-	}
-	if cfg.BPF.MaxMappingsPerNode != 4096 {
-		t.Errorf("MaxMappingsPerNode = %d, want 4096", cfg.BPF.MaxMappingsPerNode)
-	}
+
+	cfg, err := NewConfig(tmpfile.Name())
+	require.NoError(t, err)
+	assert.True(t, cfg.BPF.Enabled)
+	assert.Equal(t, 10*time.Minute, cfg.BPF.WrapTokenTTL)
+	assert.Equal(t, "/custom/path", cfg.BPF.TmpfsPath)
+	assert.Equal(t, 100, cfg.BPF.MaxMappingsPerNode)
 }
