@@ -15,7 +15,7 @@ RUN clang -O2 -g -target bpf -D__TARGET_ARCH_x86 -I pkg/bpf/c/headers \
     clang -O2 -g -target bpf -D__TARGET_ARCH_arm64 -I pkg/bpf/c/headers \
       -c pkg/bpf/c/substitute.bpf.c -o /tmp/substitute.arm64.bpf.o
 
-FROM golang:1.24-alpine3.21 AS build
+FROM golang:1.26-alpine AS build
 
 WORKDIR /app
 COPY go.mod go.sum ./
