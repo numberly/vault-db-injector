@@ -235,6 +235,13 @@ func annotateBPFMapping(pod *corev1.Pod, wrapToken string, placeholders map[stri
 // Returns an error if either credential exceeds placeholder.MaxValue bytes —
 // the BPF program cannot substitute values longer than the fixed buffer size.
 func wrapAndAnnotate(ctx context.Context, pod *corev1.Pod, creds *vault.DbCreds, vw vaultWrapper, wrapTTL time.Duration, errContext string) (userPH, passPH string, err error) {
+	// Short-circuit before burning a Vault wrap token: if the annotation is
+	// already present, a second DbConfiguration is attempting to use BPF mode
+	// on the same pod, which is not supported. Return the error immediately.
+	if _, exists := pod.Annotations[k8s.ANNOTATION_BPF_MAPPING]; exists {
+		return "", "", errors.New("BPF mode currently supports a single DbConfiguration per pod")
+	}
+
 	if len(creds.Username) > placeholder.MaxValue {
 		return "", "", errors.Newf("credential username length %d exceeds BPF maximum %d; configure the Vault password_policy to enforce shorter usernames", len(creds.Username), placeholder.MaxValue)
 	}
