@@ -1,0 +1,2 @@
+pkg/bpf/*.bpf.o binary
+pkg/bpf/c/headers/vmlinux.h linguist-generated=true
