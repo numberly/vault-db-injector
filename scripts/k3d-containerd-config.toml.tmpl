@@ -1,0 +1,9 @@
+{{ template "base" . }}
+
+[plugins.'io.containerd.nri.v1.nri']
+  disable = false
+  socket_path = '/var/run/nri/nri.sock'
+  plugin_path = '/opt/nri/plugins'
+  plugin_config_path = '/etc/nri/conf.d'
+  plugin_registration_timeout = '5s'
+  plugin_request_timeout = '2s'

@@ -207,7 +207,7 @@ func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, 
 }
 
 // annotateNRIMapping writes the (wrap_token, placeholders) map to the pod's
-// bpf-mapping annotation. Multi-DbConfiguration under BPF is not yet supported:
+// nri-mapping annotation. Multi-DbConfiguration under NRI is not yet supported:
 // if the annotation already exists, returns an error so the admission is refused
 // cleanly rather than silently dropping data.
 func annotateNRIMapping(pod *corev1.Pod, wrapToken string, placeholders map[string]string) error {

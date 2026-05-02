@@ -300,7 +300,7 @@ func (s *stubWrapper) WrapValues(_ context.Context, _ map[string]string, _ time.
 	return s.wrapToken, nil
 }
 
-func TestApplyEnvToContainers_BPFEnabled_Classic(t *testing.T) {
+func TestApplyEnvToContainers_NRIEnabled_Classic(t *testing.T) {
 	pod := &corev1.Pod{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{Name: "app"}},
@@ -327,11 +327,11 @@ func TestApplyEnvToContainers_BPFEnabled_Classic(t *testing.T) {
 		assert.True(t, placeholder.IsPlaceholder(e.Value), "env %s value %q is not a placeholder", e.Name, e.Value)
 	}
 
-	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING], "missing bpf-mapping annotation")
+	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING], "missing nri-mapping annotation")
 	assert.Contains(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING], "hvs.test")
 }
 
-func TestApplyEnvToContainers_BPFEnabled_URI(t *testing.T) {
+func TestApplyEnvToContainers_NRIEnabled_URI(t *testing.T) {
 	pod := &corev1.Pod{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{Name: "app"}},
@@ -359,7 +359,7 @@ func TestApplyEnvToContainers_BPFEnabled_URI(t *testing.T) {
 	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING])
 }
 
-func TestApplyEnvToContainers_BPFDisabled_Classic_Unchanged(t *testing.T) {
+func TestApplyEnvToContainers_NRIDisabled_Classic_Unchanged(t *testing.T) {
 	pod := &corev1.Pod{Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}}}
 	dbConf := k8s.DbConfiguration{
 		DbName: "main", Mode: k8s.DbModeClassic,
@@ -379,8 +379,8 @@ func TestApplyEnvToContainers_BPFDisabled_Classic_Unchanged(t *testing.T) {
 	assert.Empty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING])
 }
 
-func TestApplyEnvToContainers_BPFEnabled_RejectMultiDb(t *testing.T) {
-	// When BPF enabled and the pod already has a bpf-mapping annotation
+func TestApplyEnvToContainers_NRIEnabled_RejectMultiDb(t *testing.T) {
+	// When NRI enabled and the pod already has a nri-mapping annotation
 	// (set by a previous DbConfiguration in the same call chain), reject
 	// with an explicit error.
 	pod := &corev1.Pod{

@@ -65,8 +65,8 @@ func TestSubstitute_EmptyMapping(t *testing.T) {
 }
 
 func TestSubstitute_LongValue(t *testing.T) {
-	// >73 bytes (former BPF placeholder.MaxValue limit)
-	long := "extremely-long-credential-value-that-far-exceeds-the-old-bpf-placeholder-buffer-of-73-bytes"
+	// >73 bytes (former placeholder.MaxValue limit)
+	long := "extremely-long-credential-value-that-far-exceeds-the-old-placeholder-buffer-of-73-bytes"
 	env := []string{"DB_PASSWORD=__VDBI_PH_xxx___"}
 	mapping := map[string]string{"__VDBI_PH_xxx___": long}
 	out := Substitute(env, mapping)

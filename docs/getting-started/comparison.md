@@ -56,7 +56,7 @@ Here are our needs by importance in our research :
 | **Lease Renew**                      | ✅ Yes                | ✅ Yes                              | -                                  | 🤔 With restarting              | -                                |
 | **Lease Revocation**                 | ✅ Yes                | ❌ No                               | -                                  | ❌ No                           | -                                |
 | **Community Support**                | 🌱 Growing            | 🟢 Established                      | 🟠 Moderate                        | 🟠 Moderate                     | 🟢 Established                   |
-| **Credentials invisible at K8s API layer (PodSpec / etcd / audit logs / GitOps)** | ✅ Yes (with BPF mode) | ❌ No                          | ❌ No                              | ❌ No                           | ❌ No                            |
+| **Credentials invisible at K8s API layer (PodSpec / etcd / audit logs / GitOps)** | ✅ Yes (with NRI mode) | ❌ No                          | ❌ No                              | ❌ No                           | ❌ No                            |
 
 ###  4.1. <a name='Key'></a>Key
 
