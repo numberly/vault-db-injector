@@ -58,13 +58,15 @@ The BPF DaemonSet runs in `mode=bpf`, one pod per node:
 1. A Kubernetes informer filtered by `spec.nodeName` detects pod creation.
 2. The DS reads the `bpf-mapping` annotation, unwraps the token from Vault
    (consuming it — it cannot be replayed), and retrieves the real credentials.
-3. The DS resolves the pod's cgroup ID from the kubelet cgroup hierarchy at
-   `/sys/fs/cgroup`.
-4. The DS writes a `(cgroup_id → placeholder/value pairs)` entry into a BPF
-   hash map.
-5. The DS also persists the mapping to tmpfs at
-   `/run/vault-db-injector/bpf/<podUID>.json` so it can recover after a DS
-   restart without contacting Vault again.
+3. The DS resolves the cgroup ID of **every container** (regular, init, and
+   ephemeral) from the kubelet cgroup hierarchy at `/sys/fs/cgroup`.
+4. The DS writes one `(cgroup_id → placeholder/value pairs)` entry per
+   container into the BPF hash map. All containers in the pod share the same
+   credential substitution.
+5. The DS persists the mapping to tmpfs at
+   `/run/vault-db-injector/bpf/<podUID>.json` (JSON format with both the
+   placeholder mappings and the list of programmed cgroup IDs) so it can
+   recover after a DS restart without contacting Vault again.
 
 ### execve phase (BPF LSM hook)
 
@@ -191,7 +193,7 @@ credentials of pods on that node. There is no lateral path to other nodes.
 | BPF map full | DaemonSet rejects new pod entries, logs error. Bump `bpf.maxMappingsPerNode`. |
 | BPF program fails to load at DS startup | DS exits non-zero; Kubernetes reschedules (DaemonSet behavior). Operator alerted by pod restart count. |
 | Kernel does not support BPF LSM | DS exits with an explicit error message; never silently falls back to classic mode. |
-| DaemonSet restart | DS reloads mappings from tmpfs, repopulates BPF maps, resumes informer. No Vault contact needed for existing pods. |
+| DaemonSet restart | DS preloads the processed set from tmpfs, starts the informer, waits for cache sync, then re-programs the BPF map for every pod still running on the node using the cgroup IDs stored in tmpfs. Pods rescheduled to another node during DS downtime have their stale tmpfs entries removed. No Vault contact needed. |
 | Node reboot | tmpfs is wiped; pods on the node are also rescheduled. Admission flow issues fresh wrap tokens. No recovery needed. |
 | Race: container execves before DS has unwrapped | LSM hook returns 0 (allow); envp retains placeholder strings; application sees placeholder as env value → connection failure → CrashLoopBackoff. Self-resolves once DS catches up. |
 
@@ -203,7 +205,8 @@ The DaemonSet exposes the following Prometheus metrics:
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `vault_injector_bpf_mappings_loaded` | Gauge | Number of cgroup→credential mappings currently in the BPF map. `0` on a node means no pods are protected. |
+| `vault_injector_bpf_mappings_loaded` | Gauge | Number of pods whose credentials are currently programmed in the BPF map. `0` on a node means no pods are protected. |
+| `vault_injector_bpf_map_size` | Gauge | Number of individual cgroup entries in the BPF map. Equals `mappings_loaded` for single-container pods; higher for multi-container pods. Alert when this approaches `bpf.maxMappingsPerNode`. |
 | `vault_injector_bpf_unwrap_errors_total` | CounterVec | Vault unwrap failures, labelled by `reason`. |
 
 ---

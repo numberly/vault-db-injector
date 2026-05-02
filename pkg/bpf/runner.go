@@ -18,7 +18,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
+	listersv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -46,6 +48,16 @@ func Run(ctx context.Context, cfg *config.Config, clientset k8s.KubernetesClient
 		return errors.Wrap(err, "vault connect")
 	}
 
+	informerFactory := informers.NewSharedInformerFactoryWithOptions(
+		clientset.RawClientset(),
+		30*time.Second,
+		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
+			opts.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", nodeName).String()
+		}),
+	)
+	// Capture the lister before Start so restoreBPFMaps can use it after sync.
+	podLister := informerFactory.Core().V1().Pods().Lister()
+
 	r := &runner{
 		nodeName:  nodeName,
 		log:       log,
@@ -56,19 +68,12 @@ func Run(ctx context.Context, cfg *config.Config, clientset k8s.KubernetesClient
 		processed: make(map[string]struct{}),
 	}
 
+	// Preload the processed set from tmpfs so that informer add events that
+	// arrive before restoreBPFMaps runs do not re-unwrap already-consumed tokens.
 	if err := r.restoreFromTmpfs(); err != nil {
-		log.Errorf("BPF tmpfs restore failed: %v", err)
-		// Non-fatal: in-memory cache stays empty; informer events
-		// will re-program live pods on demand.
+		log.Errorf("BPF tmpfs restore (processed set): %v", err)
 	}
 
-	informerFactory := informers.NewSharedInformerFactoryWithOptions(
-		clientset.RawClientset(),
-		30*time.Second,
-		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
-			opts.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", nodeName).String()
-		}),
-	)
 	podInformer := informerFactory.Core().V1().Pods().Informer()
 	if _, err := podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
@@ -115,6 +120,15 @@ func Run(ctx context.Context, cfg *config.Config, clientset k8s.KubernetesClient
 
 	informerFactory.Start(ctx.Done())
 	informerFactory.WaitForCacheSync(ctx.Done())
+
+	// After the cache syncs we have a complete local pod list. Re-program the
+	// BPF map for all pods that have a tmpfs entry and are still running here.
+	if err := r.restoreBPFMaps(podLister); err != nil {
+		log.Errorf("BPF map restore after cache sync: %v", err)
+		// Non-fatal: existing pods may see placeholder values until the
+		// next execve triggers a CrashLoopBackoff; the informer update path
+		// will re-program them if they restart.
+	}
 
 	log.Infof("BPF runner ready on node %s", nodeName)
 	<-ctx.Done()
@@ -274,6 +288,61 @@ func (r *runner) restoreFromTmpfs() error {
 	defer r.mu.Unlock()
 	for uid := range all {
 		r.processed[uid] = struct{}{}
+	}
+	return nil
+}
+
+// restoreBPFMaps re-programs the BPF map for pods that have a tmpfs entry
+// and are still running on this node. It must be called after the informer
+// cache has synced so that the pod lister reflects the current cluster state.
+//
+// For each tmpfs entry:
+//   - If the pod is still present in the lister → re-program its cgroup_ids
+//     using the persisted mappings (token already consumed; no Vault call needed).
+//   - If the pod is gone (rescheduled elsewhere during DS downtime) → delete
+//     the stale tmpfs entry.
+func (r *runner) restoreBPFMaps(lister listersv1.PodLister) error {
+	all, err := r.persister.LoadAll()
+	if err != nil {
+		return errors.Wrap(err, "load tmpfs entries")
+	}
+	if len(all) == 0 {
+		return nil
+	}
+
+	// Build a set of pod UIDs currently running on this node.
+	pods, err := lister.List(labels.Everything())
+	if err != nil {
+		return errors.Wrap(err, "list pods from informer cache")
+	}
+	runningUIDs := make(map[string]struct{}, len(pods))
+	for _, p := range pods {
+		if p.Spec.NodeName == r.nodeName {
+			runningUIDs[string(p.UID)] = struct{}{}
+		}
+	}
+
+	for uid, pm := range all {
+		if _, running := runningUIDs[uid]; !running {
+			// Pod is no longer on this node — clean up the stale entry.
+			r.log.Infof("restoreBPFMaps: pod %s no longer on node %s, deleting tmpfs entry", uid, r.nodeName)
+			_ = r.persister.Delete(uid)
+			r.mu.Lock()
+			delete(r.processed, uid)
+			r.mu.Unlock()
+			continue
+		}
+
+		// Re-program the BPF map for each cgroup_id stored for this pod.
+		for _, cgroupID := range pm.CgroupIDs {
+			if err := r.mapWriter.PutMapping(cgroupID, pm.Mappings); err != nil {
+				r.log.Errorf("restoreBPFMaps: PutMapping(cgroup=%d, pod=%s): %v", cgroupID, uid, err)
+				continue
+			}
+			mapSize.Inc()
+		}
+		mappingsLoaded.Inc()
+		r.log.Infof("restoreBPFMaps: restored %d cgroup(s) for pod %s", len(pm.CgroupIDs), uid)
 	}
 	return nil
 }

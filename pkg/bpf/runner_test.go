@@ -12,6 +12,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
+	listersv1 "k8s.io/client-go/listers/core/v1"
 )
 
 type fakeUnwrapper struct {
@@ -312,5 +314,89 @@ func TestCollectContainerIDs_AllTypes(t *testing.T) {
 	ids := collectContainerIDs(pod)
 	if len(ids) != 4 {
 		t.Fatalf("expected 4 container IDs, got %v", ids)
+	}
+}
+
+// makePodLister builds a PodLister backed by an in-memory indexer.
+func makePodLister(pods ...*corev1.Pod) listersv1.PodLister {
+	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	for _, p := range pods {
+		_ = indexer.Add(p)
+	}
+	return listersv1.NewPodLister(indexer)
+}
+
+func TestRestoreBPFMaps_ReprogramsRunningPod(t *testing.T) {
+	dir := t.TempDir()
+	persister := NewPersister(dir)
+	_ = persister.Save("uid-restore", PersistedMapping{
+		Mappings:  map[string]string{"__VDBI_PH_p___": "secret"},
+		CgroupIDs: []uint64{55, 66},
+	})
+
+	mw := &recordingMapWriter{}
+	r := &runner{
+		nodeName:  "node-A",
+		log:       logrus.New(),
+		mapWriter: mw,
+		persister: persister,
+		processed: map[string]struct{}{"uid-restore": {}},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "p", Namespace: "default", UID: "uid-restore"},
+		Spec:       corev1.PodSpec{NodeName: "node-A"},
+	}
+	lister := makePodLister(pod)
+
+	if err := r.restoreBPFMaps(lister); err != nil {
+		t.Fatal(err)
+	}
+	// Both cgroup IDs must have been re-programmed.
+	if mw.puts[55]["__VDBI_PH_p___"] != "secret" {
+		t.Fatalf("cgroup 55 not programmed: %#v", mw.puts)
+	}
+	if mw.puts[66]["__VDBI_PH_p___"] != "secret" {
+		t.Fatalf("cgroup 66 not programmed: %#v", mw.puts)
+	}
+}
+
+func TestRestoreBPFMaps_DeletesStaleTmpfsEntry(t *testing.T) {
+	dir := t.TempDir()
+	persister := NewPersister(dir)
+	_ = persister.Save("uid-gone", PersistedMapping{
+		Mappings:  map[string]string{"__VDBI_PH_p___": "secret"},
+		CgroupIDs: []uint64{77},
+	})
+
+	mw := &recordingMapWriter{}
+	r := &runner{
+		nodeName:  "node-A",
+		log:       logrus.New(),
+		mapWriter: mw,
+		persister: persister,
+		processed: map[string]struct{}{"uid-gone": {}},
+	}
+
+	// Empty lister — the pod is no longer on this node.
+	lister := makePodLister()
+
+	if err := r.restoreBPFMaps(lister); err != nil {
+		t.Fatal(err)
+	}
+	// BPF map must NOT have been programmed.
+	if len(mw.puts) != 0 {
+		t.Fatalf("expected no BPF puts for gone pod, got %#v", mw.puts)
+	}
+	// Tmpfs entry must have been deleted.
+	if _, err := persister.Load("uid-gone"); err == nil {
+		t.Fatal("expected tmpfs entry to be deleted for gone pod")
+	}
+	// processed map must no longer contain the UID.
+	r.mu.Lock()
+	_, stillPresent := r.processed["uid-gone"]
+	r.mu.Unlock()
+	if stillPresent {
+		t.Fatal("expected uid-gone removed from processed map")
 	}
 }
