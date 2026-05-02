@@ -47,8 +47,10 @@ nav:
     - getting-started/getting-started.md
     - getting-started/comparison.md
     - getting-started/build.md
+    - getting-started/bpf-requirements.md
   - How it Works:
     - how-it-works/how-it-work.md
+    - how-it-works/bpf-mode.md
     - how-it-works/configuration.md
     - how-it-works/injector.md
     - how-it-works/renewer.md

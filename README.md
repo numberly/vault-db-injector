@@ -7,6 +7,7 @@ The Vault DB Injector relies on the database engine from Vault to generate crede
 - Distribute credentials to workload using annotations and Kubernetes mutating webhook
 - Renew credentials when necessary
 - Revoke credentials when application pod is deleted
+- Optionally protect credentials at the Kubernetes API layer using an eBPF substitution layer (see [docs/how-it-works/bpf-mode.md](docs/how-it-works/bpf-mode.md))
 
 ##  2. <a name='Documentation'></a>Documentation
 
