@@ -81,6 +81,9 @@ func run() error {
 		return errors.Newf("unknown mode %q", cfg.Mode)
 	}
 
+	if runErr != nil && !errors.Is(runErr, context.Canceled) {
+		log.Errorf("vault-db-injector exiting with error: %v", runErr)
+	}
 	log.Info("vault-db-injector stopped")
 
 	if errors.Is(runErr, context.Canceled) {

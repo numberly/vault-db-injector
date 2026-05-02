@@ -162,7 +162,7 @@ func (c *Controller) RunBPF(ctx context.Context) error {
 	if !c.Cfg.BPF.Enabled {
 		c.log.Warn("RunBPF called but cfg.BPF.Enabled is false; idle until shutdown")
 		<-ctx.Done()
-		return nil
+		return ctx.Err()
 	}
 	return runBPFAgent(ctx, c.Cfg, c.Clientset, c.log)
 }

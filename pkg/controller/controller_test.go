@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/sentry"
@@ -66,9 +65,7 @@ func TestRunBPF_ReturnsOnContextCancel(t *testing.T) {
 	// context is cancelled, then returns nil. Matches the shape of the
 	// other Run* methods.
 	err := c.RunBPF(ctx)
-	if err != nil && !errors.Is(err, context.Canceled) {
-		t.Fatalf("expected nil or context.Canceled, got %v", err)
-	}
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestController_BuildLock_MissingEnv(t *testing.T) {
