@@ -164,7 +164,31 @@ func (c *Controller) RunBPF(ctx context.Context) error {
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	return runBPFAgent(ctx, c.Cfg, c.Clientset, c.log)
+
+	hcService := healthcheck.NewService(c.Cfg)
+	hcService.RegisterHandlers()
+	metricsService := metrics.NewMetricsService()
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		hcService.Start(gCtx, make(chan struct{}))
+		return nil
+	})
+
+	g.Go(func() error {
+		metricsService.RunMetrics()
+		return nil
+	})
+
+	g.Go(func() error {
+		return runBPFAgent(gCtx, c.Cfg, c.Clientset, c.log)
+	})
+
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		return err
+	}
+	return nil
 }
 
 // buildLock resolves HA environment variables and constructs the leader-election lock.
