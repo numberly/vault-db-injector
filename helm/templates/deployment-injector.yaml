@@ -25,6 +25,13 @@ spec:
         image: {{ .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.vaultDbInjector.injector.image.tag | default .Chart.AppVersion }}
         imagePullPolicy: {{ .Values.vaultDbInjector.injector.imagePullPolicy }}
         name: vault-db-injector
+        {{- if .Values.bpf.enabled }}
+        env:
+        - name: BPF_ENABLED
+          value: "true"
+        - name: BPF_WRAP_TOKEN_TTL
+          value: {{ .Values.bpf.wrapTokenTTL | quote }}
+        {{- end }}
         ports:
         - containerPort: 8443
           name: https

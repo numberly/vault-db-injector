@@ -51,3 +51,23 @@ data:
     sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
     sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
     injectorLabel: {{ .Values.vaultDbInjector.configuration.injectorLabel }}
+{{- if .Values.bpf.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-bpf
+data:
+  config.yaml: |
+    vaultAddress: {{ .Values.vaultDbInjector.configuration.vaultAddress }}
+    vaultAuthPath: {{ .Values.vaultDbInjector.configuration.vaultAuthPath }}
+    logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
+    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
+    tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
+    vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
+    vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}
+    mode: bpf
+    sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
+    sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
+    bpfWrapTokenTTL: {{ .Values.bpf.wrapTokenTTL }}
+{{- end }}

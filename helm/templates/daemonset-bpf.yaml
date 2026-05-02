@@ -1,0 +1,115 @@
+{{- if .Values.bpf.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-bpf
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: bpf
+spec:
+  selector:
+    matchLabels:
+      app: vault-db-bpf
+    {{- include "vault-db-injector.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: bpf
+  template:
+    metadata:
+      labels:
+        app: vault-db-bpf
+      {{- include "vault-db-injector.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: bpf
+      annotations:
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+    spec:
+      hostPID: true
+      containers:
+      - name: vault-db-bpf
+        image: "{{ .Values.bpf.image.repository | default .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.bpf.image.tag | default .Values.vaultDbInjector.injector.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.bpf.imagePullPolicy | default "IfNotPresent" }}
+        args:
+        - "--mode=bpf"
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: BPF_ENABLED
+          value: "true"
+        - name: BPF_WRAP_TOKEN_TTL
+          value: {{ .Values.bpf.wrapTokenTTL | quote }}
+        - name: BPF_TMPFS_PATH
+          value: "/run/vault-db-injector/bpf"
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        - containerPort: 8888
+          name: healthcheck
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.bpf.resources | nindent 10 }}
+        securityContext:
+          privileged: false
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            add: ["BPF", "PERFMON", "SYS_RESOURCE"]
+            drop: ["ALL"]
+        volumeMounts:
+        - name: config-bpf
+          mountPath: /bpf
+        - name: tmpfs
+          mountPath: /run/vault-db-injector/bpf
+        - name: cgroup
+          mountPath: /sys/fs/cgroup
+          readOnly: true
+        - name: bpffs
+          mountPath: /sys/fs/bpf
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthcheck
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthcheck
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+      imagePullSecrets:
+      - name: registry-token
+      serviceAccountName: {{ include "vault-db-injector.fullname" . }}
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: {{ include "vault-db-injector.fullname" . }}-bpf
+        name: config-bpf
+      - name: tmpfs
+        emptyDir:
+          medium: Memory
+      - name: cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+          type: Directory
+      - name: bpffs
+        hostPath:
+          path: /sys/fs/bpf
+          type: DirectoryOrCreate
+      {{- if .Values.bpf.tolerations }}
+      tolerations:
+        {{- toYaml .Values.bpf.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.bpf.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.bpf.nodeSelector | nindent 8 }}
+      {{- end }}
+{{- end }}

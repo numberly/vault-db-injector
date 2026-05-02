@@ -59,3 +59,28 @@ vaultDbInjector:
       repository: numberly/vault-db-injector
       tag: 2.0.12
     imagePullPolicy: Always
+
+bpf:
+  # When true, deploys the BPF DaemonSet AND tells the injector to wrap
+  # every credential it issues. Both pieces are tied to this single switch
+  # so the cluster cannot end up in a "webhook produces placeholders but
+  # nothing substitutes" state. When false, behavior is byte-identical to
+  # legacy modes (literal credentials in env vars).
+  enabled: false
+  image:
+    repository: ""  # defaults to vaultDbInjector.injector.image.repository
+    tag: ""         # defaults to vaultDbInjector.injector.image.tag
+  imagePullPolicy: Always
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  tolerations: []
+  nodeSelector: {}
+  # Vault response-wrapping TTL for the wrap tokens that travel through
+  # the PodSpec. Must outlive the longest expected scheduling + image-pull
+  # delay on the cluster.
+  wrapTokenTTL: 5m
