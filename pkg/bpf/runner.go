@@ -209,6 +209,7 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 	if err := r.mapWriter.PutMapping(cgroupID, mappings); err != nil {
 		return errors.Wrap(err, "BPF map put")
 	}
+	mapSize.Inc()
 	if err := r.persister.Save(string(pod.UID), mappings); err != nil {
 		return errors.Wrap(err, "tmpfs persist")
 	}
@@ -231,6 +232,7 @@ func (r *runner) processPodDeleted(pod *corev1.Pod) {
 	if cs != "" {
 		if cg, err := r.resolveCG(string(pod.UID), cs); err == nil {
 			if err := r.mapWriter.DeleteMapping(cg); err == nil {
+				mapSize.Dec()
 				mappingsLoaded.Dec()
 			}
 		}
@@ -281,6 +283,10 @@ var (
 		Name: "vault_injector_bpf_mappings_loaded",
 		Help: "Number of pod mappings currently programmed in the BPF map.",
 	})
+	mapSize = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "vault_injector_bpf_map_size",
+		Help: "Number of cgroup entries in the BPF map (capacity is bpf.maxMappingsPerNode).",
+	})
 	unwrapErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "vault_injector_bpf_unwrap_errors_total",
 		Help: "Number of failed Vault unwraps from the BPF runner.",
@@ -288,5 +294,5 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(mappingsLoaded, unwrapErrors)
+	prometheus.MustRegister(mappingsLoaded, mapSize, unwrapErrors)
 }
