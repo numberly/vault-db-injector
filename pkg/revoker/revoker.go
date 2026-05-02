@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
@@ -121,7 +122,12 @@ func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
 
 	// Keep the main goroutine alive until context is cancelled
 	<-ctx.Done()
-	if err := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); err != nil {
+	// ctx is already cancelled here, so any Vault call using it would fail
+	// immediately. Use a fresh short-lived context for the cleanup so the
+	// self token still gets revoked on shutdown.
+	cleanupCtx, cancelCleanup := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelCleanup()
+	if err := vaultConn.RevokeSelfToken(cleanupCtx, vaultConn.K8sSaVaultToken); err != nil {
 		r.log.Errorf("RevokeSelfToken failed: %v", err)
 	}
 	r.log.Info("RevokeTokenJob stopped.")

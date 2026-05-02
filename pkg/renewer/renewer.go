@@ -48,8 +48,13 @@ func (r *tokenRenewerImpl) RenewTokenJob(ctx context.Context) {
 
 		keyInfos, err := vaultConn.ListKeyInfo(ctx, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
 		if err != nil {
-			r.log.Errorf("Error while retrieving informations: %v", err)
+			// ListKeyInfo may return partial results alongside a non-nil error;
+			// honor that contract so a single transient KV failure does not
+			// stall renewal of every other token until the next tick.
+			r.log.Warnf("Partial error while retrieving key info, continuing with available keys: %v", err)
 			metrics.SynchronizationErrorCount.WithLabelValues().Inc()
+		}
+		if len(keyInfos) == 0 {
 			return false
 		}
 

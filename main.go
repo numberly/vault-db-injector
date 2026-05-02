@@ -56,7 +56,7 @@ func main() {
 		go c.RunRevoker(ctx, metricsSuccess)
 	}
 
-	// Attendez le succès ou l'échec des fonctions run et runMetrics
+	// Wait for success or failure from the run and runMetrics goroutines
 	successCount := 0
 	for {
 		select {
