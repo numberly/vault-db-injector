@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/numberly/vault-db-injector/pkg/k8s"
@@ -328,12 +329,15 @@ func TestProcessPodAdded_SaveFailureRollsBackBPFMap(t *testing.T) {
 	unwrap := &fakeUnwrapper{values: map[string]string{"password": "supersecret"}}
 	mw := &recordingMapWriter{}
 
-	// Use a read-only directory so Save always fails.
-	dir := t.TempDir()
-	if err := os.Chmod(dir, 0o555); err != nil {
+	// Force Save to fail by pointing the persister at a path whose parent
+	// is a regular file — MkdirAll then fails reliably for any user (root
+	// included), unlike chmod 0o555 which root bypasses.
+	parent := t.TempDir()
+	blocker := filepath.Join(parent, "blocker")
+	if err := os.WriteFile(blocker, []byte{}, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	dir := filepath.Join(blocker, "subdir")
 
 	r := makeRunner("node-A", unwrap, mw, dir, func(_, _ string) (uint64, error) { return 12345, nil })
 

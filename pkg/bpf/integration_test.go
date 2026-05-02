@@ -19,7 +19,7 @@ func TestIntegration_LoadAttachClose(t *testing.T) {
 	if !strings.Contains(string(b), "bpf") {
 		t.Skipf("BPF LSM not enabled in this kernel: %s", b)
 	}
-	loader, err := Load()
+	loader, err := Load(0)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}

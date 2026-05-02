@@ -1,6 +1,11 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
 //
 // vault-db-injector BPF substitution program.
+//
+// This file is dual-licensed (GPL-2.0 OR Apache-2.0) so the BPF program
+// can declare a GPL-compatible license to the kernel verifier (required
+// for LSM programs and BPF helpers like bpf_probe_write_user) while the
+// rest of the project remains Apache-2.0.
 //
 // Hook: lsm/bprm_check_security
 // Fires synchronously after the kernel copies argv/envp to the new task's
@@ -24,7 +29,11 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 
-char LICENSE[] SEC("license") = "Apache-2.0";
+// Dual BSD/GPL satisfies the kernel's GPL-compatible license check for
+// LSM programs while remaining permissive for downstream BSD redistribution.
+// The project's overall Apache-2.0 license is unchanged; this BPF source
+// file is independently dual-licensed (see SPDX header above).
+char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 // Must match pkg/placeholder.Length and the loader's struct mapping.
 #define PLACEHOLDER_LEN 77
