@@ -9,22 +9,22 @@ import (
 	"testing"
 )
 
-// TestLoad_SkipsWithoutBPFLSM verifies the kernel-support check is
-// active. We don't try to actually attach the LSM here because that
+// TestLoad_SkipsWithoutTracepoint verifies the kernel-support check is
+// active. We don't try to actually attach the tracepoint here because that
 // requires CAP_BPF + CAP_PERFMON, which `go test` typically lacks.
 // The integration test (//go:build integration_bpf) does the real
 // load + attach in a privileged environment.
-func TestLoad_SkipsWithoutBPFLSM(t *testing.T) {
-	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Skip("no /sys/kernel/security/lsm — running outside Linux, skipping")
+func TestLoad_SkipsWithoutTracepoint(t *testing.T) {
+	if _, err := os.Stat("/sys/kernel/tracing/events/syscalls"); err != nil {
+		t.Skip("no tracefs syscalls — running outside Linux or tracefs not mounted, skipping")
 	}
 	_, err := Load(0)
 	if err != nil {
 		// Acceptable error shapes:
-		//   - BPF LSM not enabled (test env without lsm=bpf)
+		//   - tracepoint not found (kernel without CONFIG_FTRACE_SYSCALLS)
 		//   - permission denied (no CAP_BPF in test env)
 		//   - empty embedded object (CI hasn't compiled yet)
-		if !strings.Contains(err.Error(), "BPF LSM") &&
+		if !strings.Contains(err.Error(), "tracepoint") &&
 			!strings.Contains(err.Error(), "BPF object is empty") &&
 			!strings.Contains(err.Error(), "operation not permitted") &&
 			!strings.Contains(err.Error(), "permission denied") &&

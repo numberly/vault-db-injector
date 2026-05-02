@@ -69,17 +69,17 @@ integration-test-bpf:
 ## Uses structural section comparison (readelf) instead of byte-exact cmp to avoid clang version sensitivity.
 verify-bpf-object: build-bpf
 	@echo "Comparing BPF object structure (amd64)..."
-	@readelf -SW pkg/bpf/substitute.amd64.bpf.o | grep -E "lsm|maps|substitute_envp|\.text|\.rodata|scan_callback" > /tmp/bpf-committed-sections.txt
+	@readelf -SW pkg/bpf/substitute.amd64.bpf.o | grep -E "tracepoint|maps|sys_enter_execve|\.text|\.rodata|scan_envp|try_match" > /tmp/bpf-committed-sections.txt
 	@clang -O2 -g -target bpf -D__TARGET_ARCH_x86 -I pkg/bpf/c/headers -I $(BPF_LIBBPF_INCLUDE) \
 		-c pkg/bpf/c/substitute.bpf.c -o /tmp/bpf-fresh-amd64.o
-	@readelf -SW /tmp/bpf-fresh-amd64.o | grep -E "lsm|maps|substitute_envp|\.text|\.rodata|scan_callback" > /tmp/bpf-fresh-sections.txt
+	@readelf -SW /tmp/bpf-fresh-amd64.o | grep -E "tracepoint|maps|sys_enter_execve|\.text|\.rodata|scan_envp|try_match" > /tmp/bpf-fresh-sections.txt
 	@diff /tmp/bpf-committed-sections.txt /tmp/bpf-fresh-sections.txt > /dev/null \
 		|| { echo "ERROR: pkg/bpf/substitute.amd64.bpf.o is out of date with substitute.bpf.c. Run 'make build-bpf' and commit the result."; exit 1; }
 	@echo "Comparing BPF object structure (arm64)..."
-	@readelf -SW pkg/bpf/substitute.arm64.bpf.o | grep -E "lsm|maps|substitute_envp|\.text|\.rodata|scan_callback" > /tmp/bpf-committed-arm64-sections.txt
+	@readelf -SW pkg/bpf/substitute.arm64.bpf.o | grep -E "tracepoint|maps|sys_enter_execve|\.text|\.rodata|scan_envp|try_match" > /tmp/bpf-committed-arm64-sections.txt
 	@clang -O2 -g -target bpf -D__TARGET_ARCH_arm64 -I pkg/bpf/c/headers -I $(BPF_LIBBPF_INCLUDE) \
 		-c pkg/bpf/c/substitute.bpf.c -o /tmp/bpf-fresh-arm64.o
-	@readelf -SW /tmp/bpf-fresh-arm64.o | grep -E "lsm|maps|substitute_envp|\.text|\.rodata|scan_callback" > /tmp/bpf-fresh-arm64-sections.txt
+	@readelf -SW /tmp/bpf-fresh-arm64.o | grep -E "tracepoint|maps|sys_enter_execve|\.text|\.rodata|scan_envp|try_match" > /tmp/bpf-fresh-arm64-sections.txt
 	@diff /tmp/bpf-committed-arm64-sections.txt /tmp/bpf-fresh-arm64-sections.txt > /dev/null \
 		|| { echo "ERROR: pkg/bpf/substitute.arm64.bpf.o is out of date with substitute.bpf.c. Run 'make build-bpf' and commit the result."; exit 1; }
 	@echo "OK: BPF object structure matches source (amd64 + arm64)."

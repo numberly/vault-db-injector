@@ -25,7 +25,7 @@ const (
 )
 
 // Loader owns the BPF program and the cgroup→mappings hash map. Close
-// detaches the LSM link and frees the maps.
+// detaches the tracepoint link and frees the maps.
 type Loader struct {
 	coll      *ebpf.Collection
 	link      link.Link
@@ -33,7 +33,7 @@ type Loader struct {
 }
 
 // Load reads the embedded .bpf.o for the current architecture, verifies
-// kernel support, instantiates maps and program, and attaches the LSM
+// kernel support, instantiates maps and program, and attaches the tracepoint
 // hook. The returned Loader is ready to accept PutMapping / DeleteMapping
 // calls. Caller MUST Close it on shutdown.
 //
@@ -70,20 +70,20 @@ func Load(maxMappings int) (*Loader, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "instantiate BPF collection")
 	}
-	prog := coll.Programs["substitute_envp"]
+	prog := coll.Programs["sys_enter_execve"]
 	if prog == nil {
 		coll.Close()
-		return nil, errors.New("BPF program substitute_envp not found in collection")
+		return nil, errors.New("BPF program sys_enter_execve not found in collection")
 	}
 	cgroupMap := coll.Maps["cgroup_mappings"]
 	if cgroupMap == nil {
 		coll.Close()
 		return nil, errors.New("cgroup_mappings map not found in BPF collection")
 	}
-	lnk, err := link.AttachLSM(link.LSMOptions{Program: prog})
+	lnk, err := link.Tracepoint("syscalls", "sys_enter_execve", prog, nil)
 	if err != nil {
 		coll.Close()
-		return nil, errors.Wrap(err, "attach LSM hook")
+		return nil, errors.Wrap(err, "attach tracepoint hook")
 	}
 	return &Loader{coll: coll, link: lnk, cgroupMap: cgroupMap}, nil
 }
@@ -135,7 +135,7 @@ func (l *Loader) DeleteMapping(cgroupID uint64) error {
 	return nil
 }
 
-// Close detaches the LSM hook and frees BPF maps. Safe to call multiple times.
+// Close detaches the tracepoint hook and frees BPF maps. Safe to call multiple times.
 func (l *Loader) Close() error {
 	if l.link != nil {
 		_ = l.link.Close()
@@ -149,13 +149,28 @@ func (l *Loader) Close() error {
 }
 
 func checkKernelSupport() error {
-	const lsmFile = "/sys/kernel/security/lsm"
-	b, err := os.ReadFile(lsmFile)
-	if err != nil {
-		return errors.Wrapf(err, "cannot read %s (kernel may lack security subsystem)", lsmFile)
+	// Tracepoint programs do not require BPF LSM. Verify that tracefs exposes
+	// the sys_enter_execve tracepoint. tracefs is typically at
+	// /sys/kernel/tracing (since Linux 4.1) or /sys/kernel/debug/tracing.
+	// If neither path is accessible (e.g. tracefs not bind-mounted into the
+	// container), skip the pre-flight check and let link.Tracepoint fail with
+	// its own error — it is more authoritative.
+	candidates := []string{
+		"/sys/kernel/tracing/events/syscalls/sys_enter_execve/format",
+		"/sys/kernel/debug/tracing/events/syscalls/sys_enter_execve/format",
 	}
-	if !bytes.Contains(b, []byte("bpf")) {
-		return errors.Newf("BPF LSM not enabled in kernel cmdline (lsm=...,bpf required); current: %s", string(b))
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return nil // found — we're good
+		}
 	}
-	return nil
+	// Neither path found — check if tracefs itself is missing vs just not mounted.
+	if _, err := os.Stat("/sys/kernel/tracing"); err != nil {
+		if _, err2 := os.Stat("/sys/kernel/debug/tracing"); err2 != nil {
+			// tracefs not mounted at all: warn but don't block — let the
+			// kernel verifier produce the definitive error.
+			return errors.New("tracefs not found at /sys/kernel/tracing or /sys/kernel/debug/tracing; mount tracefs or add hostPath volume for the container")
+		}
+	}
+	return errors.New("tracepoint syscalls/sys_enter_execve not found in tracefs: kernel may need CONFIG_FTRACE_SYSCALLS=y")
 }

@@ -43,11 +43,23 @@ spec:
         resources:
           {{- toYaml .Values.bpf.resources | nindent 10 }}
         securityContext:
+          # Must run as root in-container for the BPF helpers (bpf_probe_*)
+          # to be effective: capabilities only become CapEff when the process
+          # is root or the binary has file caps. BPF / PERFMON / SYS_RESOURCE
+          # are added explicitly; ALL others dropped — so this is far from a
+          # full-power container, despite uid 0.
+          runAsUser: 0
+          runAsNonRoot: false
           privileged: false
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           capabilities:
-            add: ["BPF", "PERFMON", "SYS_RESOURCE"]
+            # BPF + PERFMON: load and attach BPF programs.
+            # SYS_RESOURCE: raise locked-memory limit for BPF maps.
+            # SYS_ADMIN: required by the kernel verifier to permit the
+            #   bpf_probe_write_user helper in tracepoint programs (the helper
+            #   can corrupt arbitrary user-space memory, hence the extra gate).
+            add: ["BPF", "PERFMON", "SYS_RESOURCE", "SYS_ADMIN"]
             drop: ["ALL"]
         volumeMounts:
         - name: config-bpf
@@ -61,6 +73,9 @@ spec:
           mountPath: /sys/fs/bpf
         - name: kernel-security
           mountPath: /sys/kernel/security
+          readOnly: true
+        - name: tracefs
+          mountPath: /sys/kernel/tracing
           readOnly: true
         livenessProbe:
           failureThreshold: 3
@@ -103,6 +118,10 @@ spec:
       - name: kernel-security
         hostPath:
           path: /sys/kernel/security
+          type: DirectoryOrCreate
+      - name: tracefs
+        hostPath:
+          path: /sys/kernel/tracing
           type: DirectoryOrCreate
       {{- if .Values.bpf.tolerations }}
       tolerations:

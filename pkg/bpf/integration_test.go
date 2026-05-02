@@ -4,20 +4,15 @@ package bpf
 
 import (
 	"os"
-	"strings"
 	"testing"
 )
 
 // TestIntegration_LoadAttachClose loads the BPF program against a real
-// kernel, attaches the LSM hook, and closes cleanly. Requires a runner
-// with CONFIG_BPF_LSM=y and "bpf" in the kernel's "lsm=" cmdline.
+// kernel, attaches the tracepoint hook, and closes cleanly. Requires a
+// runner with CONFIG_FTRACE_SYSCALLS=y and tracefs mounted.
 func TestIntegration_LoadAttachClose(t *testing.T) {
-	b, err := os.ReadFile("/sys/kernel/security/lsm")
-	if err != nil {
-		t.Skipf("no /sys/kernel/security/lsm: %v", err)
-	}
-	if !strings.Contains(string(b), "bpf") {
-		t.Skipf("BPF LSM not enabled in this kernel: %s", b)
+	if _, err := os.Stat("/sys/kernel/tracing/events/syscalls/sys_enter_execve/format"); err != nil {
+		t.Skipf("tracepoint sys_enter_execve not available: %v", err)
 	}
 	loader, err := Load(0)
 	if err != nil {
