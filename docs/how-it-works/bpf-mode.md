@@ -43,7 +43,7 @@ When a pod is admitted with a `<db>.mode` annotation and `bpf.enabled: true`:
    opaque wrap token.
 3. The webhook generates one placeholder per credential field. Each
    placeholder is a fixed-length string (`__VDBI_PH_<32-hex-chars>___`,
-   74 bytes). The fixed length allows the BPF program to substitute values
+   77 bytes). The fixed length allows the BPF program to substitute values
    in-place without resizing the `execve` argument area.
 4. The webhook attaches a `db-creds-injector.numberly.io/bpf-mapping`
    annotation to the pod containing the wrap token and the mapping from
@@ -77,9 +77,12 @@ The BPF program is attached to the `bprm_check_security` LSM hook:
    values in-place using `bpf_probe_write_user`. Values are NUL-padded to
    the fixed placeholder length.
 4. If the cgroup ID is not found (the DS hasn't processed this pod yet),
-   the hook returns `EAGAIN` and the kernel retries the exec. After a
-   short grace period, the container enters CrashLoopBackoff, which self-
-   resolves once the DS catches up. This is the **fail-closed** behavior.
+   the hook returns 0 (allow), leaving `envp` unchanged with the literal
+   placeholder strings. The application sees the placeholder as the env var
+   value, which typically causes a connection failure → CrashLoopBackoff.
+   The container self-resolves once the DS catches up and populates the BPF
+   map. This is the **fail-safe** behavior (no exec is blocked; bad creds
+   cause application-level failure rather than kernel retry).
 
 ```
 Webhook                          DaemonSet              Vault
@@ -185,12 +188,12 @@ credentials of pods on that node. There is no lateral path to other nodes.
 | DaemonSet not running on the node | Container `execve` sees placeholder; application crashes; CrashLoopBackoff. Operator alerted by `vault_injector_bpf_mappings_loaded == 0`. |
 | DaemonSet cannot reach Vault for unwrap | Pod starts but enters CrashLoopBackoff. Metric: `vault_injector_bpf_unwrap_errors_total{reason="vault_unreachable"}`. |
 | Wrap token expired before DaemonSet unwraps | Same as above. Metric: `reason="token_expired"`. Raise `bpf.wrapTokenTTL` on slow clusters. |
-| BPF map full | DaemonSet rejects new pod entries, logs error. Metric: `vault_injector_bpf_map_size` saturates. Bump `bpf.maxMappingsPerNode`. |
+| BPF map full | DaemonSet rejects new pod entries, logs error. Bump `bpf.maxMappingsPerNode`. |
 | BPF program fails to load at DS startup | DS exits non-zero; Kubernetes reschedules (DaemonSet behavior). Operator alerted by pod restart count. |
 | Kernel does not support BPF LSM | DS exits with an explicit error message; never silently falls back to classic mode. |
 | DaemonSet restart | DS reloads mappings from tmpfs, repopulates BPF maps, resumes informer. No Vault contact needed for existing pods. |
 | Node reboot | tmpfs is wiped; pods on the node are also rescheduled. Admission flow issues fresh wrap tokens. No recovery needed. |
-| Race: container execves before DS has unwrapped | LSM hook returns `EAGAIN`; kernel retries. Pod enters CrashLoopBackoff if DS is slow; self-resolves once DS catches up. |
+| Race: container execves before DS has unwrapped | LSM hook returns 0 (allow); envp retains placeholder strings; application sees placeholder as env value → connection failure → CrashLoopBackoff. Self-resolves once DS catches up. |
 
 ---
 
@@ -201,9 +204,7 @@ The DaemonSet exposes the following Prometheus metrics:
 | Metric | Type | Description |
 |--------|------|-------------|
 | `vault_injector_bpf_mappings_loaded` | Gauge | Number of cgroup→credential mappings currently in the BPF map. `0` on a node means no pods are protected. |
-| `vault_injector_bpf_unwrap_errors_total` | Counter | Vault unwrap failures, labelled by `reason`. |
-| `vault_injector_bpf_substitutions_total` | Counter | Successful in-kernel substitutions (fed from BPF perf ring buffer). |
-| `vault_injector_bpf_map_size` | Gauge | Current BPF map occupancy; alert when approaching `maxMappingsPerNode`. |
+| `vault_injector_bpf_unwrap_errors_total` | CounterVec | Vault unwrap failures, labelled by `reason`. |
 
 ---
 
@@ -221,8 +222,9 @@ BPF mode intentionally does not protect against:
 - **Node compromise.** An attacker with root on the node can read BPF maps or
   the tmpfs persist files. BPF mode is a control-plane protection, not a
   host-security control.
-- **Credentials longer than 73 bytes.** The fixed placeholder length (74 bytes
-  including the trailing NUL) constrains the maximum real value length. The
+- **Credentials longer than 73 bytes.** The fixed placeholder length (77 bytes)
+  constrains the maximum real credential value length to 73 bytes (the BPF
+  buffer reserves space for a NUL terminator and alignment padding). The
   webhook validates this at admission time and rejects pods whose Vault role
   generates credentials that exceed the limit. Configure the Vault
   `password_policy` for the role to enforce an appropriate maximum length.
