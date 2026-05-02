@@ -2,12 +2,15 @@ package k8smutator
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/metrics"
+	"github.com/numberly/vault-db-injector/pkg/placeholder"
 	"github.com/numberly/vault-db-injector/pkg/vault"
 
 	"github.com/cockroachdb/errors"
@@ -110,51 +113,142 @@ func acquireDbCredentials(ctx context.Context, contextID string, cfg *config.Con
 	return creds, vaultConn, dbConf.Role, nil
 }
 
-func applyEnvToContainers(pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds) error {
+// vaultWrapper is the subset of *vault.Connector needed by the BPF wrap path.
+// Lets tests inject a stub wrapper without a real Vault.
+type vaultWrapper interface {
+	WrapValues(ctx context.Context, payload map[string]string, ttl time.Duration) (string, error)
+}
+
+// applyEnvToContainers is the entry point used by injectCredentialsIntoPod.
+// When cfg.BPF.Enabled is false, behavior is byte-identical to the previous implementation.
+func applyEnvToContainers(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vc *vault.Connector, cfg *config.Config) error {
+	return applyEnvToContainersWithBPF(ctx, pod, dbConf, creds, vc, cfg.BPF.Enabled)
+}
+
+// applyEnvToContainersWithBPF is the testable variant: takes the gate and wrapper interface explicitly.
+func applyEnvToContainersWithBPF(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool) error {
 	mode := strings.ToLower(dbConf.Mode)
 	switch mode {
 	case "", k8s.DbModeClassic:
-		dbUserKeys := strings.Split(dbConf.DbUserEnvKey, ",")
-		dbPasswordKeys := strings.Split(dbConf.DbPasswordEnvKey, ",")
-		for i := range pod.Spec.InitContainers {
-			for _, userKey := range dbUserKeys {
-				pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env, corev1.EnvVar{Name: userKey, Value: creds.Username})
-			}
-			for _, passKey := range dbPasswordKeys {
-				pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env, corev1.EnvVar{Name: passKey, Value: creds.Password})
-			}
-		}
-		for i := range pod.Spec.Containers {
-			for _, userKey := range dbUserKeys {
-				pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, corev1.EnvVar{Name: userKey, Value: creds.Username})
-			}
-			for _, passKey := range dbPasswordKeys {
-				pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, corev1.EnvVar{Name: passKey, Value: creds.Password})
-			}
-		}
-
+		return applyClassic(ctx, pod, dbConf, creds, vw, bpfEnabled)
 	case k8s.DbModeURI:
-		dsnURL, err := url.Parse(dbConf.Template)
-		if err != nil {
-			return errors.Wrap(err, "error parsing DSN template")
-		}
-		dsnURL.User = url.UserPassword(creds.Username, creds.Password)
-		updatedDSN := dsnURL.String()
-		dbUriEnvKey := strings.Split(dbConf.DbURIEnvKey, ",")
-		for i := range pod.Spec.InitContainers {
-			for _, dbUri := range dbUriEnvKey {
-				pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env, corev1.EnvVar{Name: dbUri, Value: updatedDSN})
-			}
-		}
-		for i := range pod.Spec.Containers {
-			for _, dbUri := range dbUriEnvKey {
-				pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, corev1.EnvVar{Name: dbUri, Value: updatedDSN})
-			}
-		}
-
+		return applyURI(ctx, pod, dbConf, creds, vw, bpfEnabled)
 	default:
 		return errors.Newf("mode not supported : %s", dbConf.Mode)
 	}
+}
+
+func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool) error {
+	userVal := creds.Username
+	passVal := creds.Password
+
+	if bpfEnabled {
+		userPH := placeholder.Generate()
+		passPH := placeholder.Generate()
+		token, err := vw.WrapValues(ctx, map[string]string{
+			"username": creds.Username,
+			"password": creds.Password,
+		}, 0)
+		if err != nil {
+			return errors.Wrap(err, "vault wrap classic creds")
+		}
+		if err := annotateBPFMapping(pod, token, map[string]string{
+			userPH: "username",
+			passPH: "password",
+		}); err != nil {
+			return err
+		}
+		userVal = userPH
+		passVal = passPH
+	}
+
+	dbUserKeys := strings.Split(dbConf.DbUserEnvKey, ",")
+	dbPasswordKeys := strings.Split(dbConf.DbPasswordEnvKey, ",")
+	for i := range pod.Spec.InitContainers {
+		for _, k := range dbUserKeys {
+			pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env, corev1.EnvVar{Name: k, Value: userVal})
+		}
+		for _, k := range dbPasswordKeys {
+			pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env, corev1.EnvVar{Name: k, Value: passVal})
+		}
+	}
+	for i := range pod.Spec.Containers {
+		for _, k := range dbUserKeys {
+			pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, corev1.EnvVar{Name: k, Value: userVal})
+		}
+		for _, k := range dbPasswordKeys {
+			pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, corev1.EnvVar{Name: k, Value: passVal})
+		}
+	}
+	return nil
+}
+
+func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool) error {
+	dsnURL, err := url.Parse(dbConf.Template)
+	if err != nil {
+		return errors.Wrap(err, "error parsing DSN template")
+	}
+
+	user := creds.Username
+	pass := creds.Password
+
+	if bpfEnabled {
+		userPH := placeholder.Generate()
+		passPH := placeholder.Generate()
+		token, err := vw.WrapValues(ctx, map[string]string{
+			"username": creds.Username,
+			"password": creds.Password,
+		}, 0)
+		if err != nil {
+			return errors.Wrap(err, "vault wrap uri creds")
+		}
+		if err := annotateBPFMapping(pod, token, map[string]string{
+			userPH: "username",
+			passPH: "password",
+		}); err != nil {
+			return err
+		}
+		user = userPH
+		pass = passPH
+	}
+
+	dsnURL.User = url.UserPassword(user, pass)
+	updatedDSN := dsnURL.String()
+	dbUriEnvKey := strings.Split(dbConf.DbURIEnvKey, ",")
+	for i := range pod.Spec.InitContainers {
+		for _, k := range dbUriEnvKey {
+			pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env, corev1.EnvVar{Name: k, Value: updatedDSN})
+		}
+	}
+	for i := range pod.Spec.Containers {
+		for _, k := range dbUriEnvKey {
+			pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, corev1.EnvVar{Name: k, Value: updatedDSN})
+		}
+	}
+	return nil
+}
+
+// annotateBPFMapping writes the (wrap_token, placeholders) map to the pod's
+// bpf-mapping annotation. Multi-DbConfiguration under BPF is not yet supported:
+// if the annotation already exists, returns an error so the admission is refused
+// cleanly rather than silently dropping data.
+func annotateBPFMapping(pod *corev1.Pod, wrapToken string, placeholders map[string]string) error {
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	if _, exists := pod.Annotations[k8s.ANNOTATION_BPF_MAPPING]; exists {
+		return errors.New("BPF mode currently supports a single DbConfiguration per pod")
+	}
+	type bpfMapping struct {
+		WrapToken    string            `json:"wrap_token"`
+		Placeholders map[string]string `json:"placeholders"`
+	}
+	m := bpfMapping{WrapToken: wrapToken, Placeholders: placeholders}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return errors.Wrap(err, "marshal bpf-mapping")
+	}
+	pod.Annotations[k8s.ANNOTATION_BPF_MAPPING] = string(b)
 	return nil
 }
 
@@ -182,7 +276,7 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 
 		logger.WithValues(log.Kv{"contextID": contextID}).Infof("DbConfMode is equal to : %s", dbConf.Mode)
 
-		if err := applyEnvToContainers(pod, dbConf, creds); err != nil {
+		if err := applyEnvToContainers(ctx, pod, dbConf, creds, vaultConn, cfg); err != nil {
 			if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
 				logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
 			}

@@ -1,13 +1,17 @@
 package k8smutator
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/numberly/vault-db-injector/pkg/k8s"
+	"github.com/numberly/vault-db-injector/pkg/placeholder"
 	"github.com/numberly/vault-db-injector/pkg/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // makePod builds a minimal Pod with the given containers and init containers.
@@ -74,7 +78,7 @@ func TestApplyEnvToContainers_ClassicMode(t *testing.T) {
 			}
 			creds := fakeCreds("alice", "s3cr3t")
 
-			err := applyEnvToContainers(pod, dbConf, creds)
+			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
 			require.NoError(t, err)
 
 			for i := range pod.Spec.Containers {
@@ -98,7 +102,7 @@ func TestApplyEnvToContainers_ClassicMode_MultipleKeys(t *testing.T) {
 	}
 	creds := fakeCreds("bob", "p@ss")
 
-	err := applyEnvToContainers(pod, dbConf, creds)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
 	require.NoError(t, err)
 
 	env := pod.Spec.Containers[0].Env
@@ -145,7 +149,7 @@ func TestApplyEnvToContainers_URIMode(t *testing.T) {
 			}
 			creds := fakeCreds(tt.user, tt.pass)
 
-			err := applyEnvToContainers(pod, dbConf, creds)
+			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
 			require.NoError(t, err)
 
 			// The env var must exist in both containers and init-containers
@@ -173,7 +177,7 @@ func TestApplyEnvToContainers_URIMode_MultipleKeys(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainers(pod, dbConf, creds)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
 	require.NoError(t, err)
 
 	env := pod.Spec.Containers[0].Env
@@ -194,7 +198,7 @@ func TestApplyEnvToContainers_URIMode_InvalidTemplate(t *testing.T) {
 		DbURIEnvKey: "DB_URI",
 	}
 	creds := fakeCreds("u", "p")
-	err := applyEnvToContainers(pod, dbConf, creds)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
 	// Empty template is parsed as an empty URL — no error expected
 	assert.NoError(t, err)
 }
@@ -206,7 +210,7 @@ func TestApplyEnvToContainers_UnknownMode(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainers(pod, dbConf, creds)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mode not supported")
 }
@@ -221,7 +225,7 @@ func TestApplyEnvToContainers_NoPodContainers(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainers(pod, dbConf, creds)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
 	assert.NoError(t, err)
 }
 
@@ -286,4 +290,113 @@ func findEnvVar(envs []corev1.EnvVar, key string) string {
 		}
 	}
 	return ""
+}
+
+// stubWrapper implements vaultWrapper for tests — no real Vault needed.
+type stubWrapper struct{ wrapToken string }
+
+func (s *stubWrapper) WrapValues(_ context.Context, _ map[string]string, _ time.Duration) (string, error) {
+	return s.wrapToken, nil
+}
+
+func TestApplyEnvToContainers_BPFEnabled_Classic(t *testing.T) {
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "app"}},
+		},
+	}
+	dbConf := k8s.DbConfiguration{
+		DbName:           "main",
+		Mode:             k8s.DbModeClassic,
+		DbUserEnvKey:     "DB_USER",
+		DbPasswordEnvKey: "DB_PASSWORD",
+		Role:             "myrole",
+	}
+	creds := &vault.DbCreds{Username: "alice", Password: "supersecret"}
+
+	stub := &stubWrapper{wrapToken: "hvs.test"}
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, stub, true)
+	require.NoError(t, err)
+
+	envs := pod.Spec.Containers[0].Env
+	require.Len(t, envs, 2)
+	for _, e := range envs {
+		assert.NotEqual(t, "alice", e.Value)
+		assert.NotEqual(t, "supersecret", e.Value)
+		assert.True(t, placeholder.IsPlaceholder(e.Value), "env %s value %q is not a placeholder", e.Name, e.Value)
+	}
+
+	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_BPF_MAPPING], "missing bpf-mapping annotation")
+	assert.Contains(t, pod.Annotations[k8s.ANNOTATION_BPF_MAPPING], "hvs.test")
+}
+
+func TestApplyEnvToContainers_BPFEnabled_URI(t *testing.T) {
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "app"}},
+		},
+	}
+	dbConf := k8s.DbConfiguration{
+		DbName:      "main",
+		Mode:        k8s.DbModeURI,
+		Template:    "postgres://x:y@db.example/mydb",
+		DbURIEnvKey: "DB_URI",
+		Role:        "myrole",
+	}
+	creds := &vault.DbCreds{Username: "alice", Password: "supersecret"}
+
+	stub := &stubWrapper{wrapToken: "hvs.test"}
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, stub, true)
+	require.NoError(t, err)
+
+	envs := pod.Spec.Containers[0].Env
+	require.Len(t, envs, 1)
+	assert.NotContains(t, envs[0].Value, "alice")
+	assert.NotContains(t, envs[0].Value, "supersecret")
+	// The DSN must contain both placeholders embedded in the URL userinfo
+	assert.Contains(t, envs[0].Value, placeholder.Prefix)
+	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_BPF_MAPPING])
+}
+
+func TestApplyEnvToContainers_BPFDisabled_Classic_Unchanged(t *testing.T) {
+	pod := &corev1.Pod{Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}}}
+	dbConf := k8s.DbConfiguration{
+		DbName: "main", Mode: k8s.DbModeClassic,
+		DbUserEnvKey: "DB_USER", DbPasswordEnvKey: "DB_PASSWORD",
+	}
+	creds := &vault.DbCreds{Username: "alice", Password: "secret"}
+
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+	require.NoError(t, err)
+
+	got := map[string]string{}
+	for _, e := range pod.Spec.Containers[0].Env {
+		got[e.Name] = e.Value
+	}
+	assert.Equal(t, "alice", got["DB_USER"])
+	assert.Equal(t, "secret", got["DB_PASSWORD"])
+	assert.Empty(t, pod.Annotations[k8s.ANNOTATION_BPF_MAPPING])
+}
+
+func TestApplyEnvToContainers_BPFEnabled_RejectMultiDb(t *testing.T) {
+	// When BPF enabled and the pod already has a bpf-mapping annotation
+	// (set by a previous DbConfiguration in the same call chain), reject
+	// with an explicit error.
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				k8s.ANNOTATION_BPF_MAPPING: `{"wrap_token":"existing","placeholders":{}}`,
+			},
+		},
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}},
+	}
+	dbConf := k8s.DbConfiguration{
+		DbName: "second", Mode: k8s.DbModeClassic,
+		DbUserEnvKey: "DB_USER2", DbPasswordEnvKey: "DB_PASS2",
+	}
+	creds := &vault.DbCreds{Username: "u", Password: "p"}
+
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.x"}, true)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "single DbConfiguration")
 }
