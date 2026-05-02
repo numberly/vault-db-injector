@@ -31,11 +31,11 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Install clang and bpftool
+      - name: Install clang and libbpf headers
         if: steps.probe.outputs.have_lsm == 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm libbpf-dev linux-libc-dev linux-headers-generic linux-tools-generic
+          sudo apt-get install -y clang llvm libbpf-dev linux-libc-dev linux-headers-generic
 
       - name: Build BPF
         if: steps.probe.outputs.have_lsm == 'true'

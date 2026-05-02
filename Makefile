@@ -41,8 +41,8 @@ push-docker: build-docker
 	docker push numberly/vault-db-injector:${VERSION}
 
 # BPF_LIBBPF_INCLUDE: path to libbpf headers (bpf_helpers.h etc.)
-# Defaults to the kernel headers shipped on the build host. Override in CI
-# or Docker if libbpf-dev is installed at /usr/include.
+# Defaults to the kernel headers shipped on the build host.
+# On hosts with libbpf-dev installed this can be overridden to /usr/include.
 BPF_LIBBPF_INCLUDE ?= /usr/src/linux-headers-$(shell uname -r)/tools/bpf/resolve_btfids/libbpf/include
 
 .PHONY: bpf-headers
@@ -54,7 +54,7 @@ bpf-headers:
 .PHONY: build-bpf
 ## build-bpf: Compile BPF program for amd64; arm64 is built by docker buildx in CI
 build-bpf:
-	clang -O2 -g -target bpf -D__TARGET_ARCH_x86 -I pkg/bpf/c/headers \
+	clang -O2 -g -target bpf -D__TARGET_ARCH_x86 -I pkg/bpf/c/headers -I $(BPF_LIBBPF_INCLUDE) \
 		-c pkg/bpf/c/substitute.bpf.c -o pkg/bpf/substitute.amd64.bpf.o
 	@echo "arm64 BPF object built by docker buildx CI; skipping locally"
 
