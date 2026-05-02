@@ -348,12 +348,12 @@ func TestGetHAEnvs_BothMissing(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// ModeBPF + BPFConfig
+// ModeNRI + NRIConfig
 // ---------------------------------------------------------------------------
 
-func TestModeBPF_Validates(t *testing.T) {
+func TestModeNRI_Validates(t *testing.T) {
 	cfg := &Config{
-		Mode:              ModeBPF,
+		Mode:              ModeNRI,
 		VaultAddress:      "https://vault",
 		VaultAuthPath:     "kubernetes",
 		KubeRole:          "x",
@@ -362,11 +362,11 @@ func TestModeBPF_Validates(t *testing.T) {
 		VaultSecretPrefix: "prefix/",
 	}
 	if err := cfg.Validate(); err != nil {
-		t.Fatalf("ModeBPF should validate, got %v", err)
+		t.Fatalf("ModeNRI should validate, got %v", err)
 	}
 }
 
-func newConfigForBPFTest(t *testing.T) *Config {
+func newConfigForNRITest(t *testing.T) *Config {
 	t.Helper()
 	// Use a minimal YAML that satisfies Validate (renewer doesn't need cert/key).
 	y := `
@@ -385,7 +385,7 @@ vaultSecretPrefix: prefix
 	for _, k := range []string{
 		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
 		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
-		"INJECTOR_BPF_WRAP_TOKEN_TTL", "INJECTOR_BPF_TMPFS_PATH", "INJECTOR_BPF_MAX_MAPPINGS_PER_NODE",
+		"INJECTOR_NRI_WRAP_TOKEN_TTL", "INJECTOR_NRI_SOCKET_PATH",
 	} {
 		t.Setenv(k, "")
 		os.Unsetenv(k)
@@ -395,14 +395,13 @@ vaultSecretPrefix: prefix
 	return cfg
 }
 
-func TestBPFConfig_Defaults(t *testing.T) {
-	cfg := newConfigForBPFTest(t)
-	assert.Equal(t, 5*time.Minute, cfg.BPF.WrapTokenTTL)
-	assert.Equal(t, "/run/vault-db-injector/bpf", cfg.BPF.TmpfsPath)
-	assert.Equal(t, 4096, cfg.BPF.MaxMappingsPerNode)
+func TestNRIConfig_Defaults(t *testing.T) {
+	cfg := newConfigForNRITest(t)
+	assert.Equal(t, 5*time.Minute, cfg.NRI.WrapTokenTTL)
+	assert.Equal(t, "/var/run/nri/nri.sock", cfg.NRI.SocketPath)
 }
 
-func TestBPFConfig_LoadsExplicitValues(t *testing.T) {
+func TestNRIConfig_LoadsExplicitValues(t *testing.T) {
 	tmpfile, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
 	require.NoError(t, err)
 	y := `
@@ -412,11 +411,10 @@ vaultAuthPath: kubernetes
 kubeRole: x
 vaultSecretName: secret
 vaultSecretPrefix: prefix
-bpf:
+nri:
   enabled: true
   wrapTokenTTL: 10m
-  tmpfsPath: /custom/path
-  maxMappingsPerNode: 100
+  socketPath: /custom/nri.sock
 `
 	_, err = tmpfile.WriteString(y)
 	require.NoError(t, err)
@@ -425,7 +423,7 @@ bpf:
 	for _, k := range []string{
 		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
 		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
-		"INJECTOR_BPF_ENABLED", "INJECTOR_BPF_WRAP_TOKEN_TTL", "INJECTOR_BPF_TMPFS_PATH", "INJECTOR_BPF_MAX_MAPPINGS_PER_NODE",
+		"INJECTOR_NRI_ENABLED", "INJECTOR_NRI_WRAP_TOKEN_TTL", "INJECTOR_NRI_SOCKET_PATH",
 	} {
 		t.Setenv(k, "")
 		os.Unsetenv(k)
@@ -433,8 +431,7 @@ bpf:
 
 	cfg, err := NewConfig(tmpfile.Name())
 	require.NoError(t, err)
-	assert.True(t, cfg.BPF.Enabled)
-	assert.Equal(t, 10*time.Minute, cfg.BPF.WrapTokenTTL)
-	assert.Equal(t, "/custom/path", cfg.BPF.TmpfsPath)
-	assert.Equal(t, 100, cfg.BPF.MaxMappingsPerNode)
+	assert.True(t, cfg.NRI.Enabled)
+	assert.Equal(t, 10*time.Minute, cfg.NRI.WrapTokenTTL)
+	assert.Equal(t, "/custom/nri.sock", cfg.NRI.SocketPath)
 }

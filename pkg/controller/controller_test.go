@@ -56,17 +56,17 @@ func TestNewController_Fields(t *testing.T) {
 }
 
 
-func TestRunBPF_ReturnsOnContextCancel(t *testing.T) {
-	cfg := &config.Config{Mode: config.ModeBPF}
+func TestRunNRI_ReturnsOnContextCancel(t *testing.T) {
+	cfg := &config.Config{Mode: config.ModeNRI}
 	c := NewController(cfg, fakeClientset(), &fakeSentryService{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	// With BPF disabled (default), RunBPF is a no-op that blocks until the
+	// With NRI disabled (default), RunNRI is a no-op that blocks until the
 	// context is cancelled, then returns nil. Matches the shape of the
 	// other Run* methods.
-	err := c.RunBPF(ctx)
+	err := c.RunNRI(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 }
 

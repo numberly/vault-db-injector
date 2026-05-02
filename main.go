@@ -66,15 +66,15 @@ func run() error {
 		runErr = c.RunRenewer(ctx)
 	case config.ModeRevoker:
 		runErr = c.RunRevoker(ctx)
-	case config.ModeBPF:
-		runErr = c.RunBPF(ctx)
+	case config.ModeNRI:
+		runErr = c.RunNRI(ctx)
 	case config.ModeAll:
 		g, gCtx := errgroup.WithContext(ctx)
 		g.Go(func() error { return c.RunInjector(gCtx) })
 		g.Go(func() error { return c.RunRenewer(gCtx) })
 		g.Go(func() error { return c.RunRevoker(gCtx) })
-		if cfg.BPF.Enabled {
-			g.Go(func() error { return c.RunBPF(gCtx) })
+		if cfg.NRI.Enabled {
+			g.Go(func() error { return c.RunNRI(gCtx) })
 		}
 		runErr = g.Wait()
 	default:

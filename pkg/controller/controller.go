@@ -149,18 +149,13 @@ func (c *Controller) RunRevoker(ctx context.Context) error {
 	return g.Wait()
 }
 
-// RunBPF runs the binary as a node-local DaemonSet that loads the BPF
-// substitution program and watches local pods to populate the BPF maps.
-//
-// The kernel-coupled body lives in pkg/bpf and is delegated to via
-// runBPFAgent (build-tagged: linux vs other). This entry point performs
-// the no-op idle path when BPF is disabled by config, so the binary still
-// runs in mode=bpf without crashing — useful for cluster operators
-// staging the rollout.
-func (c *Controller) RunBPF(ctx context.Context) error {
-	c.log.Info("Starting server in mode bpf")
-	if !c.Cfg.BPF.Enabled {
-		c.log.Warn("RunBPF called but cfg.BPF.Enabled is false; idle until shutdown")
+// RunNRI runs the binary as a node-local DaemonSet that registers an NRI
+// plugin with containerd to substitute placeholders in container envs at
+// CreateContainer time.
+func (c *Controller) RunNRI(ctx context.Context) error {
+	c.log.Info("Starting server in mode nri")
+	if !c.Cfg.NRI.Enabled {
+		c.log.Warn("RunNRI called but cfg.NRI.Enabled is false; idle until shutdown")
 		<-ctx.Done()
 		return ctx.Err()
 	}
@@ -182,7 +177,11 @@ func (c *Controller) RunBPF(ctx context.Context) error {
 	})
 
 	g.Go(func() error {
-		return runBPFAgent(gCtx, c.Cfg, c.Clientset, c.log)
+		err := runNRIAgent(gCtx, c.Cfg, c.log)
+		if err != nil {
+			c.log.Errorf("NRI agent terminated: %v", err)
+		}
+		return err
 	})
 
 	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {

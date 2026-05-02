@@ -218,12 +218,26 @@ var (
 			Help: "Count that increase when their is an error mutating pods",
 		}, []string{},
 	)
+	NRISubstitutionsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_nri_substitutions_total",
+			Help: "Number of CreateContainer events where the NRI plugin emitted an env adjustment.",
+		}, []string{},
+	)
+	NRIUnwrapFailures = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_nri_unwrap_failures_total",
+			Help: "Number of NRI plugin unwrap failures by reason.",
+		}, []string{"reason"},
+	)
 )
 
 func Init(prom *prometheus.Registry) {
 	prom.MustRegister(
 		MutatedPodWithErrorCount,
 		MutatedPodWithSuccessCount,
+		NRISubstitutionsTotal,
+		NRIUnwrapFailures,
 		GetAllPodErrorCount,
 		GetAllPodSuccessCount,
 		RenewTokenCount,

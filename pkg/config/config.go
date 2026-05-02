@@ -18,19 +18,18 @@ const (
 	ModeInjector Mode = "injector"
 	ModeRenewer  Mode = "renewer"
 	ModeRevoker  Mode = "revoker"
-	ModeBPF      Mode = "bpf"
+	ModeNRI      Mode = "nri"
 	ModeAll      Mode = "all"
 )
 
-// BPFConfig holds the configuration for the eBPF credential protection layer.
+// NRIConfig holds the configuration for the NRI plugin credential layer.
 // When Enabled is false, the webhook produces literal env values (legacy
-// behavior). When true, the webhook wraps every credential and the bpf-mode
-// DaemonSet substitutes placeholders at execve time.
-type BPFConfig struct {
-	Enabled            bool          `yaml:"enabled" envconfig:"bpf_enabled"`
-	WrapTokenTTL       time.Duration `yaml:"wrapTokenTTL" envconfig:"bpf_wrap_token_ttl"`
-	TmpfsPath          string        `yaml:"tmpfsPath" envconfig:"bpf_tmpfs_path"`
-	MaxMappingsPerNode int           `yaml:"maxMappingsPerNode" envconfig:"bpf_max_mappings_per_node"`
+// behavior). When true, the webhook wraps every credential and the NRI
+// DaemonSet substitutes placeholders at CreateContainer time.
+type NRIConfig struct {
+	Enabled      bool          `yaml:"enabled" envconfig:"nri_enabled"`
+	WrapTokenTTL time.Duration `yaml:"wrapTokenTTL" envconfig:"nri_wrap_token_ttl"`
+	SocketPath   string        `yaml:"socketPath" envconfig:"nri_socket_path"`
 }
 
 type Config struct {
@@ -52,7 +51,7 @@ type Config struct {
 	InjectorLabel     string    `yaml:"injectorLabel" envconfig:"injector_label"`
 	DefaultEngine     string    `yaml:"defaultEngine" envconfig:"default_engine"`
 	VaultRateLimit    int       `yaml:"vaultRateLimit" envconfig:"vault_rate_limit"`
-	BPF               BPFConfig `yaml:"bpf" envconfig:"bpf"`
+	NRI               NRIConfig `yaml:"nri" envconfig:"nri"`
 }
 
 func NewConfig(configFile string) (*Config, error) {
@@ -75,10 +74,9 @@ func NewConfig(configFile string) (*Config, error) {
 		InjectorLabel:     "vault-db-injector",
 		DefaultEngine:     "databases",
 		VaultRateLimit:    30,
-		BPF: BPFConfig{
-			WrapTokenTTL:       5 * time.Minute,
-			TmpfsPath:          "/run/vault-db-injector/bpf",
-			MaxMappingsPerNode: 4096,
+		NRI: NRIConfig{
+			WrapTokenTTL: 5 * time.Minute,
+			SocketPath:   "/var/run/nri/nri.sock",
 		},
 	}
 	if configFile != "" {
@@ -111,7 +109,7 @@ func (cfg *Config) Validate() error {
 		bad    bool
 		errMsg string
 	}{
-		{cfg.Mode != ModeAll && cfg.Mode != ModeInjector && cfg.Mode != ModeRenewer && cfg.Mode != ModeRevoker && cfg.Mode != ModeBPF, "Wrong Mode : should be injector/renewer/revoker/bpf/all"},
+		{cfg.Mode != ModeAll && cfg.Mode != ModeInjector && cfg.Mode != ModeRenewer && cfg.Mode != ModeRevoker && cfg.Mode != ModeNRI, "Wrong Mode : should be injector/renewer/revoker/nri/all"},
 		{(cfg.Mode == ModeAll || cfg.Mode == ModeInjector) && cfg.CertFile == "", "no certFile specified"},
 		{(cfg.Mode == ModeAll || cfg.Mode == ModeInjector) && cfg.KeyFile == "", "no keyFile specified"},
 		{cfg.VaultAddress == "", "no vaultAddress specified"},
@@ -119,8 +117,8 @@ func (cfg *Config) Validate() error {
 		{cfg.KubeRole == "", "no kubeRole specified"},
 		// VaultSecretName and VaultSecretPrefix are only used by the KV read path
 		// (injector/renewer/revoker/all). BPF mode only unwraps tokens — never reads KV.
-		{cfg.Mode != ModeBPF && cfg.VaultSecretName == "", "no vaultSecretName specified"},
-		{cfg.Mode != ModeBPF && cfg.VaultSecretPrefix == "", "no vaultSecretPrefix specified"},
+		{cfg.Mode != ModeNRI && cfg.VaultSecretName == "", "no vaultSecretName specified"},
+		{cfg.Mode != ModeNRI && cfg.VaultSecretPrefix == "", "no vaultSecretPrefix specified"},
 		{cfg.Sentry && cfg.SentryDsn == "", "no sentryDsn specified"},
 	}
 

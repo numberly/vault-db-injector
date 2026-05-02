@@ -113,36 +113,36 @@ func acquireDbCredentials(ctx context.Context, contextID string, cfg *config.Con
 	return creds, vaultConn, dbConf.Role, nil
 }
 
-// vaultWrapper is the subset of *vault.Connector needed by the BPF wrap path.
+// vaultWrapper is the subset of *vault.Connector needed by the NRI wrap path.
 // Lets tests inject a stub wrapper without a real Vault.
 type vaultWrapper interface {
 	WrapValues(ctx context.Context, payload map[string]string, ttl time.Duration) (string, error)
 }
 
 // applyEnvToContainers is the entry point used by injectCredentialsIntoPod.
-// When cfg.BPF.Enabled is false, behavior is byte-identical to the previous implementation.
+// When cfg.NRI.Enabled is false, behavior is byte-identical to the previous implementation.
 func applyEnvToContainers(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vc *vault.Connector, cfg *config.Config) error {
-	return applyEnvToContainersWithBPF(ctx, pod, dbConf, creds, vc, cfg.BPF.Enabled, cfg.BPF.WrapTokenTTL)
+	return applyEnvToContainersWithNRI(ctx, pod, dbConf, creds, vc, cfg.NRI.Enabled, cfg.NRI.WrapTokenTTL)
 }
 
-// applyEnvToContainersWithBPF is the testable variant: takes the gate, wrapper interface, and wrap TTL explicitly.
-func applyEnvToContainersWithBPF(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool, wrapTTL time.Duration) error {
+// applyEnvToContainersWithNRI is the testable variant: takes the gate, wrapper interface, and wrap TTL explicitly.
+func applyEnvToContainersWithNRI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, nriEnabled bool, wrapTTL time.Duration) error {
 	mode := strings.ToLower(dbConf.Mode)
 	switch mode {
 	case "", k8s.DbModeClassic:
-		return applyClassic(ctx, pod, dbConf, creds, vw, bpfEnabled, wrapTTL)
+		return applyClassic(ctx, pod, dbConf, creds, vw, nriEnabled, wrapTTL)
 	case k8s.DbModeURI:
-		return applyURI(ctx, pod, dbConf, creds, vw, bpfEnabled, wrapTTL)
+		return applyURI(ctx, pod, dbConf, creds, vw, nriEnabled, wrapTTL)
 	default:
 		return errors.Newf("mode not supported : %s", dbConf.Mode)
 	}
 }
 
-func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool, wrapTTL time.Duration) error {
+func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, nriEnabled bool, wrapTTL time.Duration) error {
 	userVal := creds.Username
 	passVal := creds.Password
 
-	if bpfEnabled {
+	if nriEnabled {
 		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, wrapTTL, "vault wrap classic creds")
 		if err != nil {
 			return err
@@ -172,7 +172,7 @@ func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfigurati
 	return nil
 }
 
-func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool, wrapTTL time.Duration) error {
+func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, nriEnabled bool, wrapTTL time.Duration) error {
 	dsnURL, err := url.Parse(dbConf.Template)
 	if err != nil {
 		return errors.Wrap(err, "error parsing DSN template")
@@ -181,7 +181,7 @@ func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, 
 	user := creds.Username
 	pass := creds.Password
 
-	if bpfEnabled {
+	if nriEnabled {
 		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, wrapTTL, "vault wrap uri creds")
 		if err != nil {
 			return err
@@ -206,47 +206,37 @@ func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, 
 	return nil
 }
 
-// annotateBPFMapping writes the (wrap_token, placeholders) map to the pod's
+// annotateNRIMapping writes the (wrap_token, placeholders) map to the pod's
 // bpf-mapping annotation. Multi-DbConfiguration under BPF is not yet supported:
 // if the annotation already exists, returns an error so the admission is refused
 // cleanly rather than silently dropping data.
-func annotateBPFMapping(pod *corev1.Pod, wrapToken string, placeholders map[string]string) error {
+func annotateNRIMapping(pod *corev1.Pod, wrapToken string, placeholders map[string]string) error {
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
-	if _, exists := pod.Annotations[k8s.ANNOTATION_BPF_MAPPING]; exists {
-		return errors.New("BPF mode currently supports a single DbConfiguration per pod")
+	if _, exists := pod.Annotations[k8s.ANNOTATION_NRI_MAPPING]; exists {
+		return errors.New("NRI mode currently supports a single DbConfiguration per pod")
 	}
-	m := k8s.BPFMapping{WrapToken: wrapToken, Placeholders: placeholders}
+	m := k8s.NRIMapping{WrapToken: wrapToken, Placeholders: placeholders}
 	b, err := json.Marshal(m)
 	if err != nil {
-		return errors.Wrap(err, "marshal bpf-mapping")
+		return errors.Wrap(err, "marshal nri-mapping")
 	}
-	pod.Annotations[k8s.ANNOTATION_BPF_MAPPING] = string(b)
+	pod.Annotations[k8s.ANNOTATION_NRI_MAPPING] = string(b)
 	return nil
 }
 
 // wrapAndAnnotate wraps the credentials via Vault response-wrapping, generates
-// a fixed-length placeholder for username and password, and attaches the
-// resulting (wrap_token, placeholders) map as the bpf-mapping annotation.
+// a placeholder for username and password, and attaches the
+// resulting (wrap_token, placeholders) map as the nri-mapping annotation.
 // Returns the two placeholders so the caller can substitute them into the
 // per-shape env vars.
-//
-// Returns an error if either credential exceeds placeholder.MaxValue bytes —
-// the BPF program cannot substitute values longer than the fixed buffer size.
 func wrapAndAnnotate(ctx context.Context, pod *corev1.Pod, creds *vault.DbCreds, vw vaultWrapper, wrapTTL time.Duration, errContext string) (userPH, passPH string, err error) {
 	// Short-circuit before burning a Vault wrap token: if the annotation is
-	// already present, a second DbConfiguration is attempting to use BPF mode
+	// already present, a second DbConfiguration is attempting to use NRI mode
 	// on the same pod, which is not supported. Return the error immediately.
-	if _, exists := pod.Annotations[k8s.ANNOTATION_BPF_MAPPING]; exists {
-		return "", "", errors.New("BPF mode currently supports a single DbConfiguration per pod")
-	}
-
-	if len(creds.Username) > placeholder.MaxValue {
-		return "", "", errors.Newf("credential username length %d exceeds BPF maximum %d; configure the Vault password_policy to enforce shorter usernames", len(creds.Username), placeholder.MaxValue)
-	}
-	if len(creds.Password) > placeholder.MaxValue {
-		return "", "", errors.Newf("credential password length %d exceeds BPF maximum %d; configure the Vault password_policy to enforce shorter passwords", len(creds.Password), placeholder.MaxValue)
+	if _, exists := pod.Annotations[k8s.ANNOTATION_NRI_MAPPING]; exists {
+		return "", "", errors.New("NRI mode currently supports a single DbConfiguration per pod")
 	}
 
 	userPH = placeholder.Generate()
@@ -258,7 +248,7 @@ func wrapAndAnnotate(ctx context.Context, pod *corev1.Pod, creds *vault.DbCreds,
 	if err != nil {
 		return "", "", errors.Wrap(err, errContext)
 	}
-	if err := annotateBPFMapping(pod, token, map[string]string{
+	if err := annotateNRIMapping(pod, token, map[string]string{
 		userPH: "username",
 		passPH: "password",
 	}); err != nil {

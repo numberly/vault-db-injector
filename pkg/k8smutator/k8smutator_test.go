@@ -79,7 +79,7 @@ func TestApplyEnvToContainers_ClassicMode(t *testing.T) {
 			}
 			creds := fakeCreds("alice", "s3cr3t")
 
-			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
+			err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
 			require.NoError(t, err)
 
 			for i := range pod.Spec.Containers {
@@ -103,7 +103,7 @@ func TestApplyEnvToContainers_ClassicMode_MultipleKeys(t *testing.T) {
 	}
 	creds := fakeCreds("bob", "p@ss")
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
 	require.NoError(t, err)
 
 	env := pod.Spec.Containers[0].Env
@@ -150,7 +150,7 @@ func TestApplyEnvToContainers_URIMode(t *testing.T) {
 			}
 			creds := fakeCreds(tt.user, tt.pass)
 
-			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
+			err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
 			require.NoError(t, err)
 
 			// The env var must exist in both containers and init-containers
@@ -178,7 +178,7 @@ func TestApplyEnvToContainers_URIMode_MultipleKeys(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
 	require.NoError(t, err)
 
 	env := pod.Spec.Containers[0].Env
@@ -199,7 +199,7 @@ func TestApplyEnvToContainers_URIMode_InvalidTemplate(t *testing.T) {
 		DbURIEnvKey: "DB_URI",
 	}
 	creds := fakeCreds("u", "p")
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
 	// Empty template is parsed as an empty URL — no error expected
 	assert.NoError(t, err)
 }
@@ -211,7 +211,7 @@ func TestApplyEnvToContainers_UnknownMode(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mode not supported")
 }
@@ -226,7 +226,7 @@ func TestApplyEnvToContainers_NoPodContainers(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
 	assert.NoError(t, err)
 }
 
@@ -316,7 +316,7 @@ func TestApplyEnvToContainers_BPFEnabled_Classic(t *testing.T) {
 	creds := &vault.DbCreds{Username: "alice", Password: "supersecret"}
 
 	stub := &stubWrapper{wrapToken: "hvs.test"}
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, stub, true, 5*time.Minute)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, stub, true, 5*time.Minute)
 	require.NoError(t, err)
 
 	envs := pod.Spec.Containers[0].Env
@@ -327,8 +327,8 @@ func TestApplyEnvToContainers_BPFEnabled_Classic(t *testing.T) {
 		assert.True(t, placeholder.IsPlaceholder(e.Value), "env %s value %q is not a placeholder", e.Name, e.Value)
 	}
 
-	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_BPF_MAPPING], "missing bpf-mapping annotation")
-	assert.Contains(t, pod.Annotations[k8s.ANNOTATION_BPF_MAPPING], "hvs.test")
+	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING], "missing bpf-mapping annotation")
+	assert.Contains(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING], "hvs.test")
 }
 
 func TestApplyEnvToContainers_BPFEnabled_URI(t *testing.T) {
@@ -347,7 +347,7 @@ func TestApplyEnvToContainers_BPFEnabled_URI(t *testing.T) {
 	creds := &vault.DbCreds{Username: "alice", Password: "supersecret"}
 
 	stub := &stubWrapper{wrapToken: "hvs.test"}
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, stub, true, 5*time.Minute)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, stub, true, 5*time.Minute)
 	require.NoError(t, err)
 
 	envs := pod.Spec.Containers[0].Env
@@ -356,7 +356,7 @@ func TestApplyEnvToContainers_BPFEnabled_URI(t *testing.T) {
 	assert.NotContains(t, envs[0].Value, "supersecret")
 	// The DSN must contain both placeholders embedded in the URL userinfo
 	assert.Contains(t, envs[0].Value, placeholder.Prefix)
-	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_BPF_MAPPING])
+	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING])
 }
 
 func TestApplyEnvToContainers_BPFDisabled_Classic_Unchanged(t *testing.T) {
@@ -367,7 +367,7 @@ func TestApplyEnvToContainers_BPFDisabled_Classic_Unchanged(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: "alice", Password: "secret"}
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
 	require.NoError(t, err)
 
 	got := map[string]string{}
@@ -376,7 +376,7 @@ func TestApplyEnvToContainers_BPFDisabled_Classic_Unchanged(t *testing.T) {
 	}
 	assert.Equal(t, "alice", got["DB_USER"])
 	assert.Equal(t, "secret", got["DB_PASSWORD"])
-	assert.Empty(t, pod.Annotations[k8s.ANNOTATION_BPF_MAPPING])
+	assert.Empty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING])
 }
 
 func TestApplyEnvToContainers_BPFEnabled_RejectMultiDb(t *testing.T) {
@@ -386,7 +386,7 @@ func TestApplyEnvToContainers_BPFEnabled_RejectMultiDb(t *testing.T) {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				k8s.ANNOTATION_BPF_MAPPING: `{"wrap_token":"existing","placeholders":{}}`,
+				k8s.ANNOTATION_NRI_MAPPING: `{"wrap_token":"existing","placeholders":{}}`,
 			},
 		},
 		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}},
@@ -397,50 +397,23 @@ func TestApplyEnvToContainers_BPFEnabled_RejectMultiDb(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: "u", Password: "p"}
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.x"}, true, 5*time.Minute)
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.x"}, true, 5*time.Minute)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "single DbConfiguration")
 }
 
-func TestApplyEnvToContainers_BPFEnabled_RejectLongCredentials(t *testing.T) {
-	// Credentials longer than placeholder.MaxValue must be rejected at admission
-	// time — the BPF substitution buffer cannot hold them.
-	longVal := strings.Repeat("x", placeholder.MaxValue+1)
-
-	tests := []struct {
-		name     string
-		username string
-		password string
-		errFrag  string
-	}{
-		{
-			name:     "username too long",
-			username: longVal,
-			password: "short",
-			errFrag:  "username",
-		},
-		{
-			name:     "password too long",
-			username: "short",
-			password: longVal,
-			errFrag:  "password",
-		},
+func TestApplyEnvToContainers_NRIEnabled_AcceptsLongCredentials(t *testing.T) {
+	// NRI mode imposes no length cap — long credentials must flow through.
+	longVal := strings.Repeat("x", 256)
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pod := &corev1.Pod{
-				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}},
-			}
-			dbConf := k8s.DbConfiguration{
-				DbName: "main", Mode: k8s.DbModeClassic,
-				DbUserEnvKey: "DB_USER", DbPasswordEnvKey: "DB_PASSWORD",
-			}
-			creds := &vault.DbCreds{Username: tt.username, Password: tt.password}
-
-			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.test"}, true, 5*time.Minute)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.errFrag)
-		})
+	dbConf := k8s.DbConfiguration{
+		DbName: "main", Mode: k8s.DbModeClassic,
+		DbUserEnvKey: "DB_USER", DbPasswordEnvKey: "DB_PASSWORD",
 	}
+	creds := &vault.DbCreds{Username: longVal, Password: longVal}
+
+	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.test"}, true, 5*time.Minute)
+	require.NoError(t, err)
 }

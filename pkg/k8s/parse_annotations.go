@@ -16,7 +16,7 @@ const (
 	ANNOTATION_ROLE           string = "db-creds-injector.numberly.io/role"
 	ANNOTATION_MODE           string = "db-creds-injector.numberly.io/mode" // DEFAULT_TO : classic. can be : classic, uri, file
 	ANNOTATION_VAULT_POD_UUID string = "db-creds-injector.numberly.io/uuid"
-	ANNOTATION_BPF_MAPPING    string = "db-creds-injector.numberly.io/bpf-mapping"
+	ANNOTATION_NRI_MAPPING    string = "db-creds-injector.numberly.io/nri-mapping"
 
 	// DbMode constants for database credential injection mode.
 	DbModeClassic = "classic"

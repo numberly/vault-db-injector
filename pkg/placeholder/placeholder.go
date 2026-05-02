@@ -1,13 +1,10 @@
-// Package placeholder generates fixed-length opaque tokens that the webhook
-// embeds in the PodSpec in lieu of real credential values, and that the BPF
-// program substitutes at execve time.
+// Package placeholder generates opaque tokens that the webhook embeds in the
+// PodSpec in lieu of real credential values, and that the NRI plugin
+// substitutes at CreateContainer time.
 //
-// The format is deliberately recognizable by a simple byte-pattern match so
-// the BPF C program can scan envp without parsing structure: "__VDBI_PH_"
-// + 64 lowercase hex chars + "___".
-//
-// Length is fixed (77 bytes) so the BPF program can substitute in place
-// without reallocating the user-space stack.
+// Format: "__VDBI_PH_" + 64 lowercase hex chars + "___" (77 bytes total).
+// Length is fixed for ergonomic continuity; the NRI plugin imposes no
+// length constraint on either placeholder or substituted value.
 package placeholder
 
 import (
@@ -18,15 +15,8 @@ import (
 const (
 	Prefix    = "__VDBI_PH_"
 	Suffix    = "___"
-	HexLength = 64 // 32 bytes encoded as hex
-	Length    = len(Prefix) + HexLength + len(Suffix) // 10 + 64 + 3 = 77
-
-	// MaxValue is the maximum byte length of a real credential value that can be
-	// substituted by the BPF program. The kernel-side buffer is PlaceholderLen
-	// minus the NUL terminator (77 - 1 = 76), but the C-side constant is 73 to
-	// leave room for padding alignment. This constant is the authoritative Go
-	// value; pkg/bpf/loader.go ValueMax must equal this.
-	MaxValue = 73
+	HexLength = 64                                       // 32 bytes encoded as hex
+	Length    = len(Prefix) + HexLength + len(Suffix)    // 10 + 64 + 3 = 77
 )
 
 // Generate returns a fresh placeholder. Two calls always produce different
