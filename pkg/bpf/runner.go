@@ -95,7 +95,18 @@ func Run(ctx context.Context, cfg *config.Config, clientset k8s.KubernetesClient
 		DeleteFunc: func(obj any) {
 			pod, ok := obj.(*corev1.Pod)
 			if !ok {
-				return
+				// After an informer re-sync, deletions arrive wrapped in
+				// DeletedFinalStateUnknown; unwrap or we'd leak BPF entries.
+				tombstone, tombOK := obj.(cache.DeletedFinalStateUnknown)
+				if !tombOK {
+					log.Errorf("DeleteFunc: unexpected type %T", obj)
+					return
+				}
+				pod, ok = tombstone.Obj.(*corev1.Pod)
+				if !ok {
+					log.Errorf("DeleteFunc: tombstone contained unexpected type %T", tombstone.Obj)
+					return
+				}
 			}
 			r.processPodDeleted(pod)
 		},
@@ -171,6 +182,13 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 	for ph, field := range payload.Placeholders {
 		v, ok := values[field]
 		if !ok {
+			// Token already consumed by UnwrapValues; clear the processed
+			// flag so observability shows the pod as failed (vs silently
+			// skipped on subsequent informer events).
+			r.mu.Lock()
+			delete(r.processed, string(pod.UID))
+			r.mu.Unlock()
+			unwrapErrors.WithLabelValues("missing_field").Inc()
 			return errors.Newf("unwrapped data missing field %q", field)
 		}
 		mappings[ph] = v
