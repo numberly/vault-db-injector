@@ -158,6 +158,11 @@ type runner struct {
 
 	mu        sync.Mutex
 	processed map[string]struct{}
+	// restoredUIDs are pod UIDs found on tmpfs at startup. restoreBPFMaps
+	// re-programs ONLY these. New pods that arrive during the informer
+	// cache sync window are handled by processPodAdded, never by
+	// restoreBPFMaps — preventing mappingsLoaded from being double-counted.
+	restoredUIDs map[string]PersistedMapping
 }
 
 func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
@@ -279,6 +284,10 @@ func (r *runner) processPodDeleted(pod *corev1.Pod) {
 // re-unwrap tokens that were already consumed by an earlier DS instance.
 // Full BPF map repopulation (using the stored cgroup_ids) is done in
 // restoreBPFMaps after the informer cache syncs.
+//
+// The snapshot is also stored in restoredUIDs so that restoreBPFMaps
+// iterates only pre-existing pods, not pods written by processPodAdded
+// during the WaitForCacheSync window (which would double-count mappingsLoaded).
 func (r *runner) restoreFromTmpfs() error {
 	all, err := r.persister.LoadAll()
 	if err != nil {
@@ -286,27 +295,36 @@ func (r *runner) restoreFromTmpfs() error {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for uid := range all {
+	r.restoredUIDs = make(map[string]PersistedMapping, len(all))
+	for uid, pm := range all {
 		r.processed[uid] = struct{}{}
+		r.restoredUIDs[uid] = pm
 	}
 	return nil
 }
 
-// restoreBPFMaps re-programs the BPF map for pods that have a tmpfs entry
-// and are still running on this node. It must be called after the informer
-// cache has synced so that the pod lister reflects the current cluster state.
+// restoreBPFMaps re-programs the BPF map for pods that had a tmpfs entry at
+// startup and are still running on this node. It must be called after the
+// informer cache has synced so that the pod lister reflects current cluster
+// state.
 //
-// For each tmpfs entry:
+// It iterates the restoredUIDs snapshot captured by restoreFromTmpfs, NOT a
+// fresh LoadAll. This prevents pods written to tmpfs by processPodAdded
+// during the WaitForCacheSync window from being double-counted in
+// mappingsLoaded.
+//
+// For each snapshot entry:
 //   - If the pod is still present in the lister → re-program its cgroup_ids
 //     using the persisted mappings (token already consumed; no Vault call needed).
 //   - If the pod is gone (rescheduled elsewhere during DS downtime) → delete
 //     the stale tmpfs entry.
 func (r *runner) restoreBPFMaps(lister listersv1.PodLister) error {
-	all, err := r.persister.LoadAll()
-	if err != nil {
-		return errors.Wrap(err, "load tmpfs entries")
-	}
-	if len(all) == 0 {
+	r.mu.Lock()
+	restored := r.restoredUIDs
+	r.restoredUIDs = nil // free memory; no longer needed after this
+	r.mu.Unlock()
+
+	if len(restored) == 0 {
 		return nil
 	}
 
@@ -322,7 +340,7 @@ func (r *runner) restoreBPFMaps(lister listersv1.PodLister) error {
 		}
 	}
 
-	for uid, pm := range all {
+	for uid, pm := range restored {
 		if _, running := runningUIDs[uid]; !running {
 			// Pod is no longer on this node — clean up the stale entry.
 			r.log.Infof("restoreBPFMaps: pod %s no longer on node %s, deleting tmpfs entry", uid, r.nodeName)

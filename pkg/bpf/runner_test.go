@@ -329,18 +329,20 @@ func makePodLister(pods ...*corev1.Pod) listersv1.PodLister {
 func TestRestoreBPFMaps_ReprogramsRunningPod(t *testing.T) {
 	dir := t.TempDir()
 	persister := NewPersister(dir)
-	_ = persister.Save("uid-restore", PersistedMapping{
+	pm := PersistedMapping{
 		Mappings:  map[string]string{"__VDBI_PH_p___": "secret"},
 		CgroupIDs: []uint64{55, 66},
-	})
+	}
+	_ = persister.Save("uid-restore", pm)
 
 	mw := &recordingMapWriter{}
 	r := &runner{
-		nodeName:  "node-A",
-		log:       logrus.New(),
-		mapWriter: mw,
-		persister: persister,
-		processed: map[string]struct{}{"uid-restore": {}},
+		nodeName:     "node-A",
+		log:          logrus.New(),
+		mapWriter:    mw,
+		persister:    persister,
+		processed:    map[string]struct{}{"uid-restore": {}},
+		restoredUIDs: map[string]PersistedMapping{"uid-restore": pm},
 	}
 
 	pod := &corev1.Pod{
@@ -364,18 +366,20 @@ func TestRestoreBPFMaps_ReprogramsRunningPod(t *testing.T) {
 func TestRestoreBPFMaps_DeletesStaleTmpfsEntry(t *testing.T) {
 	dir := t.TempDir()
 	persister := NewPersister(dir)
-	_ = persister.Save("uid-gone", PersistedMapping{
+	pm := PersistedMapping{
 		Mappings:  map[string]string{"__VDBI_PH_p___": "secret"},
 		CgroupIDs: []uint64{77},
-	})
+	}
+	_ = persister.Save("uid-gone", pm)
 
 	mw := &recordingMapWriter{}
 	r := &runner{
-		nodeName:  "node-A",
-		log:       logrus.New(),
-		mapWriter: mw,
-		persister: persister,
-		processed: map[string]struct{}{"uid-gone": {}},
+		nodeName:     "node-A",
+		log:          logrus.New(),
+		mapWriter:    mw,
+		persister:    persister,
+		processed:    map[string]struct{}{"uid-gone": {}},
+		restoredUIDs: map[string]PersistedMapping{"uid-gone": pm},
 	}
 
 	// Empty lister — the pod is no longer on this node.
@@ -398,5 +402,89 @@ func TestRestoreBPFMaps_DeletesStaleTmpfsEntry(t *testing.T) {
 	r.mu.Unlock()
 	if stillPresent {
 		t.Fatal("expected uid-gone removed from processed map")
+	}
+}
+
+// TestRestoreBPFMaps_DoesNotDoubleCount verifies that a pod written to tmpfs by
+// processPodAdded during the WaitForCacheSync window (i.e. NOT present in the
+// startup snapshot) is not re-programmed by restoreBPFMaps and therefore does
+// not cause mappingsLoaded to be incremented a second time.
+//
+// Sequence under test:
+//  1. restoreFromTmpfs snapshots UID-X (pre-existing) into restoredUIDs.
+//  2. processPodAdded handles UID-Y (new pod, arrived during cache sync):
+//     it writes tmpfs and increments mappingsLoaded.
+//  3. restoreBPFMaps runs: it must program UID-X (from the snapshot) and
+//     ignore UID-Y (not in snapshot), so mappingsLoaded stays correct.
+func TestRestoreBPFMaps_DoesNotDoubleCount(t *testing.T) {
+	dir := t.TempDir()
+	persister := NewPersister(dir)
+
+	// UID-X: pre-existing pod, present on tmpfs before startup.
+	pmX := PersistedMapping{
+		Mappings:  map[string]string{"__VDBI_PH_x___": "val-x"},
+		CgroupIDs: []uint64{10},
+	}
+	_ = persister.Save("uid-x", pmX)
+
+	mw := &recordingMapWriter{}
+	r := &runner{
+		nodeName:  "node-A",
+		log:       logrus.New(),
+		mapWriter: mw,
+		persister: persister,
+		processed: make(map[string]struct{}),
+	}
+
+	// Step 1: snapshot startup tmpfs (only uid-x present at this point).
+	if err := r.restoreFromTmpfs(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Step 2: simulate processPodAdded writing uid-y during cache sync.
+	// We do this by directly saving to tmpfs and marking it processed,
+	// mirroring what processPodAdded does — without calling Vault.
+	pmY := PersistedMapping{
+		Mappings:  map[string]string{"__VDBI_PH_y___": "val-y"},
+		CgroupIDs: []uint64{20},
+	}
+	_ = persister.Save("uid-y", pmY)
+	r.mu.Lock()
+	r.processed["uid-y"] = struct{}{}
+	r.mu.Unlock()
+	// uid-y is intentionally NOT added to restoredUIDs (that's the fix).
+
+	// Step 3: restoreBPFMaps should only see uid-x (from the snapshot).
+	podX := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "px", Namespace: "default", UID: "uid-x"},
+		Spec:       corev1.PodSpec{NodeName: "node-A"},
+	}
+	podY := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "py", Namespace: "default", UID: "uid-y"},
+		Spec:       corev1.PodSpec{NodeName: "node-A"},
+	}
+	lister := makePodLister(podX, podY)
+
+	if err := r.restoreBPFMaps(lister); err != nil {
+		t.Fatal(err)
+	}
+
+	// uid-x must have been re-programmed.
+	if mw.puts[10]["__VDBI_PH_x___"] != "val-x" {
+		t.Fatalf("uid-x not re-programmed: %#v", mw.puts)
+	}
+
+	// uid-y must NOT have been touched by restoreBPFMaps (it was handled
+	// exclusively by processPodAdded and must not be double-counted).
+	if _, programmedY := mw.puts[20]; programmedY {
+		t.Fatalf("uid-y was re-programmed by restoreBPFMaps — double-count bug still present: %#v", mw.puts)
+	}
+
+	// restoredUIDs snapshot must have been cleared after use.
+	r.mu.Lock()
+	stillHasSnapshot := r.restoredUIDs != nil
+	r.mu.Unlock()
+	if stillHasSnapshot {
+		t.Fatal("restoredUIDs was not cleared after restoreBPFMaps")
 	}
 }
