@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -17,28 +18,41 @@ const (
 	ModeInjector Mode = "injector"
 	ModeRenewer  Mode = "renewer"
 	ModeRevoker  Mode = "revoker"
+	ModeBPF      Mode = "bpf"
 	ModeAll      Mode = "all"
 )
 
+// BPFConfig holds the configuration for the eBPF credential protection layer.
+// When Enabled is false, the webhook produces literal env values (legacy
+// behavior). When true, the webhook wraps every credential and the bpf-mode
+// DaemonSet substitutes placeholders at execve time.
+type BPFConfig struct {
+	Enabled            bool          `yaml:"enabled" envconfig:"bpf_enabled"`
+	WrapTokenTTL       time.Duration `yaml:"wrapTokenTTL" envconfig:"bpf_wrap_token_ttl"`
+	TmpfsPath          string        `yaml:"tmpfsPath" envconfig:"bpf_tmpfs_path"`
+	MaxMappingsPerNode int           `yaml:"maxMappingsPerNode" envconfig:"bpf_max_mappings_per_node"`
+}
+
 type Config struct {
-	CertFile          string  `yaml:"certFile" envconfig:"cert_file"`
-	KeyFile           string  `yaml:"keyFile" envconfig:"key_file"`
-	VaultAddress      string  `yaml:"vaultAddress" envconfig:"vault_address"`
-	VaultAuthPath     string  `yaml:"vaultAuthPath" envconfig:"vault_auth_path"`
-	LogLevel          string  `yaml:"logLevel" envconfig:"log_level"`
-	KubeRole          string  `yaml:"kubeRole" envconfig:"kube_role"`
-	TokenTTL          string  `yaml:"tokenTTL" envconfig:"token_ttl"`
-	VaultSecretName   string  `yaml:"vaultSecretName" envconfig:"vault_secret_name"`
-	VaultSecretPrefix string  `yaml:"vaultSecretPrefix" envconfig:"vault_secret_prefix"`
-	Mode              Mode    `yaml:"mode" envconfig:"mode"`
-	Sentry            bool    `yaml:"sentry" envconfig:"sentry"`
-	SentryDsn         string  `yaml:"sentryDsn" envconfig:"sentry_dsn"`
-	SentryEnvironment string  `yaml:"sentryEnvironment" envconfig:"sentry_environment"`
-	SentrySampleRate  float64 `yaml:"sentrySampleRate" envconfig:"sentry_sample_rate"`
-	SyncTTLSecond     int     `yaml:"syncTTLSecond" envconfig:"sync_ttl_second"`
-	InjectorLabel     string  `yaml:"injectorLabel" envconfig:"injector_label"`
-	DefaultEngine     string  `yaml:"defaultEngine" envconfig:"default_engine"`
-	VaultRateLimit    int     `yaml:"vaultRateLimit" envconfig:"vault_rate_limit"`
+	CertFile          string    `yaml:"certFile" envconfig:"cert_file"`
+	KeyFile           string    `yaml:"keyFile" envconfig:"key_file"`
+	VaultAddress      string    `yaml:"vaultAddress" envconfig:"vault_address"`
+	VaultAuthPath     string    `yaml:"vaultAuthPath" envconfig:"vault_auth_path"`
+	LogLevel          string    `yaml:"logLevel" envconfig:"log_level"`
+	KubeRole          string    `yaml:"kubeRole" envconfig:"kube_role"`
+	TokenTTL          string    `yaml:"tokenTTL" envconfig:"token_ttl"`
+	VaultSecretName   string    `yaml:"vaultSecretName" envconfig:"vault_secret_name"`
+	VaultSecretPrefix string    `yaml:"vaultSecretPrefix" envconfig:"vault_secret_prefix"`
+	Mode              Mode      `yaml:"mode" envconfig:"mode"`
+	Sentry            bool      `yaml:"sentry" envconfig:"sentry"`
+	SentryDsn         string    `yaml:"sentryDsn" envconfig:"sentry_dsn"`
+	SentryEnvironment string    `yaml:"sentryEnvironment" envconfig:"sentry_environment"`
+	SentrySampleRate  float64   `yaml:"sentrySampleRate" envconfig:"sentry_sample_rate"`
+	SyncTTLSecond     int       `yaml:"syncTTLSecond" envconfig:"sync_ttl_second"`
+	InjectorLabel     string    `yaml:"injectorLabel" envconfig:"injector_label"`
+	DefaultEngine     string    `yaml:"defaultEngine" envconfig:"default_engine"`
+	VaultRateLimit    int       `yaml:"vaultRateLimit" envconfig:"vault_rate_limit"`
+	BPF               BPFConfig `yaml:"bpf" envconfig:"bpf"`
 }
 
 func NewConfig(configFile string) (*Config, error) {
@@ -78,6 +92,8 @@ func NewConfig(configFile string) (*Config, error) {
 		return nil, errors.Newf("error processing environment variables for prefix %s: %v", "INJECTOR_", err)
 	}
 
+	cfg.applyBPFDefaults()
+
 	err = cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -86,13 +102,27 @@ func NewConfig(configFile string) (*Config, error) {
 	return cfg, nil
 }
 
+// applyBPFDefaults fills zero-valued BPF fields with their production defaults.
+// Called from NewConfig after unmarshaling so callers always see populated values.
+func (c *Config) applyBPFDefaults() {
+	if c.BPF.WrapTokenTTL == 0 {
+		c.BPF.WrapTokenTTL = 5 * time.Minute
+	}
+	if c.BPF.TmpfsPath == "" {
+		c.BPF.TmpfsPath = "/run/vault-db-injector/bpf"
+	}
+	if c.BPF.MaxMappingsPerNode == 0 {
+		c.BPF.MaxMappingsPerNode = 4096
+	}
+}
+
 // Validate verifies all properties of config struct are intialized
 func (cfg *Config) Validate() error {
 	checks := []struct {
 		bad    bool
 		errMsg string
 	}{
-		{cfg.Mode != ModeAll && cfg.Mode != ModeInjector && cfg.Mode != ModeRenewer && cfg.Mode != ModeRevoker, "Wrong Mode : should be injector/renewer/revoker/all"},
+		{cfg.Mode != ModeAll && cfg.Mode != ModeInjector && cfg.Mode != ModeRenewer && cfg.Mode != ModeRevoker && cfg.Mode != ModeBPF, "Wrong Mode : should be injector/renewer/revoker/bpf/all"},
 		{(cfg.Mode == ModeAll || cfg.Mode == ModeInjector) && cfg.CertFile == "", "no certFile specified"},
 		{(cfg.Mode == ModeAll || cfg.Mode == ModeInjector) && cfg.KeyFile == "", "no keyFile specified"},
 		{cfg.VaultAddress == "", "no vaultAddress specified"},

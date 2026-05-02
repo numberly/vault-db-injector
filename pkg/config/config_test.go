@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -344,4 +345,37 @@ func TestGetHAEnvs_BothMissing(t *testing.T) {
 
 	_, _, err := GetHAEnvs()
 	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// ModeBPF + BPFConfig
+// ---------------------------------------------------------------------------
+
+func TestModeBPF_Validates(t *testing.T) {
+	cfg := &Config{
+		Mode:              ModeBPF,
+		VaultAddress:      "https://vault",
+		VaultAuthPath:     "kubernetes",
+		KubeRole:          "x",
+		DefaultEngine:     "db",
+		VaultSecretName:   "vault-secret",
+		VaultSecretPrefix: "prefix/",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("ModeBPF should validate, got %v", err)
+	}
+}
+
+func TestBPFConfig_Defaults(t *testing.T) {
+	cfg := &Config{}
+	cfg.applyBPFDefaults()
+	if cfg.BPF.WrapTokenTTL != 5*time.Minute {
+		t.Errorf("WrapTokenTTL = %v, want 5m", cfg.BPF.WrapTokenTTL)
+	}
+	if cfg.BPF.TmpfsPath != "/run/vault-db-injector/bpf" {
+		t.Errorf("TmpfsPath = %q", cfg.BPF.TmpfsPath)
+	}
+	if cfg.BPF.MaxMappingsPerNode != 4096 {
+		t.Errorf("MaxMappingsPerNode = %d, want 4096", cfg.BPF.MaxMappingsPerNode)
+	}
 }
