@@ -230,9 +230,11 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 
 	// Program the BPF map for every container: they all run in the same pod
 	// and need the same credential substitution.
+	uid := string(pod.UID)
 	var cgroupIDs []uint64
+	var programmed []uint64
 	for _, cid := range containerIDs {
-		cgroupID, err := r.resolveCG(string(pod.UID), cid)
+		cgroupID, err := r.resolveCG(uid, cid)
 		if err != nil {
 			// Best-effort: skip containers whose cgroup can't be resolved
 			// (e.g. already exited init containers).
@@ -240,8 +242,18 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 			continue
 		}
 		if err := r.mapWriter.PutMapping(cgroupID, mappings); err != nil {
+			// Roll back any cgroups already programmed for this pod.
+			for _, cg := range programmed {
+				if delErr := r.mapWriter.DeleteMapping(cg); delErr == nil {
+					mapSize.Dec()
+				}
+			}
+			r.mu.Lock()
+			delete(r.processed, uid)
+			r.mu.Unlock()
 			return errors.Wrapf(err, "BPF map put for container %s", cid)
 		}
+		programmed = append(programmed, cgroupID)
 		mapSize.Inc()
 		cgroupIDs = append(cgroupIDs, cgroupID)
 	}
@@ -250,7 +262,7 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	pm := PersistedMapping{Mappings: mappings, CgroupIDs: cgroupIDs}
-	if err := r.persister.Save(string(pod.UID), pm); err != nil {
+	if err := r.persister.Save(uid, pm); err != nil {
 		persistErrors.WithLabelValues("save").Inc()
 		// Roll back all BPF map entries written above.
 		for _, cg := range cgroupIDs {
@@ -260,7 +272,7 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 		}
 		// Remove from processed so a future informer event can retry.
 		r.mu.Lock()
-		delete(r.processed, string(pod.UID))
+		delete(r.processed, uid)
 		r.mu.Unlock()
 		return errors.Wrap(err, "tmpfs persist")
 	}

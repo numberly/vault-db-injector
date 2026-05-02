@@ -5,6 +5,7 @@ package bpf
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -42,6 +43,26 @@ func (r *recordingMapWriter) PutMapping(cg uint64, m map[string]string) error {
 func (r *recordingMapWriter) DeleteMapping(cg uint64) error {
 	r.deletes = append(r.deletes, cg)
 	return nil
+}
+
+// failAfterNMapWriter wraps recordingMapWriter and returns an error on the
+// (failOnCall+1)-th PutMapping invocation (0-indexed).
+type failAfterNMapWriter struct {
+	recordingMapWriter
+	putCount  int
+	failOnCall int // 0 = fail on first, 1 = fail on second, etc.
+}
+
+func (f *failAfterNMapWriter) PutMapping(cg uint64, m map[string]string) error {
+	n := f.putCount
+	f.putCount++
+	if n == f.failOnCall {
+		return fmt.Errorf("injected PutMapping failure")
+	}
+	return f.recordingMapWriter.PutMapping(cg, m)
+}
+func (f *failAfterNMapWriter) DeleteMapping(cg uint64) error {
+	return f.recordingMapWriter.DeleteMapping(cg)
 }
 
 // annotatedPod builds a single-container pod with the BPF annotation.
@@ -543,5 +564,67 @@ func TestRestoreBPFMaps_DoesNotDoubleCount(t *testing.T) {
 	r.mu.Unlock()
 	if stillHasSnapshot {
 		t.Fatal("restoredUIDs was not cleared after restoreBPFMaps")
+	}
+}
+
+// TestProcessPodAdded_PutMappingFailureRollsBack verifies that if PutMapping
+// succeeds for container A but fails for container B, the successful A entry is
+// deleted from the BPF map, r.processed[uid] is cleared, mappingsLoaded is not
+// incremented, and mapSize returns to zero (net-zero effect).
+func TestProcessPodAdded_PutMappingFailureRollsBack(t *testing.T) {
+	mapping := k8s.BPFMapping{
+		WrapToken:    "hvs.test",
+		Placeholders: map[string]string{"__VDBI_PH_p___": "password"},
+	}
+	pod := multiContainerPod("uid-putfail", "node-A", []string{"containerd://aaa", "containerd://bbb"}, mapping)
+
+	unwrap := &fakeUnwrapper{values: map[string]string{"password": "secret"}}
+	// failOnCall=1: first Put (cgroup 100) succeeds, second Put (cgroup 200) fails.
+	mw := &failAfterNMapWriter{failOnCall: 1}
+	cgroupByID := map[string]uint64{"containerd://aaa": 100, "containerd://bbb": 200}
+
+	r := &runner{
+		nodeName:  "node-A",
+		log:       logrus.New(),
+		unwrapper: unwrap,
+		mapWriter: mw,
+		persister: NewPersister(t.TempDir()),
+		resolveCG: func(_, cid string) (uint64, error) { return cgroupByID[cid], nil },
+		processed: make(map[string]struct{}),
+	}
+
+	sizeBefore := testutil.ToFloat64(mapSize)
+	loadedBefore := testutil.ToFloat64(mappingsLoaded)
+
+	err := r.processPodAdded(context.Background(), pod)
+	if err == nil {
+		t.Fatal("expected error from PutMapping, got nil")
+	}
+
+	// Container A (cgroup 100) must have been rolled back.
+	deleted := map[uint64]bool{}
+	for _, cg := range mw.deletes {
+		deleted[cg] = true
+	}
+	if !deleted[100] {
+		t.Fatalf("cgroup 100 was not rolled back; deletes=%v", mw.deletes)
+	}
+
+	// processed must not contain the UID.
+	r.mu.Lock()
+	_, present := r.processed["uid-putfail"]
+	r.mu.Unlock()
+	if present {
+		t.Fatal("uid-putfail should have been removed from processed on PutMapping failure")
+	}
+
+	// mappingsLoaded must not have been incremented.
+	if got := testutil.ToFloat64(mappingsLoaded); got != loadedBefore {
+		t.Fatalf("mappingsLoaded: before=%v after=%v; expected no change", loadedBefore, got)
+	}
+
+	// mapSize must reflect net-zero: incremented once (cgroup 100), decremented once on rollback.
+	if got := testutil.ToFloat64(mapSize); got != sizeBefore {
+		t.Fatalf("mapSize: before=%v after=%v; expected net zero", sizeBefore, got)
 	}
 }
