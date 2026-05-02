@@ -92,11 +92,16 @@ func Load(maxMappings int) (*Loader, error) {
 // keys are placeholders (must be exactly PlaceholderLen bytes); values
 // are real credential values (must be ≤ ValueMax bytes).
 func (l *Loader) PutMapping(cgroupID uint64, mappings map[string]string) error {
+	// Layout MUST match C struct mapping in pkg/bpf/c/substitute.bpf.c byte
+	// for byte. encoding/binary (used by cilium/ebpf to marshal map values)
+	// does NOT insert alignment padding the way the C compiler does, so we
+	// declare the C-side padding explicitly. Total = 77 + 74 + 1 + 4 + 4 = 160.
 	type entry struct {
-		Placeholder [PlaceholderLen]byte
-		Value       [ValueMax + 1]byte
-		ValueLen    uint32
-		_pad        uint32
+		Placeholder [PlaceholderLen]byte // 77 — bytes 0..76
+		Value       [ValueMax + 1]byte   // 74 — bytes 77..150
+		Pad1        [1]byte              // 1  — byte  151 (C compiler aligns ValueLen to 4)
+		ValueLen    uint32               // 4  — bytes 152..155
+		Pad2        uint32               // 4  — bytes 156..159
 	}
 	type mfc struct {
 		Count   uint32

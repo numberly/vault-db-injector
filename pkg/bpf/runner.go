@@ -177,6 +177,15 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 	if !ok {
 		return nil
 	}
+	// Check container IDs BEFORE setting processed or unwrapping. The wrap
+	// token is single-use server-side; if we unwrap before the kubelet has
+	// populated container statuses, retry events would burn the token and
+	// permanently fail. Wait for an UpdateFunc event with statuses populated.
+	containerIDs := collectContainerIDs(pod)
+	if len(containerIDs) == 0 {
+		return nil // silently wait for the next informer event
+	}
+
 	r.mu.Lock()
 	if _, done := r.processed[string(pod.UID)]; done {
 		r.mu.Unlock()
@@ -187,12 +196,17 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 
 	var payload k8s.BPFMapping
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		r.mu.Lock()
+		delete(r.processed, string(pod.UID))
+		r.mu.Unlock()
 		return errors.Wrap(err, "parse bpf-mapping annotation")
 	}
 
 	values, err := r.unwrapper.UnwrapValues(ctx, payload.WrapToken)
 	if err != nil {
-		// Remove from processed so a retry can happen.
+		// Remove from processed so a retry can happen if the token is still
+		// valid (e.g. transient Vault network blip — the API call may have
+		// failed before the token was actually consumed).
 		r.mu.Lock()
 		delete(r.processed, string(pod.UID))
 		r.mu.Unlock()
@@ -214,18 +228,6 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 			return errors.Newf("unwrapped data missing field %q", field)
 		}
 		mappings[ph] = v
-	}
-
-	// Collect all container IDs from regular, init, and ephemeral containers.
-	// We need at least one container ID before proceeding; if none are assigned
-	// yet, wait briefly and retry on the next informer event.
-	containerIDs := collectContainerIDs(pod)
-	if len(containerIDs) == 0 {
-		// Reset processed flag so the next informer event retries.
-		r.mu.Lock()
-		delete(r.processed, string(pod.UID))
-		r.mu.Unlock()
-		return errors.New("no container ID assigned yet; will retry on next informer event")
 	}
 
 	// Program the BPF map for every container: they all run in the same pod
