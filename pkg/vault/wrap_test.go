@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,5 +94,19 @@ func TestWrapValues_VaultError(t *testing.T) {
 	_, err := c.WrapValues(context.Background(), map[string]string{"k": "v"}, time.Minute)
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestUnwrapValues_VaultError(t *testing.T) {
+	client := newStubVault(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"errors":["unwrap denied"]}`, http.StatusForbidden)
+	})
+	c := &Connector{client: client}
+	_, err := c.UnwrapValues(context.Background(), "hvs.test")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "vault unwrap") {
+		t.Fatalf("error should be wrapped with 'vault unwrap': %v", err)
 	}
 }

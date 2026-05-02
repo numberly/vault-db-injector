@@ -247,18 +247,22 @@ func sliceToStrings(slice []any) ([]string, error) {
 // WrapValues wraps the given key/value payload in Vault and returns the
 // resulting wrap token. The token is single-use: the next caller of
 // sys/wrapping/unwrap with this token gets the payload and the token dies.
-//
-// NOTE: SetWrappingLookupFunc mutates shared *api.Client state. If two
-// WrapValues calls run concurrently on the same *Connector, the TTL set by
-// one goroutine may be seen (or cleared) by the other. In the current
-// webhook flow a fresh Connector is created per request (via Clone + Login),
-// so this is not an issue. If that invariant ever changes, callers must
-// serialise WrapValues or clone the api.Client before calling.
 func (c *Connector) WrapValues(ctx context.Context, payload map[string]string, ttl time.Duration) (string, error) {
 	data := make(map[string]any, len(payload))
 	for k, v := range payload {
 		data[k] = v
 	}
+	// SetWrappingLookupFunc mutates state on the shared *api.Client. The
+	// deferred reset to nil restores the client's default wrap behaviour and
+	// runs on every exit path, including panic unwinds — Go's defer fires
+	// during stack unwinding before the panic propagates.
+	//
+	// Concurrency caveat: two WrapValues calls running in parallel on the
+	// same *Connector would race on this client-level state. The current
+	// architecture (per-request *Connector clone with its own login) makes
+	// this safe in practice. If the invariant ever changes (Connector
+	// shared across goroutines), serialize WrapValues with a mutex or
+	// switch to a Connector pool.
 	c.client.SetWrappingLookupFunc(func(operation, path string) string {
 		return ttl.String()
 	})
@@ -275,8 +279,15 @@ func (c *Connector) WrapValues(ctx context.Context, payload map[string]string, t
 }
 
 // UnwrapValues consumes the given wrap token and returns the previously
-// wrapped payload. Calling unwrap twice with the same token always fails:
-// Vault destroys the wrapping token on first use.
+// wrapped payload. The token is consumed in Vault on the first call
+// regardless of whether this method returns an error: a parse failure
+// (non-string field, missing data) leaves the caller without recourse
+// because Vault has already burned the token. Callers must therefore
+// treat any UnwrapValues error as a permanent loss of those credentials
+// and trigger a fresh credential issuance flow.
+//
+// Calling unwrap twice with the same token always fails on the second
+// call.
 func (c *Connector) UnwrapValues(ctx context.Context, token string) (map[string]string, error) {
 	secret, err := c.client.Logical().UnwrapWithContext(ctx, token)
 	if err != nil {
