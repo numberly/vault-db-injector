@@ -18,7 +18,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -194,23 +193,41 @@ func (r *runner) processPodAdded(ctx context.Context, pod *corev1.Pod) error {
 		mappings[ph] = v
 	}
 
-	cs := waitForContainerID(ctx, pod, 5*time.Second)
-	if cs == "" {
+	// Collect all container IDs from regular, init, and ephemeral containers.
+	// We need at least one container ID before proceeding; if none are assigned
+	// yet, wait briefly and retry on the next informer event.
+	containerIDs := collectContainerIDs(pod)
+	if len(containerIDs) == 0 {
 		// Reset processed flag so the next informer event retries.
 		r.mu.Lock()
 		delete(r.processed, string(pod.UID))
 		r.mu.Unlock()
-		return errors.New("container ID not assigned; will retry on next informer event")
+		return errors.New("no container ID assigned yet; will retry on next informer event")
 	}
-	cgroupID, err := r.resolveCG(string(pod.UID), cs)
-	if err != nil {
-		return errors.Wrap(err, "resolve cgroup")
+
+	// Program the BPF map for every container: they all run in the same pod
+	// and need the same credential substitution.
+	var cgroupIDs []uint64
+	for _, cid := range containerIDs {
+		cgroupID, err := r.resolveCG(string(pod.UID), cid)
+		if err != nil {
+			// Best-effort: skip containers whose cgroup can't be resolved
+			// (e.g. already exited init containers).
+			r.log.Warnf("processPodAdded(%s/%s): resolve cgroup for %s: %v (skipped)", pod.Namespace, pod.Name, cid, err)
+			continue
+		}
+		if err := r.mapWriter.PutMapping(cgroupID, mappings); err != nil {
+			return errors.Wrapf(err, "BPF map put for container %s", cid)
+		}
+		mapSize.Inc()
+		cgroupIDs = append(cgroupIDs, cgroupID)
 	}
-	if err := r.mapWriter.PutMapping(cgroupID, mappings); err != nil {
-		return errors.Wrap(err, "BPF map put")
+	if len(cgroupIDs) == 0 {
+		return errors.New("could not resolve any cgroup ID for pod containers")
 	}
-	mapSize.Inc()
-	if err := r.persister.Save(string(pod.UID), mappings); err != nil {
+
+	pm := PersistedMapping{Mappings: mappings, CgroupIDs: cgroupIDs}
+	if err := r.persister.Save(string(pod.UID), pm); err != nil {
 		return errors.Wrap(err, "tmpfs persist")
 	}
 	mappingsLoaded.Inc()
@@ -225,16 +242,20 @@ func (r *runner) processPodDeleted(pod *corev1.Pod) {
 	delete(r.processed, string(pod.UID))
 	r.mu.Unlock()
 
-	cs := ""
-	if len(pod.Status.ContainerStatuses) > 0 {
-		cs = pod.Status.ContainerStatuses[0].ContainerID
-	}
-	if cs != "" {
-		if cg, err := r.resolveCG(string(pod.UID), cs); err == nil {
+	// Use the cgroup_ids stored in tmpfs to delete ALL BPF map entries for
+	// the pod. This is more reliable than re-resolving cgroups from the pod
+	// object (which may already be stale at deletion time).
+	pm, err := r.persister.Load(string(pod.UID))
+	if err == nil {
+		deletedCount := 0
+		for _, cg := range pm.CgroupIDs {
 			if err := r.mapWriter.DeleteMapping(cg); err == nil {
 				mapSize.Dec()
-				mappingsLoaded.Dec()
+				deletedCount++
 			}
+		}
+		if deletedCount > 0 {
+			mappingsLoaded.Dec()
 		}
 	}
 	_ = r.persister.Delete(string(pod.UID))
@@ -242,9 +263,8 @@ func (r *runner) processPodDeleted(pod *corev1.Pod) {
 
 // restoreFromTmpfs preloads the in-memory processed-set so we don't
 // re-unwrap tokens that were already consumed by an earlier DS instance.
-// We do NOT eagerly reprogram BPF maps — without container IDs we can't
-// resolve cgroup_ids, and the next informer event will trigger the
-// add path with a fresh container ID.
+// Full BPF map repopulation (using the stored cgroup_ids) is done in
+// restoreBPFMaps after the informer cache syncs.
 func (r *runner) restoreFromTmpfs() error {
 	all, err := r.persister.LoadAll()
 	if err != nil {
@@ -258,23 +278,26 @@ func (r *runner) restoreFromTmpfs() error {
 	return nil
 }
 
-func waitForContainerID(ctx context.Context, pod *corev1.Pod, timeout time.Duration) string {
-	check := func() string {
-		for _, cs := range pod.Status.ContainerStatuses {
-			if cs.ContainerID != "" {
-				return cs.ContainerID
-			}
+// collectContainerIDs returns all non-empty container IDs from the pod's
+// regular, init, and ephemeral container statuses.
+func collectContainerIDs(pod *corev1.Pod) []string {
+	var ids []string
+	for _, cs := range pod.Status.InitContainerStatuses {
+		if cs.ContainerID != "" {
+			ids = append(ids, cs.ContainerID)
 		}
-		return ""
 	}
-	if id := check(); id != "" {
-		return id
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.ContainerID != "" {
+			ids = append(ids, cs.ContainerID)
+		}
 	}
-	deadline := time.Now().Add(timeout)
-	_ = wait.PollUntilContextTimeout(ctx, 100*time.Millisecond, time.Until(deadline), false, func(_ context.Context) (bool, error) {
-		return check() != "", nil
-	})
-	return check()
+	for _, cs := range pod.Status.EphemeralContainerStatuses {
+		if cs.ContainerID != "" {
+			ids = append(ids, cs.ContainerID)
+		}
+	}
+	return ids
 }
 
 // Prometheus metrics

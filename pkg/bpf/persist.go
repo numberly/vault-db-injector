@@ -10,6 +10,15 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
+// PersistedMapping holds the per-pod data written to tmpfs.
+// CgroupIDs contains one entry per container (including init and ephemeral
+// containers) so that DS restart can re-program ALL cgroup entries for the
+// pod without contacting Vault again.
+type PersistedMapping struct {
+	Mappings  map[string]string `json:"mappings"`
+	CgroupIDs []uint64          `json:"cgroup_ids"`
+}
+
 // Persister stores per-pod placeholder→value mappings on tmpfs so the
 // BPF DaemonSet can recover its in-memory state across self-restarts.
 //
@@ -28,14 +37,14 @@ func NewPersister(dir string) *Persister {
 	return &Persister{dir: dir}
 }
 
-// Save atomically writes the mappings file for podUID. Write goes via
+// Save atomically writes the PersistedMapping for podUID. Write goes via
 // "<podUID>.json.tmp" and is renamed in place, so a concurrent reader or
 // crash mid-write never sees a partial file.
-func (p *Persister) Save(podUID string, mappings map[string]string) error {
+func (p *Persister) Save(podUID string, pm PersistedMapping) error {
 	if err := os.MkdirAll(p.dir, 0o755); err != nil {
 		return errors.Wrap(err, "mkdir tmpfs")
 	}
-	b, err := json.Marshal(mappings)
+	b, err := json.Marshal(pm)
 	if err != nil {
 		return errors.Wrap(err, "marshal mappings")
 	}
@@ -52,38 +61,38 @@ func (p *Persister) Save(podUID string, mappings map[string]string) error {
 	return nil
 }
 
-// Load reads the mappings for one podUID. Returns an error if the file
-// doesn't exist or fails to parse.
-func (p *Persister) Load(podUID string) (map[string]string, error) {
+// Load reads the PersistedMapping for one podUID. Returns an error if the
+// file doesn't exist or fails to parse.
+func (p *Persister) Load(podUID string) (PersistedMapping, error) {
 	path := filepath.Join(p.dir, podUID+".json")
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "read tmpfs file")
+		return PersistedMapping{}, errors.Wrap(err, "read tmpfs file")
 	}
-	var m map[string]string
-	if err := json.Unmarshal(b, &m); err != nil {
-		return nil, errors.Wrap(err, "unmarshal mappings")
+	var pm PersistedMapping
+	if err := json.Unmarshal(b, &pm); err != nil {
+		return PersistedMapping{}, errors.Wrap(err, "unmarshal mappings")
 	}
-	return m, nil
+	return pm, nil
 }
 
 // LoadAll reads every mapping file under the persister directory. Used at
 // DaemonSet startup to repopulate the in-memory cache before re-programming
 // BPF maps. The map key is the podUID extracted from the filename.
-func (p *Persister) LoadAll() (map[string]map[string]string, error) {
+func (p *Persister) LoadAll() (map[string]PersistedMapping, error) {
 	files, err := filepath.Glob(filepath.Join(p.dir, "*.json"))
 	if err != nil {
 		return nil, errors.Wrap(err, "glob tmpfs dir")
 	}
-	out := make(map[string]map[string]string, len(files))
+	out := make(map[string]PersistedMapping, len(files))
 	for _, f := range files {
 		base := filepath.Base(f)
 		uid := base[:len(base)-len(".json")]
-		m, err := p.Load(uid)
+		pm, err := p.Load(uid)
 		if err != nil {
 			return nil, errors.Wrapf(err, "load %s", uid)
 		}
-		out[uid] = m
+		out[uid] = pm
 	}
 	return out, nil
 }
