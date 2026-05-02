@@ -2,6 +2,7 @@ package k8smutator
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,7 +79,7 @@ func TestApplyEnvToContainers_ClassicMode(t *testing.T) {
 			}
 			creds := fakeCreds("alice", "s3cr3t")
 
-			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
 			require.NoError(t, err)
 
 			for i := range pod.Spec.Containers {
@@ -102,7 +103,7 @@ func TestApplyEnvToContainers_ClassicMode_MultipleKeys(t *testing.T) {
 	}
 	creds := fakeCreds("bob", "p@ss")
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
 	require.NoError(t, err)
 
 	env := pod.Spec.Containers[0].Env
@@ -149,7 +150,7 @@ func TestApplyEnvToContainers_URIMode(t *testing.T) {
 			}
 			creds := fakeCreds(tt.user, tt.pass)
 
-			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
 			require.NoError(t, err)
 
 			// The env var must exist in both containers and init-containers
@@ -177,7 +178,7 @@ func TestApplyEnvToContainers_URIMode_MultipleKeys(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
 	require.NoError(t, err)
 
 	env := pod.Spec.Containers[0].Env
@@ -198,7 +199,7 @@ func TestApplyEnvToContainers_URIMode_InvalidTemplate(t *testing.T) {
 		DbURIEnvKey: "DB_URI",
 	}
 	creds := fakeCreds("u", "p")
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
 	// Empty template is parsed as an empty URL — no error expected
 	assert.NoError(t, err)
 }
@@ -210,7 +211,7 @@ func TestApplyEnvToContainers_UnknownMode(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mode not supported")
 }
@@ -225,7 +226,7 @@ func TestApplyEnvToContainers_NoPodContainers(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
 	assert.NoError(t, err)
 }
 
@@ -315,7 +316,7 @@ func TestApplyEnvToContainers_BPFEnabled_Classic(t *testing.T) {
 	creds := &vault.DbCreds{Username: "alice", Password: "supersecret"}
 
 	stub := &stubWrapper{wrapToken: "hvs.test"}
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, stub, true)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, stub, true, 5*time.Minute)
 	require.NoError(t, err)
 
 	envs := pod.Spec.Containers[0].Env
@@ -346,7 +347,7 @@ func TestApplyEnvToContainers_BPFEnabled_URI(t *testing.T) {
 	creds := &vault.DbCreds{Username: "alice", Password: "supersecret"}
 
 	stub := &stubWrapper{wrapToken: "hvs.test"}
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, stub, true)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, stub, true, 5*time.Minute)
 	require.NoError(t, err)
 
 	envs := pod.Spec.Containers[0].Env
@@ -366,7 +367,7 @@ func TestApplyEnvToContainers_BPFDisabled_Classic_Unchanged(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: "alice", Password: "secret"}
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, nil, false, 0)
 	require.NoError(t, err)
 
 	got := map[string]string{}
@@ -396,7 +397,50 @@ func TestApplyEnvToContainers_BPFEnabled_RejectMultiDb(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: "u", Password: "p"}
 
-	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.x"}, true)
+	err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.x"}, true, 5*time.Minute)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "single DbConfiguration")
+}
+
+func TestApplyEnvToContainers_BPFEnabled_RejectLongCredentials(t *testing.T) {
+	// Credentials longer than placeholder.MaxValue must be rejected at admission
+	// time — the BPF substitution buffer cannot hold them.
+	longVal := strings.Repeat("x", placeholder.MaxValue+1)
+
+	tests := []struct {
+		name     string
+		username string
+		password string
+		errFrag  string
+	}{
+		{
+			name:     "username too long",
+			username: longVal,
+			password: "short",
+			errFrag:  "username",
+		},
+		{
+			name:     "password too long",
+			username: "short",
+			password: longVal,
+			errFrag:  "password",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pod := &corev1.Pod{
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}},
+			}
+			dbConf := k8s.DbConfiguration{
+				DbName: "main", Mode: k8s.DbModeClassic,
+				DbUserEnvKey: "DB_USER", DbPasswordEnvKey: "DB_PASSWORD",
+			}
+			creds := &vault.DbCreds{Username: tt.username, Password: tt.password}
+
+			err := applyEnvToContainersWithBPF(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.test"}, true, 5*time.Minute)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errFrag)
+		})
+	}
 }

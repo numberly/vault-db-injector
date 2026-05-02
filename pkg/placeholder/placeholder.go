@@ -20,6 +20,13 @@ const (
 	Suffix    = "___"
 	HexLength = 64 // 32 bytes encoded as hex
 	Length    = len(Prefix) + HexLength + len(Suffix) // 10 + 64 + 3 = 77
+
+	// MaxValue is the maximum byte length of a real credential value that can be
+	// substituted by the BPF program. The kernel-side buffer is PlaceholderLen
+	// minus the NUL terminator (77 - 1 = 76), but the C-side constant is 73 to
+	// leave room for padding alignment. This constant is the authoritative Go
+	// value; pkg/bpf/loader.go ValueMax must equal this.
+	MaxValue = 73
 )
 
 // Generate returns a fresh placeholder. Two calls always produce different

@@ -122,28 +122,28 @@ type vaultWrapper interface {
 // applyEnvToContainers is the entry point used by injectCredentialsIntoPod.
 // When cfg.BPF.Enabled is false, behavior is byte-identical to the previous implementation.
 func applyEnvToContainers(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vc *vault.Connector, cfg *config.Config) error {
-	return applyEnvToContainersWithBPF(ctx, pod, dbConf, creds, vc, cfg.BPF.Enabled)
+	return applyEnvToContainersWithBPF(ctx, pod, dbConf, creds, vc, cfg.BPF.Enabled, cfg.BPF.WrapTokenTTL)
 }
 
-// applyEnvToContainersWithBPF is the testable variant: takes the gate and wrapper interface explicitly.
-func applyEnvToContainersWithBPF(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool) error {
+// applyEnvToContainersWithBPF is the testable variant: takes the gate, wrapper interface, and wrap TTL explicitly.
+func applyEnvToContainersWithBPF(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool, wrapTTL time.Duration) error {
 	mode := strings.ToLower(dbConf.Mode)
 	switch mode {
 	case "", k8s.DbModeClassic:
-		return applyClassic(ctx, pod, dbConf, creds, vw, bpfEnabled)
+		return applyClassic(ctx, pod, dbConf, creds, vw, bpfEnabled, wrapTTL)
 	case k8s.DbModeURI:
-		return applyURI(ctx, pod, dbConf, creds, vw, bpfEnabled)
+		return applyURI(ctx, pod, dbConf, creds, vw, bpfEnabled, wrapTTL)
 	default:
 		return errors.Newf("mode not supported : %s", dbConf.Mode)
 	}
 }
 
-func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool) error {
+func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool, wrapTTL time.Duration) error {
 	userVal := creds.Username
 	passVal := creds.Password
 
 	if bpfEnabled {
-		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, "vault wrap classic creds")
+		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, wrapTTL, "vault wrap classic creds")
 		if err != nil {
 			return err
 		}
@@ -172,7 +172,7 @@ func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfigurati
 	return nil
 }
 
-func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool) error {
+func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, bpfEnabled bool, wrapTTL time.Duration) error {
 	dsnURL, err := url.Parse(dbConf.Template)
 	if err != nil {
 		return errors.Wrap(err, "error parsing DSN template")
@@ -182,7 +182,7 @@ func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, 
 	pass := creds.Password
 
 	if bpfEnabled {
-		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, "vault wrap uri creds")
+		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, wrapTTL, "vault wrap uri creds")
 		if err != nil {
 			return err
 		}
@@ -231,14 +231,23 @@ func annotateBPFMapping(pod *corev1.Pod, wrapToken string, placeholders map[stri
 // resulting (wrap_token, placeholders) map as the bpf-mapping annotation.
 // Returns the two placeholders so the caller can substitute them into the
 // per-shape env vars.
-func wrapAndAnnotate(ctx context.Context, pod *corev1.Pod, creds *vault.DbCreds, vw vaultWrapper, errContext string) (userPH, passPH string, err error) {
+//
+// Returns an error if either credential exceeds placeholder.MaxValue bytes —
+// the BPF program cannot substitute values longer than the fixed buffer size.
+func wrapAndAnnotate(ctx context.Context, pod *corev1.Pod, creds *vault.DbCreds, vw vaultWrapper, wrapTTL time.Duration, errContext string) (userPH, passPH string, err error) {
+	if len(creds.Username) > placeholder.MaxValue {
+		return "", "", errors.Newf("credential username length %d exceeds BPF maximum %d; configure the Vault password_policy to enforce shorter usernames", len(creds.Username), placeholder.MaxValue)
+	}
+	if len(creds.Password) > placeholder.MaxValue {
+		return "", "", errors.Newf("credential password length %d exceeds BPF maximum %d; configure the Vault password_policy to enforce shorter passwords", len(creds.Password), placeholder.MaxValue)
+	}
+
 	userPH = placeholder.Generate()
 	passPH = placeholder.Generate()
-	// TODO(Task 8): thread cfg.BPF.WrapTokenTTL here instead of 0 (server default).
 	token, err := vw.WrapValues(ctx, map[string]string{
 		"username": creds.Username,
 		"password": creds.Password,
-	}, 0)
+	}, wrapTTL)
 	if err != nil {
 		return "", "", errors.Wrap(err, errContext)
 	}
