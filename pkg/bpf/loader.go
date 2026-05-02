@@ -27,8 +27,9 @@ const (
 // Loader owns the BPF program and the cgroup→mappings hash map. Close
 // detaches the LSM link and frees the maps.
 type Loader struct {
-	coll *ebpf.Collection
-	link link.Link
+	coll      *ebpf.Collection
+	link      link.Link
+	cgroupMap *ebpf.Map
 }
 
 // Load reads the embedded .bpf.o for the current architecture, verifies
@@ -66,12 +67,17 @@ func Load() (*Loader, error) {
 		coll.Close()
 		return nil, errors.New("BPF program substitute_envp not found in collection")
 	}
+	cgroupMap := coll.Maps["cgroup_mappings"]
+	if cgroupMap == nil {
+		coll.Close()
+		return nil, errors.New("cgroup_mappings map not found in BPF collection")
+	}
 	lnk, err := link.AttachLSM(link.LSMOptions{Program: prog})
 	if err != nil {
 		coll.Close()
 		return nil, errors.Wrap(err, "attach LSM hook")
 	}
-	return &Loader{coll: coll, link: lnk}, nil
+	return &Loader{coll: coll, link: lnk, cgroupMap: cgroupMap}, nil
 }
 
 // PutMapping inserts or replaces the mappings for one cgroup_id. mappings
@@ -108,23 +114,15 @@ func (l *Loader) PutMapping(cgroupID uint64, mappings map[string]string) error {
 	}
 	v.Count = uint32(len(mappings))
 
-	m := l.coll.Maps["cgroup_mappings"]
-	if m == nil {
-		return errors.New("cgroup_mappings map not found in BPF collection")
-	}
-	return m.Update(cgroupID, v, ebpf.UpdateAny)
+	return errors.Wrap(l.cgroupMap.Update(cgroupID, v, ebpf.UpdateAny), "update cgroup_mappings")
 }
 
 // DeleteMapping removes the entry for one cgroup_id. Idempotent: a missing
 // key is not an error (the runner may call Delete on shutdown of a pod
 // whose mapping was never programmed).
 func (l *Loader) DeleteMapping(cgroupID uint64) error {
-	m := l.coll.Maps["cgroup_mappings"]
-	if m == nil {
-		return errors.New("cgroup_mappings map not found")
-	}
-	if err := m.Delete(cgroupID); err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
-		return err
+	if err := l.cgroupMap.Delete(cgroupID); err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
+		return errors.Wrap(err, "delete cgroup mapping")
 	}
 	return nil
 }
