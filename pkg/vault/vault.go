@@ -243,3 +243,55 @@ func sliceToStrings(slice []any) ([]string, error) {
 	}
 	return stringSlice, nil
 }
+
+// WrapValues wraps the given key/value payload in Vault and returns the
+// resulting wrap token. The token is single-use: the next caller of
+// sys/wrapping/unwrap with this token gets the payload and the token dies.
+//
+// NOTE: SetWrappingLookupFunc mutates shared *api.Client state. If two
+// WrapValues calls run concurrently on the same *Connector, the TTL set by
+// one goroutine may be seen (or cleared) by the other. In the current
+// webhook flow a fresh Connector is created per request (via Clone + Login),
+// so this is not an issue. If that invariant ever changes, callers must
+// serialise WrapValues or clone the api.Client before calling.
+func (c *Connector) WrapValues(ctx context.Context, payload map[string]string, ttl time.Duration) (string, error) {
+	data := make(map[string]any, len(payload))
+	for k, v := range payload {
+		data[k] = v
+	}
+	c.client.SetWrappingLookupFunc(func(operation, path string) string {
+		return ttl.String()
+	})
+	defer c.client.SetWrappingLookupFunc(nil)
+
+	secret, err := c.client.Logical().WriteWithContext(ctx, "sys/wrapping/wrap", data)
+	if err != nil {
+		return "", errors.Wrap(err, "vault wrap")
+	}
+	if secret == nil || secret.WrapInfo == nil || secret.WrapInfo.Token == "" {
+		return "", errors.New("vault wrap returned no token")
+	}
+	return secret.WrapInfo.Token, nil
+}
+
+// UnwrapValues consumes the given wrap token and returns the previously
+// wrapped payload. Calling unwrap twice with the same token always fails:
+// Vault destroys the wrapping token on first use.
+func (c *Connector) UnwrapValues(ctx context.Context, token string) (map[string]string, error) {
+	secret, err := c.client.Logical().UnwrapWithContext(ctx, token)
+	if err != nil {
+		return nil, errors.Wrap(err, "vault unwrap")
+	}
+	if secret == nil || secret.Data == nil {
+		return nil, errors.New("vault unwrap returned no data")
+	}
+	out := make(map[string]string, len(secret.Data))
+	for k, v := range secret.Data {
+		s, ok := v.(string)
+		if !ok {
+			return nil, errors.Newf("vault unwrap returned non-string for %q", k)
+		}
+		out[k] = s
+	}
+	return out, nil
+}
