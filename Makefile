@@ -52,14 +52,11 @@ bpf-headers:
 	sudo bpftool btf dump file /sys/kernel/btf/vmlinux format c > pkg/bpf/c/headers/vmlinux.h
 
 .PHONY: build-bpf
-## build-bpf: Compile BPF program for amd64 (arm64 cross-compile is handled by docker buildx in CI)
+## build-bpf: Compile BPF program for amd64; arm64 is built by docker buildx in CI
 build-bpf:
-	clang -O2 -g -target bpf -D__TARGET_ARCH_x86 \
-		-I pkg/bpf/c/headers \
-		-I $(BPF_LIBBPF_INCLUDE) \
-		-c pkg/bpf/c/substitute.bpf.c \
-		-o pkg/bpf/substitute.amd64.bpf.o
-	# arm64 build requires arm64 BTF and is performed by docker buildx in CI.
+	clang -O2 -g -target bpf -D__TARGET_ARCH_x86 -I pkg/bpf/c/headers \
+		-c pkg/bpf/c/substitute.bpf.c -o pkg/bpf/substitute.amd64.bpf.o
+	@echo "arm64 BPF object built by docker buildx CI; skipping locally"
 
 .PHONY: integration-test-bpf
 ## integration-test-bpf: Run BPF integration tests (requires CAP_BPF + LSM enabled kernel)

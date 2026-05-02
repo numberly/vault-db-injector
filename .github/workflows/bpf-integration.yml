@@ -1,0 +1,46 @@
+name: bpf-integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show kernel
+        run: uname -a && cat /sys/kernel/security/lsm || true
+
+      - name: Probe BPF LSM availability
+        id: probe
+        run: |
+          if grep -q bpf /sys/kernel/security/lsm 2>/dev/null; then
+            echo "have_lsm=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_lsm=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::BPF LSM not enabled on this runner; integration tests skipped. Run on a self-hosted runner or local cluster (see CONTRIBUTING.md)."
+          fi
+
+      - name: Set up Go
+        if: steps.probe.outputs.have_lsm == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install clang and bpftool
+        if: steps.probe.outputs.have_lsm == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm libbpf-dev linux-libc-dev linux-headers-generic linux-tools-generic
+
+      - name: Build BPF
+        if: steps.probe.outputs.have_lsm == 'true'
+        run: make build-bpf
+
+      - name: Run integration tests
+        if: steps.probe.outputs.have_lsm == 'true'
+        run: sudo -E make integration-test-bpf
