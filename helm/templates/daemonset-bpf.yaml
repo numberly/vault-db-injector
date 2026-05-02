@@ -104,9 +104,16 @@ spec:
           defaultMode: 420
           name: {{ include "vault-db-injector.fullname" . }}-bpf
         name: config-bpf
+      # tmpfs persistence: hostPath at /run/vault-db-injector/bpf.
+      # /run is tmpfs on every modern Linux distribution (mounted by
+      # systemd-tmpfiles), so files survive a DaemonSet pod restart but
+      # disappear on node reboot — exactly the credential lifecycle we
+      # want. emptyDir{medium: Memory} is per-POD and would be wiped on
+      # every DS restart, breaking restoreBPFMaps for already-running pods.
       - name: tmpfs
-        emptyDir:
-          medium: Memory
+        hostPath:
+          path: /run/vault-db-injector/bpf
+          type: DirectoryOrCreate
       - name: cgroup
         hostPath:
           path: /sys/fs/cgroup
