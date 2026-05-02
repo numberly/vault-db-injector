@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"context"
 	"testing"
 
+	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/sentry"
@@ -52,6 +54,22 @@ func TestNewController_Fields(t *testing.T) {
 	assert.NotNil(t, c.log)
 }
 
+
+func TestRunBPF_ReturnsOnContextCancel(t *testing.T) {
+	cfg := &config.Config{Mode: config.ModeBPF}
+	c := NewController(cfg, fakeClientset(), &fakeSentryService{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// With BPF disabled (default), RunBPF is a no-op that blocks until the
+	// context is cancelled, then returns nil. Matches the shape of the
+	// other Run* methods.
+	err := c.RunBPF(ctx)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected nil or context.Canceled, got %v", err)
+	}
+}
 
 func TestController_BuildLock_MissingEnv(t *testing.T) {
 	// buildLock → config.GetHAEnvs() requires env vars; without them it returns an error.

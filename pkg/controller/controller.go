@@ -149,6 +149,24 @@ func (c *Controller) RunRevoker(ctx context.Context) error {
 	return g.Wait()
 }
 
+// RunBPF runs the binary as a node-local DaemonSet that loads the BPF
+// substitution program and watches local pods to populate the BPF maps.
+//
+// The kernel-coupled body lives in pkg/bpf and is delegated to via
+// runBPFAgent (build-tagged: linux vs other). This entry point performs
+// the no-op idle path when BPF is disabled by config, so the binary still
+// runs in mode=bpf without crashing — useful for cluster operators
+// staging the rollout.
+func (c *Controller) RunBPF(ctx context.Context) error {
+	c.log.Info("Starting server in mode bpf")
+	if !c.Cfg.BPF.Enabled {
+		c.log.Warn("RunBPF called but cfg.BPF.Enabled is false; idle until shutdown")
+		<-ctx.Done()
+		return nil
+	}
+	return runBPFAgent(ctx, c.Cfg, c.Clientset, c.log)
+}
+
 // buildLock resolves HA environment variables and constructs the leader-election lock.
 func (c *Controller) buildLock(lockName string) (string, *resourcelock.LeaseLock, error) {
 	podName, podNamespace, err := config.GetHAEnvs()
