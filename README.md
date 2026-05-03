@@ -32,6 +32,32 @@ The demo environment is based on:
 🧪 **Demo code used during the talk:**
 https://github.com/SoulKyu/vault-db-injector-cnd
 
+## 3.5. <a name='SecurityNRI'></a>Security: NRI mode hardening
+
+NRI mode requires the plugin DaemonSet to mount `/var/run/nri/nri.sock` —
+the same socket containerd uses for plugin registration. Any pod that
+mounts this hostPath can register as an NRI plugin and mutate every
+container created on the node (env, mounts, capabilities, args).
+
+This is **inherent to NRI**, not specific to this project. The cluster
+admin must restrict who can mount these paths.
+
+**Required mitigations** (in order of strength):
+
+1. **PodSecurityAdmission `restricted` or `baseline`** on user namespaces:
+   both forbid hostPath volumes. The plugin DS must run in a namespace
+   labeled `pod-security.kubernetes.io/enforce=privileged`.
+2. **Kyverno ClusterPolicy** that blocks `/var/run/nri` and `/opt/nri`
+   hostPath mounts outside the trusted namespace. A reference policy is
+   provided at [helm/policies/kyverno-restrict-nri-socket.yaml](helm/policies/kyverno-restrict-nri-socket.yaml).
+3. **SELinux/AppArmor**: on RHEL/CoreOS, leave SELinux enforcing;
+   do not run the plugin pod with `seLinuxOptions.type: spc_t`. The
+   default `container_runtime_t` socket label prevents user pods from
+   connecting even if they bypass the hostPath check.
+
+See [docs/how-it-works/nri-mode.md](docs/how-it-works/nri-mode.md) for
+the complete threat model.
+
 ##  4. <a name='Contribution'></a>Contribution
 
 Contributions to the vault-db-injector are welcome. Please submit your pull requests or issues to the project's GitLab repository.

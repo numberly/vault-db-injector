@@ -1,0 +1,71 @@
+# Kyverno ClusterPolicy: block hostPath mounts of NRI socket dirs in user pods.
+#
+# An NRI plugin can intercept and mutate every container creation event on
+# the node where it runs (env, mounts, capabilities, args). Mounting
+# /var/run/nri/nri.sock or /opt/nri/plugins from a user pod gives the pod
+# arbitrary in-process control over container creation — equivalent to root
+# on the kubelet device-plugin socket.
+#
+# This policy blocks those hostPaths everywhere except the namespaces
+# where legitimate NRI plugins run. Adjust the `excludedNamespaces` list to
+# match your deployment.
+#
+# Apply with:
+#   kubectl apply -f kyverno-restrict-nri-socket.yaml
+#
+# Or via helm install when Kyverno is present.
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-nri-socket-mount
+  annotations:
+    policies.kyverno.io/title: Restrict NRI socket mount
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >-
+      Forbid hostPath mounts of /var/run/nri and /opt/nri outside trusted
+      namespaces. A pod with these mounts can register as an NRI plugin and
+      mutate every container created on the node.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: deny-nri-runtime-hostpath
+    match:
+      any:
+      - resources:
+          kinds: ["Pod"]
+    exclude:
+      any:
+      # Adjust this list for your deployment. By default we trust the
+      # namespace the chart installs into; change it if your NRI plugins
+      # run elsewhere.
+      - resources:
+          namespaces:
+          - vault-db-injector
+          - kube-system
+    validate:
+      message: >-
+        hostPath mounts of /var/run/nri or /opt/nri are reserved for NRI
+        plugin DaemonSets running in trusted namespaces. Mounting these
+        paths in a user pod allows arbitrary container mutation on the node.
+      foreach:
+      - list: request.object.spec.volumes[]
+        deny:
+          conditions:
+            any:
+            - key: "{{ element.hostPath.path || '' }}"
+              operator: AnyIn
+              value:
+              - /var/run/nri
+              - /var/run/nri/
+              - /var/run/nri/nri.sock
+              - /opt/nri
+              - /opt/nri/plugins
+            - key: "{{ regex_match('^/var/run/nri/', element.hostPath.path || '') }}"
+              operator: Equals
+              value: true
+            - key: "{{ regex_match('^/opt/nri/', element.hostPath.path || '') }}"
+              operator: Equals
+              value: true
