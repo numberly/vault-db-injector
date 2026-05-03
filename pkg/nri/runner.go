@@ -5,7 +5,9 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
+	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 // Run registers the NRI plugin with containerd and blocks until ctx is
@@ -26,13 +28,33 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 		log.Infof("loaded %d pod entries from cache at %s", len(cached), cfg.NRI.CachePath)
 	}
 
+	// Periodic cache sweep: list pods on this node via k8s API and evict
+	// cache entries for pods that no longer exist. Required because NRI's
+	// RemovePodSandbox event is not delivered for force-deleted pods.
+	g, gctx := errgroup.WithContext(ctx)
+	if c := k8s.NewClient(); c != nil {
+		if clientset, kerr := c.GetKubernetesClient(); kerr == nil {
+			if name := nodeNameFromEnv(); name != "" {
+				sw := newSweeper(clientset, p, name, log)
+				g.Go(func() error { return sw.Run(gctx) })
+			} else {
+				log.Warn("NODE_NAME env unset; cache sweeper disabled")
+			}
+		} else {
+			log.Warnf("kubernetes client init failed: %v (cache sweeper disabled)", kerr)
+		}
+	}
+
 	s, err := stubFor(p)
 	if err != nil {
 		return err
 	}
 	log.Infof("NRI plugin connecting on %s", cfg.NRI.SocketPath)
-	if err := s.Run(ctx); err != nil {
-		return errors.Wrap(err, "NRI plugin run loop")
+	runErr := s.Run(ctx)
+	_ = g.Wait()
+
+	if runErr != nil {
+		return errors.Wrap(runErr, "NRI plugin run loop")
 	}
 	return nil
 }
