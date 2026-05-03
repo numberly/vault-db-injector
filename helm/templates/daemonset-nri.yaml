@@ -54,6 +54,8 @@ spec:
           mountPath: /nri
         - name: nri-socket
           mountPath: /var/run/nri
+        - name: cache
+          mountPath: /run/vault-db-injector/nri
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -85,6 +87,16 @@ spec:
         hostPath:
           path: /var/run/nri
           type: Directory
+      # Cache persistence: hostPath at /run/vault-db-injector/nri.
+      # /run is tmpfs on every modern Linux distribution (mounted by
+      # systemd-tmpfiles), so files survive a DaemonSet pod restart but
+      # disappear on node reboot — exactly the credential lifecycle we
+      # want. Without this, a plugin restart between a container crash and
+      # its retry leaks the placeholder string into the running app.
+      - name: cache
+        hostPath:
+          path: /run/vault-db-injector/nri
+          type: DirectoryOrCreate
       {{- if .Values.nri.tolerations }}
       tolerations:
         {{- toYaml .Values.nri.tolerations | nindent 8 }}

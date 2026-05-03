@@ -71,4 +71,5 @@ data:
       enabled: true
       wrapTokenTTL: {{ .Values.nri.wrapTokenTTL }}
       socketPath: /var/run/nri/nri.sock
+      cachePath: /run/vault-db-injector/nri/cache.json
 {{- end }}

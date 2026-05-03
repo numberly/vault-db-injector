@@ -33,8 +33,31 @@ func newPlugin(cfg *config.Config, log logger.Logger) *plugin {
 // Synchronize is called when the plugin connects/reconnects to containerd.
 // Already-running containers cannot be mutated (envp is fixed post-execve);
 // we only need to be ready for future CreateContainer events.
-func (p *plugin) Synchronize(_ context.Context, _ []*nriapi.PodSandbox, _ []*nriapi.Container) ([]*nriapi.ContainerUpdate, error) {
-	p.log.Info("NRI plugin synchronized with containerd")
+//
+// We use this opportunity to evict cache entries for pods that no longer
+// exist on this node — covers the case where pods were deleted while the
+// plugin DS was down (RemovePodSandbox missed).
+func (p *plugin) Synchronize(_ context.Context, pods []*nriapi.PodSandbox, _ []*nriapi.Container) ([]*nriapi.ContainerUpdate, error) {
+	live := make(map[string]struct{}, len(pods))
+	for _, pod := range pods {
+		live[pod.GetUid()] = struct{}{}
+	}
+	p.mu.Lock()
+	evicted := 0
+	for uid := range p.cache {
+		if _, alive := live[uid]; !alive {
+			delete(p.cache, uid)
+			evicted++
+		}
+	}
+	cacheSize := len(p.cache)
+	p.mu.Unlock()
+	if evicted > 0 {
+		if err := saveCache(p.cfg.NRI.CachePath, p.snapshot()); err != nil {
+			p.log.Warnf("save cache after Synchronize evict: %v", err)
+		}
+	}
+	p.log.Infof("NRI plugin synchronized with containerd: %d cached pods, %d stale evicted", cacheSize, evicted)
 	return nil, nil
 }
 
@@ -85,17 +108,24 @@ func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, co
 	return adj, nil, nil
 }
 
-// RemovePodSandbox evicts the per-pod unwrap cache entry.
+// RemovePodSandbox evicts the per-pod unwrap cache entry and persists.
 func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) error {
 	p.mu.Lock()
+	_, existed := p.cache[pod.GetUid()]
 	delete(p.cache, pod.GetUid())
 	p.mu.Unlock()
+	if existed {
+		if err := saveCache(p.cfg.NRI.CachePath, p.snapshot()); err != nil {
+			p.log.Warnf("save cache after RemovePodSandbox %s: %v", pod.GetUid(), err)
+		}
+	}
 	return nil
 }
 
 // resolveMapping returns the placeholder→value map for a pod, using a
 // per-pod cache so multiple containers in the same pod share one unwrap
-// (the wrap-token is single-use).
+// (the wrap-token is single-use). Cache is write-through to disk so the
+// mapping survives plugin restart within the pod's lifetime.
 func (p *plugin) resolveMapping(ctx context.Context, podUID string, m k8s.NRIMapping) (map[string]string, error) {
 	p.mu.Lock()
 	cached, ok := p.cache[podUID]
@@ -110,7 +140,29 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID string, m k8s.NRIMap
 	p.mu.Lock()
 	p.cache[podUID] = mapping
 	p.mu.Unlock()
+	if err := saveCache(p.cfg.NRI.CachePath, p.snapshot()); err != nil {
+		// Cache write failure is non-fatal: the in-memory cache still works
+		// for this plugin instance. We just lose persistence — the pod will
+		// hit the bug if both this plugin restarts AND the container retries.
+		p.log.Warnf("save cache after unwrap for pod %s: %v", podUID, err)
+	}
 	return mapping, nil
+}
+
+// snapshot returns a deep copy of the cache for atomic write to disk.
+// Caller must NOT hold p.mu.
+func (p *plugin) snapshot() map[string]map[string]string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := make(map[string]map[string]string, len(p.cache))
+	for uid, m := range p.cache {
+		dup := make(map[string]string, len(m))
+		for k, v := range m {
+			dup[k] = v
+		}
+		out[uid] = dup
+	}
+	return out
 }
 
 // splitKV splits "KEY=value" on the first '='. If no '=' is present,
