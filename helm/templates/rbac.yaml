@@ -8,13 +8,6 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch"]
-# NRI plugin labels its node when ready so the webhook nodeAffinity gates
-# pod scheduling on plugin readiness. Patch on nodes is cluster-wide
-# because we cannot pin to "self" via RBAC; the plugin restricts its
-# writes to os.Getenv("NODE_NAME").
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
