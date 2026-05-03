@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
@@ -79,12 +78,15 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 	})
 }
 
-// acquireDbCredentials authenticates to Vault, verifies RBAC, and retrieves database credentials.
+// authorizeDbAccess authenticates to Vault and verifies the pod's SA can use the role.
+// In NRI mode this is the only Vault interaction at admission time — the actual
+// credential is fetched by the plugin at CreateContainer.
+//
 // The caller is responsible for revoking vaultConn.K8sSaVaultToken on error or after use.
-func acquireDbCredentials(ctx context.Context, contextID string, cfg *config.Config, dbConf k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*vault.DbCreds, *vault.Connector, string, error) {
+func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config, dbConf k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*vault.Connector, string, error) {
 	vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, vaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
 	if err := vaultConn.Login(ctx); err != nil {
-		return nil, nil, dbConf.Role, errors.Newf("cannot authenticate vault role: %s", err.Error())
+		return nil, dbConf.Role, errors.Newf("cannot authenticate vault role: %s", err.Error())
 	}
 	vaultConn.K8sSaVaultToken = vaultConn.GetToken()
 	logger.WithValues(log.Kv{"contextID": contextID}).Debugf("authenticated to vault using role %s/%s", cfg.VaultAuthPath, dbConf.Role)
@@ -92,9 +94,15 @@ func acquireDbCredentials(ctx context.Context, contextID string, cfg *config.Con
 	serviceAccountName := pod.Spec.ServiceAccountName
 	ok, err := vaultConn.CanIGetRoles(ctx, contextID, serviceAccountName, pod.Namespace, cfg.VaultAuthPath, dbConf.Role)
 	if !ok || err != nil {
-		return nil, vaultConn, dbConf.Role, err
+		return vaultConn, dbConf.Role, err
 	}
+	return vaultConn, dbConf.Role, nil
+}
 
+// fetchDbCredentials creates a dynamic database credential via Vault (legacy
+// non-NRI path). Returns the credentials with a generated podUUID stamped
+// into the lease metadata so the renewer/revoker can track the lease.
+func fetchDbCredentials(ctx context.Context, contextID string, cfg *config.Config, dbConf k8s.DbConfiguration, logger log.Logger, vaultConn *vault.Connector, pod *corev1.Pod) (*vault.DbCreds, error) {
 	podUuid := generateUUID(logger)
 	creds, err := vaultConn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
 		ContextID:      contextID,
@@ -106,49 +114,50 @@ func acquireDbCredentials(ctx context.Context, contextID string, cfg *config.Con
 		ServiceAccount: pod.Spec.ServiceAccountName,
 	})
 	if err != nil {
-		return nil, vaultConn, dbConf.Role, errors.Newf("cannot get database credentials from role %s: %s", dbConf.Role, err.Error())
+		return nil, errors.Newf("cannot get database credentials from role %s: %s", dbConf.Role, err.Error())
 	}
 	logger.WithValues(log.Kv{"contextID": contextID}).Debugf("got DB credentials using role %s", dbConf.Role)
 	creds.PodUUID = podUuid
-	return creds, vaultConn, dbConf.Role, nil
-}
-
-// vaultWrapper is the subset of *vault.Connector needed by the NRI wrap path.
-// Lets tests inject a stub wrapper without a real Vault.
-type vaultWrapper interface {
-	WrapValues(ctx context.Context, payload map[string]string, ttl time.Duration) (string, error)
+	return creds, nil
 }
 
 // applyEnvToContainers is the entry point used by injectCredentialsIntoPod.
-// When cfg.NRI.Enabled is false, behavior is byte-identical to the previous implementation.
-func applyEnvToContainers(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vc *vault.Connector, cfg *config.Config) error {
-	return applyEnvToContainersWithNRI(ctx, pod, dbConf, creds, vc, cfg.NRI.Enabled, cfg.NRI.WrapTokenTTL)
+//
+// In legacy mode (cfg.NRI.Enabled=false) creds are pre-fetched by the
+// caller and we put them directly in the env (cleartext in PodSpec).
+//
+// In NRI mode (pull-not-push) creds is nil — the webhook does not fetch
+// credentials. We generate placeholders, stamp them and the request
+// metadata into the nri-mapping annotation, and put placeholders in env.
+// The plugin fetches the actual credential at CreateContainer time.
+func applyEnvToContainers(_ context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vaultDbPath string, cfg *config.Config) error {
+	return applyEnvToContainersWithNRI(pod, dbConf, creds, vaultDbPath, cfg.NRI.Enabled)
 }
 
-// applyEnvToContainersWithNRI is the testable variant: takes the gate, wrapper interface, and wrap TTL explicitly.
-func applyEnvToContainersWithNRI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, nriEnabled bool, wrapTTL time.Duration) error {
+func applyEnvToContainersWithNRI(pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vaultDbPath string, nriEnabled bool) error {
 	mode := strings.ToLower(dbConf.Mode)
 	switch mode {
 	case "", k8s.DbModeClassic:
-		return applyClassic(ctx, pod, dbConf, creds, vw, nriEnabled, wrapTTL)
+		return applyClassic(pod, dbConf, creds, vaultDbPath, nriEnabled)
 	case k8s.DbModeURI:
-		return applyURI(ctx, pod, dbConf, creds, vw, nriEnabled, wrapTTL)
+		return applyURI(pod, dbConf, creds, vaultDbPath, nriEnabled)
 	default:
 		return errors.Newf("mode not supported : %s", dbConf.Mode)
 	}
 }
 
-func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, nriEnabled bool, wrapTTL time.Duration) error {
-	userVal := creds.Username
-	passVal := creds.Password
-
+func applyClassic(pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vaultDbPath string, nriEnabled bool) error {
+	var userVal, passVal string
 	if nriEnabled {
-		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, wrapTTL, "vault wrap classic creds")
+		userPH, passPH, err := generatePlaceholdersAndAnnotate(pod, vaultDbPath, dbConf.Role)
 		if err != nil {
 			return err
 		}
 		userVal = userPH
 		passVal = passPH
+	} else {
+		userVal = creds.Username
+		passVal = creds.Password
 	}
 
 	dbUserKeys := strings.Split(dbConf.DbUserEnvKey, ",")
@@ -172,22 +181,23 @@ func applyClassic(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfigurati
 	return nil
 }
 
-func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vw vaultWrapper, nriEnabled bool, wrapTTL time.Duration) error {
+func applyURI(pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vaultDbPath string, nriEnabled bool) error {
 	dsnURL, err := url.Parse(dbConf.Template)
 	if err != nil {
 		return errors.Wrap(err, "error parsing DSN template")
 	}
 
-	user := creds.Username
-	pass := creds.Password
-
+	var user, pass string
 	if nriEnabled {
-		userPH, passPH, err := wrapAndAnnotate(ctx, pod, creds, vw, wrapTTL, "vault wrap uri creds")
+		userPH, passPH, err := generatePlaceholdersAndAnnotate(pod, vaultDbPath, dbConf.Role)
 		if err != nil {
 			return err
 		}
 		user = userPH
 		pass = passPH
+	} else {
+		user = creds.Username
+		pass = creds.Password
 	}
 
 	dsnURL.User = url.UserPassword(user, pass)
@@ -206,18 +216,28 @@ func applyURI(ctx context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, 
 	return nil
 }
 
-// annotateNRIMapping writes the (wrap_token, placeholders) map to the pod's
-// nri-mapping annotation. Multi-DbConfiguration under NRI is not yet supported:
-// if the annotation already exists, returns an error so the admission is refused
-// cleanly rather than silently dropping data.
-func annotateNRIMapping(pod *corev1.Pod, wrapToken string, placeholders map[string]string) error {
+// annotateNRIMapping writes the credential request metadata to the pod's
+// nri-mapping annotation. Multi-DbConfiguration under NRI is not yet supported.
+//
+// New schema (#H5 fix): no Vault token in the pod spec. Just enough metadata
+// for the plugin to fetch the credential at CreateContainer time and verify
+// pod identity (defense against annotation forgery via pods.update).
+func annotateNRIMapping(pod *corev1.Pod, dbPath, dbRole string, placeholders map[string]string) error {
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
 	if _, exists := pod.Annotations[k8s.ANNOTATION_NRI_MAPPING]; exists {
 		return errors.New("NRI mode currently supports a single DbConfiguration per pod")
 	}
-	m := k8s.NRIMapping{WrapToken: wrapToken, Placeholders: placeholders}
+	m := k8s.NRIMapping{
+		SchemaVersion:     2,
+		DbPath:            dbPath,
+		DbRole:            dbRole,
+		Placeholders:      placeholders,
+		RequestID:         uuid.NewString(),
+		PodNamespace:      pod.Namespace,
+		PodServiceAccount: pod.Spec.ServiceAccountName,
+	}
 	b, err := json.Marshal(m)
 	if err != nil {
 		return errors.Wrap(err, "marshal nri-mapping")
@@ -226,29 +246,16 @@ func annotateNRIMapping(pod *corev1.Pod, wrapToken string, placeholders map[stri
 	return nil
 }
 
-// wrapAndAnnotate wraps the credentials via Vault response-wrapping, generates
-// a placeholder for username and password, and attaches the
-// resulting (wrap_token, placeholders) map as the nri-mapping annotation.
-// Returns the two placeholders so the caller can substitute them into the
-// per-shape env vars.
-func wrapAndAnnotate(ctx context.Context, pod *corev1.Pod, creds *vault.DbCreds, vw vaultWrapper, wrapTTL time.Duration, errContext string) (userPH, passPH string, err error) {
-	// Short-circuit before burning a Vault wrap token: if the annotation is
-	// already present, a second DbConfiguration is attempting to use NRI mode
-	// on the same pod, which is not supported. Return the error immediately.
+// generatePlaceholdersAndAnnotate generates a placeholder for username and
+// password and stamps the nri-mapping annotation. No Vault interaction here
+// — the plugin handles credential retrieval at CreateContainer.
+func generatePlaceholdersAndAnnotate(pod *corev1.Pod, dbPath, dbRole string) (userPH, passPH string, err error) {
 	if _, exists := pod.Annotations[k8s.ANNOTATION_NRI_MAPPING]; exists {
 		return "", "", errors.New("NRI mode currently supports a single DbConfiguration per pod")
 	}
-
 	userPH = placeholder.Generate()
 	passPH = placeholder.Generate()
-	token, err := vw.WrapValues(ctx, map[string]string{
-		"username": creds.Username,
-		"password": creds.Password,
-	}, wrapTTL)
-	if err != nil {
-		return "", "", errors.Wrap(err, errContext)
-	}
-	if err := annotateNRIMapping(pod, token, map[string]string{
+	if err := annotateNRIMapping(pod, dbPath, dbRole, map[string]string{
 		userPH: "username",
 		passPH: "password",
 	}); err != nil {
@@ -269,7 +276,10 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 			return nil, "db-role not found", nil, err
 		}
 
-		creds, vaultConn, role, err := acquireDbCredentials(ctx, contextID, cfg, dbConf, logger, vaultDbPath, tok, pod)
+		// Authorize the pod's SA against the requested Vault role. Always
+		// runs — gives admission-time RBAC feedback in both legacy and NRI
+		// modes.
+		vaultConn, role, err := authorizeDbAccess(ctx, contextID, cfg, dbConf, logger, vaultDbPath, tok, pod)
 		if err != nil {
 			if vaultConn != nil {
 				if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
@@ -281,14 +291,40 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 
 		logger.WithValues(log.Kv{"contextID": contextID}).Infof("DbConfMode is equal to : %s", dbConf.Mode)
 
-		if err := applyEnvToContainers(ctx, pod, dbConf, creds, vaultConn, cfg); err != nil {
+		// In NRI mode, do NOT fetch credentials at admission — the plugin
+		// fetches them at CreateContainer time using its own SA. This
+		// eliminates the wrap-token-bearer-credential vulnerability where
+		// any pods.get RBAC + vault network access could exfiltrate creds
+		// from the pod annotation.
+		var creds *vault.DbCreds
+		if !cfg.NRI.Enabled {
+			creds, err = fetchDbCredentials(ctx, contextID, cfg, dbConf, logger, vaultConn, pod)
+			if err != nil {
+				if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
+					logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
+				}
+				return nil, role, nil, err
+			}
+		}
+
+		if err := applyEnvToContainers(ctx, pod, dbConf, creds, vaultDbPath, cfg); err != nil {
 			if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
 				logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
 			}
 			return nil, role, nil, err
 		}
 
-		podUuids = append(podUuids, creds.PodUUID)
+		// Best-effort: revoke webhook's own vault SA token. Plugin will
+		// authenticate independently when it fetches creds.
+		if cfg.NRI.Enabled {
+			if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
+				logger.WithValues(log.Kv{"contextID": contextID}).Infof("RevokeSelfToken (NRI mode webhook) warning: %v", revokeErr)
+			}
+		}
+
+		if creds != nil {
+			podUuids = append(podUuids, creds.PodUUID)
+		}
 	}
 	return pod, "", podUuids, nil
 }

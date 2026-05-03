@@ -123,9 +123,15 @@ func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) err
 }
 
 // resolveMapping returns the placeholder→value map for a pod, using a
-// per-pod cache so multiple containers in the same pod share one unwrap
-// (the wrap-token is single-use). Cache is write-through to disk so the
-// mapping survives plugin restart within the pod's lifetime.
+// per-pod cache so multiple containers in the same pod share one credential
+// fetch. Cache is write-through to disk so the mapping survives plugin
+// restart within the pod's lifetime.
+//
+// On cache miss the plugin authenticates to Vault as itself, re-runs
+// CanIGetRoles for the target pod identity (defense-in-depth against
+// annotation forgery), and creates dynamic database credentials. The lease
+// is tagged with the pod UID so the existing renewer/revoker pipeline
+// picks it up unchanged.
 func (p *plugin) resolveMapping(ctx context.Context, podUID string, m k8s.NRIMapping) (map[string]string, error) {
 	p.mu.Lock()
 	cached, ok := p.cache[podUID]
@@ -133,7 +139,7 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID string, m k8s.NRIMap
 	if ok {
 		return cached, nil
 	}
-	mapping, err := unwrapAndBuildMapping(ctx, p.cfg, m)
+	mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, m, podUID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +150,7 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID string, m k8s.NRIMap
 		// Cache write failure is non-fatal: the in-memory cache still works
 		// for this plugin instance. We just lose persistence — the pod will
 		// hit the bug if both this plugin restarts AND the container retries.
-		p.log.Warnf("save cache after unwrap for pod %s: %v", podUID, err)
+		p.log.Warnf("save cache after fetch for pod %s: %v", podUID, err)
 	}
 	return mapping, nil
 }

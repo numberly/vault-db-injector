@@ -79,7 +79,7 @@ func TestApplyEnvToContainers_ClassicMode(t *testing.T) {
 			}
 			creds := fakeCreds("alice", "s3cr3t")
 
-			err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
+			err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", false)
 			require.NoError(t, err)
 
 			for i := range pod.Spec.Containers {
@@ -103,7 +103,7 @@ func TestApplyEnvToContainers_ClassicMode_MultipleKeys(t *testing.T) {
 	}
 	creds := fakeCreds("bob", "p@ss")
 
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", false)
 	require.NoError(t, err)
 
 	env := pod.Spec.Containers[0].Env
@@ -150,7 +150,7 @@ func TestApplyEnvToContainers_URIMode(t *testing.T) {
 			}
 			creds := fakeCreds(tt.user, tt.pass)
 
-			err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
+			err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", false)
 			require.NoError(t, err)
 
 			// The env var must exist in both containers and init-containers
@@ -178,7 +178,7 @@ func TestApplyEnvToContainers_URIMode_MultipleKeys(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", false)
 	require.NoError(t, err)
 
 	env := pod.Spec.Containers[0].Env
@@ -199,7 +199,7 @@ func TestApplyEnvToContainers_URIMode_InvalidTemplate(t *testing.T) {
 		DbURIEnvKey: "DB_URI",
 	}
 	creds := fakeCreds("u", "p")
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", false)
 	// Empty template is parsed as an empty URL — no error expected
 	assert.NoError(t, err)
 }
@@ -211,7 +211,7 @@ func TestApplyEnvToContainers_UnknownMode(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mode not supported")
 }
@@ -226,7 +226,7 @@ func TestApplyEnvToContainers_NoPodContainers(t *testing.T) {
 	}
 	creds := fakeCreds("u", "p")
 
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", false)
 	assert.NoError(t, err)
 }
 
@@ -315,8 +315,7 @@ func TestApplyEnvToContainers_NRIEnabled_Classic(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: "alice", Password: "supersecret"}
 
-	stub := &stubWrapper{wrapToken: "hvs.test"}
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, stub, true, 5*time.Minute)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", true)
 	require.NoError(t, err)
 
 	envs := pod.Spec.Containers[0].Env
@@ -328,7 +327,12 @@ func TestApplyEnvToContainers_NRIEnabled_Classic(t *testing.T) {
 	}
 
 	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING], "missing nri-mapping annotation")
-	assert.Contains(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING], "hvs.test")
+	// Schema v2: annotation contains db_path/db_role, NOT a wrap_token.
+	annot := pod.Annotations[k8s.ANNOTATION_NRI_MAPPING]
+	assert.Contains(t, annot, `"db_path":"databases"`)
+	assert.Contains(t, annot, `"db_role":"myrole"`)
+	assert.NotContains(t, annot, "wrap_token")
+	assert.NotContains(t, annot, "hvs.")
 }
 
 func TestApplyEnvToContainers_NRIEnabled_URI(t *testing.T) {
@@ -346,8 +350,7 @@ func TestApplyEnvToContainers_NRIEnabled_URI(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: "alice", Password: "supersecret"}
 
-	stub := &stubWrapper{wrapToken: "hvs.test"}
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, stub, true, 5*time.Minute)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", true)
 	require.NoError(t, err)
 
 	envs := pod.Spec.Containers[0].Env
@@ -367,7 +370,7 @@ func TestApplyEnvToContainers_NRIDisabled_Classic_Unchanged(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: "alice", Password: "secret"}
 
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, nil, false, 0)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", false)
 	require.NoError(t, err)
 
 	got := map[string]string{}
@@ -397,7 +400,7 @@ func TestApplyEnvToContainers_NRIEnabled_RejectMultiDb(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: "u", Password: "p"}
 
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.x"}, true, 5*time.Minute)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", true)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "single DbConfiguration")
 }
@@ -414,6 +417,6 @@ func TestApplyEnvToContainers_NRIEnabled_AcceptsLongCredentials(t *testing.T) {
 	}
 	creds := &vault.DbCreds{Username: longVal, Password: longVal}
 
-	err := applyEnvToContainersWithNRI(context.Background(), pod, dbConf, creds, &stubWrapper{wrapToken: "hvs.test"}, true, 5*time.Minute)
+	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", true)
 	require.NoError(t, err)
 }

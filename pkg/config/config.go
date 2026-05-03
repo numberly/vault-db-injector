@@ -120,10 +120,12 @@ func (cfg *Config) Validate() error {
 		{cfg.VaultAddress == "", "no vaultAddress specified"},
 		{cfg.VaultAuthPath == "", "no vaultAuthPath specified"},
 		{cfg.KubeRole == "", "no kubeRole specified"},
-		// VaultSecretName and VaultSecretPrefix are only used by the KV read path
-		// (injector/renewer/revoker/all). NRI mode only unwraps tokens — never reads KV.
-		{cfg.Mode != ModeNRI && cfg.VaultSecretName == "", "no vaultSecretName specified"},
-		{cfg.Mode != ModeNRI && cfg.VaultSecretPrefix == "", "no vaultSecretPrefix specified"},
+		// VaultSecretName / VaultSecretPrefix are required everywhere now:
+		// the NRI plugin (pull-not-push design) creates dynamic credentials
+		// at CreateContainer time and stamps lease metadata into Vault KV
+		// for the renewer/revoker — same KV path the legacy webhook used.
+		{cfg.VaultSecretName == "", "no vaultSecretName specified"},
+		{cfg.VaultSecretPrefix == "", "no vaultSecretPrefix specified"},
 		{cfg.Sentry && cfg.SentryDsn == "", "no sentryDsn specified"},
 	}
 

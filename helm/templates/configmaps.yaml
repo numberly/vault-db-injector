@@ -64,6 +64,8 @@ data:
     logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
     kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
     tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
+    vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
+    vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}
     mode: nri
     sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
     sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}

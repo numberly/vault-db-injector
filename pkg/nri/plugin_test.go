@@ -67,14 +67,16 @@ func TestSplitKV(t *testing.T) {
 	}
 }
 
-// Ensures the NRIMapping JSON shape is what the webhook produces.
+// Ensures the NRIMapping JSON shape (schema v2) round-trips cleanly.
 func TestNRIMappingMarshal(t *testing.T) {
 	m := k8s.NRIMapping{
-		WrapToken: "hvs.xxxxx",
-		Placeholders: map[string]string{
-			"__VDBI_PH_aaa___": "username",
-			"__VDBI_PH_bbb___": "password",
-		},
+		SchemaVersion:     2,
+		DbPath:            "databases",
+		DbRole:            "postgres-readonly",
+		Placeholders:      map[string]string{"__VDBI_PH_aaa___": "username", "__VDBI_PH_bbb___": "password"},
+		RequestID:         "abc-123",
+		PodNamespace:      "default",
+		PodServiceAccount: "myapp",
 	}
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -84,8 +86,14 @@ func TestNRIMappingMarshal(t *testing.T) {
 	if err := json.Unmarshal(b, &back); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if back.WrapToken != m.WrapToken {
-		t.Fatalf("wrap token mismatch")
+	if back.DbPath != "databases" || back.DbRole != "postgres-readonly" {
+		t.Fatalf("db ref fields lost: %+v", back)
+	}
+	if back.SchemaVersion != 2 {
+		t.Fatalf("schema version not preserved: %d", back.SchemaVersion)
+	}
+	if back.PodNamespace != "default" || back.PodServiceAccount != "myapp" {
+		t.Fatalf("pod identity fields lost: %+v", back)
 	}
 	if len(back.Placeholders) != 2 {
 		t.Fatalf("placeholder count mismatch")
