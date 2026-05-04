@@ -168,18 +168,33 @@ type DbCredentialsRequest struct {
 	SecretName     string
 	Prefix         string
 	ServiceAccount string
+	// SkipOrphanCreation, when true, makes GetDbCredentials use the
+	// connector's current token (assumed to be a pod-token from a
+	// projected-SA Vault login) directly to issue database creds, with
+	// no auth/token/create-orphan step. The stored DbTokenID is then
+	// the pod-token itself, which the renewer/revoker treat identically
+	// to legacy orphan tokens.
+	SkipOrphanCreation bool
 }
 
 func (c *Connector) GetDbCredentials(ctx context.Context, req DbCredentialsRequest) (*DbCreds, error) {
-	policies := []string{c.dbRole}
-	orphanToken, err := c.CreateOrphanToken(ctx, req.TTL, policies)
-	if err != nil {
-		return nil, err
-	}
-	c.SetToken(orphanToken)
-
 	creds := &DbCreds{}
-	creds.DbTokenID = orphanToken
+
+	if req.SkipOrphanCreation {
+		// Projected-SA path: the connector's current token is the
+		// pod-token from auth/kubernetes/login. Use it directly; the
+		// stored DbTokenID is this pod-token.
+		creds.DbTokenID = c.vaultToken
+	} else {
+		policies := []string{c.dbRole}
+		orphanToken, err := c.CreateOrphanToken(ctx, req.TTL, policies)
+		if err != nil {
+			return nil, err
+		}
+		c.SetToken(orphanToken)
+		creds.DbTokenID = orphanToken
+	}
+
 	path := fmt.Sprintf("/%s/creds/%s", c.dbMountPath, c.dbRole)
 	c.Log.WithFields(logrus.Fields{"contextID": req.ContextID}).Infof("Get credentials from Vault database engine")
 	start := time.Now()
