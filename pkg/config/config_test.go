@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -344,6 +345,62 @@ func TestGetHAEnvs_BothMissing(t *testing.T) {
 
 	_, _, err := GetHAEnvs()
 	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// ProjectedSA + TokenRequest config
+// ---------------------------------------------------------------------------
+
+func TestConfig_ProjectedSADefaults(t *testing.T) {
+	t.Setenv("INJECTOR_VAULT_ADDRESS", "http://vault:8200")
+	t.Setenv("INJECTOR_VAULT_AUTH_PATH", "kubernetes")
+	t.Setenv("INJECTOR_KUBE_ROLE", "test")
+	t.Setenv("INJECTOR_VAULT_SECRET_NAME", "n")
+	t.Setenv("INJECTOR_VAULT_SECRET_PREFIX", "p")
+	t.Setenv("INJECTOR_CERT_FILE", "c")
+	t.Setenv("INJECTOR_KEY_FILE", "k")
+
+	cfg, err := NewConfig("")
+	if err != nil {
+		t.Fatalf("NewConfig: %v", err)
+	}
+	if cfg.UseProjectedSA {
+		t.Fatalf("UseProjectedSA default = true, want false")
+	}
+	if cfg.TokenRequestExpirationSeconds != 60 {
+		t.Fatalf("TokenRequestExpirationSeconds default = %d, want 60", cfg.TokenRequestExpirationSeconds)
+	}
+	if len(cfg.TokenRequestAudiences) != 0 {
+		t.Fatalf("TokenRequestAudiences default = %v, want empty", cfg.TokenRequestAudiences)
+	}
+}
+
+func TestConfig_ProjectedSAEnvOverrides(t *testing.T) {
+	t.Setenv("INJECTOR_VAULT_ADDRESS", "http://vault:8200")
+	t.Setenv("INJECTOR_VAULT_AUTH_PATH", "kubernetes")
+	t.Setenv("INJECTOR_KUBE_ROLE", "test")
+	t.Setenv("INJECTOR_VAULT_SECRET_NAME", "n")
+	t.Setenv("INJECTOR_VAULT_SECRET_PREFIX", "p")
+	t.Setenv("INJECTOR_CERT_FILE", "c")
+	t.Setenv("INJECTOR_KEY_FILE", "k")
+	t.Setenv("INJECTOR_USE_PROJECTED_SA", "true")
+	t.Setenv("INJECTOR_TOKEN_REQUEST_AUDIENCES", "vault,extra")
+	t.Setenv("INJECTOR_TOKEN_REQUEST_EXPIRATION_SECONDS", "120")
+
+	cfg, err := NewConfig("")
+	if err != nil {
+		t.Fatalf("NewConfig: %v", err)
+	}
+	if !cfg.UseProjectedSA {
+		t.Fatalf("UseProjectedSA = false, want true")
+	}
+	if cfg.TokenRequestExpirationSeconds != 120 {
+		t.Fatalf("TokenRequestExpirationSeconds = %d, want 120", cfg.TokenRequestExpirationSeconds)
+	}
+	want := []string{"vault", "extra"}
+	if !reflect.DeepEqual(cfg.TokenRequestAudiences, want) {
+		t.Fatalf("TokenRequestAudiences = %v, want %v", cfg.TokenRequestAudiences, want)
+	}
 }
 
 // ---------------------------------------------------------------------------

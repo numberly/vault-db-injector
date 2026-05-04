@@ -74,6 +74,25 @@ type Config struct {
 	DefaultEngine     string    `yaml:"defaultEngine" envconfig:"default_engine"`
 	VaultRateLimit    int       `yaml:"vaultRateLimit" envconfig:"vault_rate_limit"`
 	NRI               NRIConfig `yaml:"nri" envconfig:"nri"`
+
+	// UseProjectedSA, when true, switches the injector to per-pod
+	// authentication: a short-lived TokenRequest JWT for the pod's SA
+	// is used to log in to Vault, and credentials are issued under the
+	// pod-token directly (no injector-SA orphan step).
+	UseProjectedSA bool `yaml:"useProjectedSA" envconfig:"use_projected_sa"`
+
+	// TokenRequestAudiences is the list of audiences set on the
+	// TokenRequest. Empty = use cluster-default audience (compat with
+	// Vault roles configured without audience). Recommended for new
+	// setups: ["vault"], with the matching value on the Vault role.
+	TokenRequestAudiences []string `yaml:"tokenRequestAudiences" envconfig:"token_request_audiences"`
+
+	// TokenRequestExpirationSeconds is the requested lifetime of the
+	// JWT used to log in to Vault. The Kubernetes apiserver may clamp
+	// this up to its `--service-account-min-token-expiration` flag
+	// (default 600s). Default 60s — only needs to live for one Vault
+	// login round-trip.
+	TokenRequestExpirationSeconds int64 `yaml:"tokenRequestExpirationSeconds" envconfig:"token_request_expiration_seconds"`
 }
 
 func NewConfig(configFile string) (*Config, error) {
@@ -103,6 +122,9 @@ func NewConfig(configFile string) (*Config, error) {
 			PluginIndex: "10",
 			PodLabel:    "vault-db-injector",
 		},
+		UseProjectedSA:                false,
+		TokenRequestAudiences:         nil,
+		TokenRequestExpirationSeconds: 60,
 	}
 	if configFile != "" {
 		data, err := os.ReadFile(configFile)
