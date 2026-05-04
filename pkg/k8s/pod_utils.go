@@ -67,15 +67,21 @@ func (p *podServiceImpl) GetAllPodAndNamespace(ctx context.Context) ([]PodInfo, 
 	podInfos := make([]PodInfo, 0, estimatedSize)
 
 	for _, pod := range pods.Items {
-		if uuid, exists := pod.GetAnnotations()[ANNOTATION_VAULT_POD_UUID]; exists {
-			podInfos = append(podInfos, PodInfo{
-				PodNameUUIDs:       strings.Split(uuid, ","),
-				Namespace:          pod.Namespace,
-				PodName:            pod.Name,
-				NodeName:           pod.Spec.NodeName,
-				ServiceAccountName: pod.Spec.ServiceAccountName,
-			})
+		// Always include pod.UID — NRI transparent mode keys KV entries by it.
+		// Legacy webhook mode adds its generated UUID(s) via the uuid annotation;
+		// keep them too. Empty annotation value is ignored to avoid a "" key
+		// collapsing every NRI pod into the same map slot.
+		uuids := []string{string(pod.UID)}
+		if v, ok := pod.GetAnnotations()[ANNOTATION_VAULT_POD_UUID]; ok && v != "" {
+			uuids = append(uuids, strings.Split(v, ",")...)
 		}
+		podInfos = append(podInfos, PodInfo{
+			PodNameUUIDs:       uuids,
+			Namespace:          pod.Namespace,
+			PodName:            pod.Name,
+			NodeName:           pod.Spec.NodeName,
+			ServiceAccountName: pod.Spec.ServiceAccountName,
+		})
 	}
 
 	metrics.GetAllPodSuccessCount.WithLabelValues().Inc()

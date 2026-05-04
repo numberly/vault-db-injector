@@ -67,7 +67,14 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		if mutatedPod.Annotations == nil {
 			mutatedPod.Annotations = make(map[string]string)
 		}
-		mutatedPod.Annotations["db-creds-injector.numberly.io/uuid"] = strings.Join(podUuids, ",")
+		// In NRI transparent mode no creds are fetched at admission so podUuids
+		// is empty — writing "" would collide every NRI pod onto a single map
+		// key in the renewer's lookup. Skip the annotation entirely; the
+		// renewer falls back to pod.UID (which the NRI plugin uses as
+		// PodNameUID when storing the KV entry).
+		if len(podUuids) > 0 {
+			mutatedPod.Annotations["db-creds-injector.numberly.io/uuid"] = strings.Join(podUuids, ",")
+		}
 
 		logger.WithValues(log.Kv{"contextID": contextID}).Infof("returning injected pod %s", mutatedPod.Namespace)
 		metrics.MutatedPodWithSuccessCount.WithLabelValues().Inc()

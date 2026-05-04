@@ -366,6 +366,30 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 			} else {
 				leaseTooYoung, err := c.isLeaseTooYoung(ctx, ki.LeaseID)
 				if err != nil {
+					// "invalid lease" means Vault no longer knows this lease
+					// (already expired or revoked). The KV entry is otherwise
+					// unmanageable and would log-spam every cycle, so finish
+					// the cleanup: revoke the orphan token (no-ops if gone)
+					// and delete the KV entry.
+					if strings.Contains(err.Error(), "invalid lease") {
+						c.Log.Infof("Lease %s already gone for uuid %s, purging KV entry", ki.LeaseID, ki.PodNameUID)
+						if revErr := c.RevokeOrphanToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace); revErr != nil {
+							c.Log.Errorf("Can't revoke Token with UUID: %s: %v", ki.PodNameUID, revErr)
+							isOk.Store(false)
+							return
+						}
+						if delErr := c.DeleteData(ctx, secretName, ki.PodNameUID, ki.Namespace, prefix); delErr != nil {
+							c.Log.Errorf("Data for %s can't be deleted: %v", ki.PodNameUID, delErr)
+							isOk.Store(false)
+							return
+						}
+						metrics.LeaseExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.TokenExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.DataDeletedCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						return
+					}
 					c.Log.Warnf("Cannot determine lease age for %s, skipping cleanup: %v", ki.LeaseID, err)
 					return
 				}
