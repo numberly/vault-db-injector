@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -27,9 +26,8 @@ const (
 // behavior). When true, the webhook wraps every credential and the NRI
 // DaemonSet substitutes placeholders at CreateContainer time.
 type NRIConfig struct {
-	Enabled      bool          `yaml:"enabled" envconfig:"nri_enabled"`
-	WrapTokenTTL time.Duration `yaml:"wrapTokenTTL" envconfig:"nri_wrap_token_ttl"`
-	SocketPath   string        `yaml:"socketPath" envconfig:"nri_socket_path"`
+	Enabled    bool   `yaml:"enabled" envconfig:"nri_enabled"`
+	SocketPath string `yaml:"socketPath" envconfig:"nri_socket_path"`
 	// CachePath is the on-disk JSON cache that persists unwrapped credentials
 	// across plugin DS restarts (hostPath tmpfs). Survives DS pod restart;
 	// cleared on node reboot. Must be writable by the plugin user.
@@ -79,9 +77,8 @@ func NewConfig(configFile string) (*Config, error) {
 		DefaultEngine:     "databases",
 		VaultRateLimit:    30,
 		NRI: NRIConfig{
-			WrapTokenTTL: 5 * time.Minute,
-			SocketPath:   "/var/run/nri/nri.sock",
-			CachePath:    "/run/vault-db-injector/nri/cache.json",
+			SocketPath: "/var/run/nri/nri.sock",
+			CachePath:  "/run/vault-db-injector/nri/cache.json",
 		},
 	}
 	if configFile != "" {

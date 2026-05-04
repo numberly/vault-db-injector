@@ -83,7 +83,3 @@ nri:
       memory: 256Mi
   tolerations: []
   nodeSelector: {}
-  # Vault response-wrapping TTL for the wrap tokens that travel through
-  # the PodSpec. Must outlive the longest expected scheduling + image-pull
-  # delay on the cluster.
-  wrapTokenTTL: 5m

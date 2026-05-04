@@ -29,8 +29,6 @@ spec:
         env:
         - name: INJECTOR_NRI_ENABLED
           value: "true"
-        - name: INJECTOR_NRI_WRAP_TOKEN_TTL
-          value: {{ .Values.nri.wrapTokenTTL | quote }}
         {{- end }}
         ports:
         - containerPort: 8443

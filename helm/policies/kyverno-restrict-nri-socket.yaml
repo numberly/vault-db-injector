@@ -63,9 +63,14 @@ spec:
               - /var/run/nri/nri.sock
               - /opt/nri
               - /opt/nri/plugins
+              - /run/vault-db-injector
+              - /run/vault-db-injector/nri
             - key: "{{ regex_match('^/var/run/nri/', element.hostPath.path || '') }}"
               operator: Equals
               value: true
             - key: "{{ regex_match('^/opt/nri/', element.hostPath.path || '') }}"
+              operator: Equals
+              value: true
+            - key: "{{ regex_match('^/run/vault-db-injector/', element.hostPath.path || '') }}"
               operator: Equals
               value: true

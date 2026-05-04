@@ -44,6 +44,17 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, m k8s.NRIMapp
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "get pod %s/%s", podNamespace, podName)
 	}
+	// UID equality closes a name-reuse race: if the original pod was
+	// force-deleted between admission and CreateContainer, an attacker who
+	// can recreate a pod with the same name+namespace would otherwise
+	// hijack the credential fetch. NRI's contextID is the sandbox UID;
+	// kube-apiserver's pod.UID is the API-recorded UID. They must match.
+	if string(pod.UID) != contextID {
+		return nil, nil, errors.Newf(
+			"pod UID mismatch: NRI sandbox UID %s != API pod UID %s for %s/%s — refusing to fetch credentials",
+			contextID, string(pod.UID), podNamespace, podName,
+		)
+	}
 	actualSA := pod.Spec.ServiceAccountName
 	if actualSA == "" {
 		actualSA = "default"

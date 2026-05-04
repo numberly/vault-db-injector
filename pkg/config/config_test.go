@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -397,8 +396,8 @@ vaultSecretPrefix: prefix
 
 func TestNRIConfig_Defaults(t *testing.T) {
 	cfg := newConfigForNRITest(t)
-	assert.Equal(t, 5*time.Minute, cfg.NRI.WrapTokenTTL)
 	assert.Equal(t, "/var/run/nri/nri.sock", cfg.NRI.SocketPath)
+	assert.Equal(t, "/run/vault-db-injector/nri/cache.json", cfg.NRI.CachePath)
 }
 
 func TestNRIConfig_LoadsExplicitValues(t *testing.T) {
@@ -413,7 +412,6 @@ vaultSecretName: secret
 vaultSecretPrefix: prefix
 nri:
   enabled: true
-  wrapTokenTTL: 10m
   socketPath: /custom/nri.sock
 `
 	_, err = tmpfile.WriteString(y)
@@ -423,7 +421,7 @@ nri:
 	for _, k := range []string{
 		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
 		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
-		"INJECTOR_NRI_ENABLED", "INJECTOR_NRI_WRAP_TOKEN_TTL", "INJECTOR_NRI_SOCKET_PATH",
+		"INJECTOR_NRI_ENABLED", "INJECTOR_NRI_SOCKET_PATH",
 	} {
 		t.Setenv(k, "")
 		os.Unsetenv(k)
@@ -432,6 +430,5 @@ nri:
 	cfg, err := NewConfig(tmpfile.Name())
 	require.NoError(t, err)
 	assert.True(t, cfg.NRI.Enabled)
-	assert.Equal(t, 10*time.Minute, cfg.NRI.WrapTokenTTL)
 	assert.Equal(t, "/custom/nri.sock", cfg.NRI.SocketPath)
 }

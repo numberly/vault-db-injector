@@ -1,10 +1,8 @@
 package k8smutator
 
 import (
-	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/placeholder"
@@ -291,13 +289,6 @@ func findEnvVar(envs []corev1.EnvVar, key string) string {
 		}
 	}
 	return ""
-}
-
-// stubWrapper implements vaultWrapper for tests — no real Vault needed.
-type stubWrapper struct{ wrapToken string }
-
-func (s *stubWrapper) WrapValues(_ context.Context, _ map[string]string, _ time.Duration) (string, error) {
-	return s.wrapToken, nil
 }
 
 func TestApplyEnvToContainers_NRIEnabled_Classic(t *testing.T) {
