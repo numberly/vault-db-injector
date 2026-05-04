@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // makePod builds a minimal Pod with the given containers and init containers.
@@ -317,13 +316,11 @@ func TestApplyEnvToContainers_NRIEnabled_Classic(t *testing.T) {
 		assert.True(t, placeholder.IsPlaceholder(e.Value), "env %s value %q is not a placeholder", e.Name, e.Value)
 	}
 
-	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING], "missing nri-mapping annotation")
-	// Schema v2: annotation contains db_path/db_role, NOT a wrap_token.
-	annot := pod.Annotations[k8s.ANNOTATION_NRI_MAPPING]
-	assert.Contains(t, annot, `"db_path":"databases"`)
-	assert.Contains(t, annot, `"db_role":"myrole"`)
-	assert.NotContains(t, annot, "wrap_token")
-	assert.NotContains(t, annot, "hvs.")
+	// Transparent NRI: webhook does NOT add any annotation. The pod's
+	// existing annotations are unchanged.
+	for k := range pod.Annotations {
+		assert.NotContains(t, k, "nri-mapping", "no annotation key should reference nri-mapping")
+	}
 }
 
 func TestApplyEnvToContainers_NRIEnabled_URI(t *testing.T) {
@@ -350,7 +347,6 @@ func TestApplyEnvToContainers_NRIEnabled_URI(t *testing.T) {
 	assert.NotContains(t, envs[0].Value, "supersecret")
 	// The DSN must contain both placeholders embedded in the URL userinfo
 	assert.Contains(t, envs[0].Value, placeholder.Prefix)
-	require.NotEmpty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING])
 }
 
 func TestApplyEnvToContainers_NRIDisabled_Classic_Unchanged(t *testing.T) {
@@ -370,31 +366,12 @@ func TestApplyEnvToContainers_NRIDisabled_Classic_Unchanged(t *testing.T) {
 	}
 	assert.Equal(t, "alice", got["DB_USER"])
 	assert.Equal(t, "secret", got["DB_PASSWORD"])
-	assert.Empty(t, pod.Annotations[k8s.ANNOTATION_NRI_MAPPING])
 }
 
-func TestApplyEnvToContainers_NRIEnabled_RejectMultiDb(t *testing.T) {
-	// When NRI enabled and the pod already has a nri-mapping annotation
-	// (set by a previous DbConfiguration in the same call chain), reject
-	// with an explicit error.
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				k8s.ANNOTATION_NRI_MAPPING: `{"wrap_token":"existing","placeholders":{}}`,
-			},
-		},
-		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}},
-	}
-	dbConf := k8s.DbConfiguration{
-		DbName: "second", Mode: k8s.DbModeClassic,
-		DbUserEnvKey: "DB_USER2", DbPasswordEnvKey: "DB_PASS2",
-	}
-	creds := &vault.DbCreds{Username: "u", Password: "p"}
-
-	err := applyEnvToContainersWithNRI(pod, dbConf, creds, "databases", true)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "single DbConfiguration")
-}
+// Transparent NRI: with no nri-mapping annotation written by the
+// webhook, multi-DbConfiguration is no longer rejected at apply time.
+// The plugin handles only the first DbConfiguration; multi-DB
+// scenarios should be enforced upstream (one db role per pod).
 
 func TestApplyEnvToContainers_NRIEnabled_AcceptsLongCredentials(t *testing.T) {
 	// NRI mode imposes no length cap — long credentials must flow through.

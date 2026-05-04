@@ -81,12 +81,17 @@ nri:
     limits:
       cpu: 200m
       memory: 256Mi
+  # NRI plugin priority for stub.WithPluginIdx. Must be unique per
+  # containerd instance — running multiple injector releases on the
+  # same cluster requires distinct values (e.g. "10" for prod, "11"
+  # for dev). Plugin name auto-defaults to the helm release fullname.
+  pluginIndex: "10"
   # Tolerate every taint so the DS runs on every node regardless of
   # control-plane / GPU / dedicated node taints. The plugin is
-  # node-local — if it's missing on a tainted node where pods with
-  # nri-mapping annotations are scheduled, those pods start with the
-  # placeholder string in env (visible CrashLoop, but still a leak
-  # window). Override if you want to restrict where the plugin runs.
+  # node-local — if it's missing on a tainted node where labelled
+  # pods are scheduled, those pods start with the placeholder string
+  # in env (visible CrashLoop, but still a leak window). Override
+  # if you want to restrict where the plugin runs.
   tolerations:
   - operator: Exists
   nodeSelector: {}

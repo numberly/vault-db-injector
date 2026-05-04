@@ -2,7 +2,6 @@ package k8smutator
 
 import (
 	"context"
-	"encoding/json"
 	"net/url"
 	"strings"
 
@@ -126,10 +125,12 @@ func fetchDbCredentials(ctx context.Context, contextID string, cfg *config.Confi
 // In legacy mode (cfg.NRI.Enabled=false) creds are pre-fetched by the
 // caller and we put them directly in the env (cleartext in PodSpec).
 //
-// In NRI mode (pull-not-push) creds is nil — the webhook does not fetch
-// credentials. We generate placeholders, stamp them and the request
-// metadata into the nri-mapping annotation, and put placeholders in env.
-// The plugin fetches the actual credential at CreateContainer time.
+// In NRI mode creds is nil — the webhook does not fetch credentials.
+// We generate placeholders and put them in env. The plugin scans env
+// at CreateContainer time, finds placeholders by their fixed shape,
+// reads the user's existing db-creds-injector.numberly.io/* annotations
+// to know which Vault role to use, fetches credentials, and substitutes.
+// No additional annotation is added to the pod — NRI is transparent.
 func applyEnvToContainers(_ context.Context, pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vaultDbPath string, cfg *config.Config) error {
 	return applyEnvToContainersWithNRI(pod, dbConf, creds, vaultDbPath, cfg.NRI.Enabled)
 }
@@ -149,12 +150,7 @@ func applyEnvToContainersWithNRI(pod *corev1.Pod, dbConf k8s.DbConfiguration, cr
 func applyClassic(pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds, vaultDbPath string, nriEnabled bool) error {
 	var userVal, passVal string
 	if nriEnabled {
-		userPH, passPH, err := generatePlaceholdersAndAnnotate(pod, vaultDbPath, dbConf.Role)
-		if err != nil {
-			return err
-		}
-		userVal = userPH
-		passVal = passPH
+		userVal, passVal = generatePlaceholders()
 	} else {
 		userVal = creds.Username
 		passVal = creds.Password
@@ -189,12 +185,7 @@ func applyURI(pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds,
 
 	var user, pass string
 	if nriEnabled {
-		userPH, passPH, err := generatePlaceholdersAndAnnotate(pod, vaultDbPath, dbConf.Role)
-		if err != nil {
-			return err
-		}
-		user = userPH
-		pass = passPH
+		user, pass = generatePlaceholders()
 	} else {
 		user = creds.Username
 		pass = creds.Password
@@ -216,52 +207,13 @@ func applyURI(pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds,
 	return nil
 }
 
-// annotateNRIMapping writes the credential request metadata to the pod's
-// nri-mapping annotation. Multi-DbConfiguration under NRI is not yet supported.
-//
-// New schema (#H5 fix): no Vault token in the pod spec. Just enough metadata
-// for the plugin to fetch the credential at CreateContainer time and verify
-// pod identity (defense against annotation forgery via pods.update).
-func annotateNRIMapping(pod *corev1.Pod, dbPath, dbRole string, placeholders map[string]string) error {
-	if pod.Annotations == nil {
-		pod.Annotations = make(map[string]string)
-	}
-	if _, exists := pod.Annotations[k8s.ANNOTATION_NRI_MAPPING]; exists {
-		return errors.New("NRI mode currently supports a single DbConfiguration per pod")
-	}
-	m := k8s.NRIMapping{
-		SchemaVersion:     2,
-		DbPath:            dbPath,
-		DbRole:            dbRole,
-		Placeholders:      placeholders,
-		RequestID:         uuid.NewString(),
-		PodNamespace:      pod.Namespace,
-		PodServiceAccount: pod.Spec.ServiceAccountName,
-	}
-	b, err := json.Marshal(m)
-	if err != nil {
-		return errors.Wrap(err, "marshal nri-mapping")
-	}
-	pod.Annotations[k8s.ANNOTATION_NRI_MAPPING] = string(b)
-	return nil
-}
-
-// generatePlaceholdersAndAnnotate generates a placeholder for username and
-// password and stamps the nri-mapping annotation. No Vault interaction here
-// — the plugin handles credential retrieval at CreateContainer.
-func generatePlaceholdersAndAnnotate(pod *corev1.Pod, dbPath, dbRole string) (userPH, passPH string, err error) {
-	if _, exists := pod.Annotations[k8s.ANNOTATION_NRI_MAPPING]; exists {
-		return "", "", errors.New("NRI mode currently supports a single DbConfiguration per pod")
-	}
-	userPH = placeholder.Generate()
-	passPH = placeholder.Generate()
-	if err := annotateNRIMapping(pod, dbPath, dbRole, map[string]string{
-		userPH: "username",
-		passPH: "password",
-	}); err != nil {
-		return "", "", err
-	}
-	return userPH, passPH, nil
+// generatePlaceholders returns a fresh (user, password) placeholder pair.
+// In NRI mode the webhook puts these into env in lieu of the real
+// credentials; the plugin scans env at CreateContainer time, finds them
+// by their fixed shape, and substitutes the real values it fetched from
+// Vault. No annotation is added to the pod — NRI is transparent.
+func generatePlaceholders() (userPH, passPH string) {
+	return placeholder.Generate(), placeholder.Generate()
 }
 
 func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {

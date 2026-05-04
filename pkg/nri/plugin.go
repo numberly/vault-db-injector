@@ -2,7 +2,8 @@ package nri
 
 import (
 	"context"
-	"encoding/json"
+	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/cockroachdb/errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/logger"
 	"github.com/numberly/vault-db-injector/pkg/metrics"
+	"github.com/numberly/vault-db-injector/pkg/placeholder"
 )
 
 type plugin struct {
@@ -61,30 +63,53 @@ func (p *plugin) Synchronize(_ context.Context, pods []*nriapi.PodSandbox, _ []*
 	return nil, nil
 }
 
-// CreateContainer is the substitution hook. Reads the pod-sandbox annotation,
-// unwraps the wrap-token (cached per pod), and emits a ContainerAdjustment
-// with substituted env.
+// CreateContainer is the substitution hook. Reads the user's existing
+// db-creds-injector.numberly.io/* annotations (same ones the webhook
+// reads at admission), filters by the configured pod label, scans
+// container env for placeholder strings, fetches credentials from
+// Vault, and emits a ContainerAdjustment with substituted env.
+//
+// Transparent design (no nri-mapping annotation):
+// - The webhook only puts placeholders in env at admission. It does
+//   not stamp any new annotation on the pod.
+// - The plugin recognises that a pod is "ours" by:
+//   1. The configured pod label (e.g. vault-db-injector="true").
+//      This is the same label the webhook's objectSelector uses,
+//      so we never process a pod the webhook didn't.
+//   2. The presence of one or more placeholders (fixed shape) in
+//      the container env, with their env-key matching the user's
+//      env-key-* annotation.
 func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, container *nriapi.Container) (*nriapi.ContainerAdjustment, []*nriapi.ContainerUpdate, error) {
-	annotations := pod.GetAnnotations()
-	raw, ok := annotations[k8s.ANNOTATION_NRI_MAPPING]
-	if !ok || raw == "" {
-		return nil, nil, nil
+	// Filter by configured pod label. With multiple injector releases on
+	// the same cluster (e.g. prod + dev), each plugin DS only processes
+	// pods carrying its own label.
+	if label := p.cfg.NRI.PodLabel; label != "" {
+		if pod.GetLabels()[label] != "true" {
+			return nil, nil, nil
+		}
 	}
-	var m k8s.NRIMapping
-	if err := json.Unmarshal([]byte(raw), &m); err != nil {
-		p.log.Warnf("malformed nri-mapping annotation on pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
-		metrics.NRIUnwrapFailures.WithLabelValues("malformed_annotation").Inc()
+
+	// Scan env for placeholders. If none, this pod has no NRI-shaped
+	// substitutions to perform, regardless of annotations.
+	inEnv := container.GetEnv()
+	if !envHasAnyPlaceholder(inEnv) {
 		return nil, nil, nil
 	}
 
-	mapping, err := p.resolveMapping(ctx, pod.GetUid(), pod.GetNamespace(), pod.GetName(), m)
+	mapping, err := p.resolveMapping(ctx, pod.GetUid(), pod.GetNamespace(), pod.GetName())
 	if err != nil {
 		p.log.Errorf("credential fetch failed for pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
 		metrics.NRIUnwrapFailures.WithLabelValues("fetch_error").Inc()
 		return nil, nil, nil
 	}
+	if len(mapping) == 0 {
+		// Pod has placeholders in env but the plugin couldn't resolve any
+		// of them (no matching dbConfiguration found by env-key). Skip
+		// silently; the visible failure will be the app crashing on the
+		// literal placeholder string.
+		return nil, nil, nil
+	}
 
-	inEnv := container.GetEnv()
 	outEnv := Substitute(inEnv, mapping)
 
 	// Only emit an adjustment if something actually changed.
@@ -108,7 +133,7 @@ func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, co
 	return adj, nil, nil
 }
 
-// RemovePodSandbox evicts the per-pod unwrap cache entry and persists.
+// RemovePodSandbox evicts the per-pod cache entry and persists.
 func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) error {
 	p.mu.Lock()
 	_, existed := p.cache[pod.GetUid()]
@@ -123,23 +148,23 @@ func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) err
 }
 
 // resolveMapping returns the placeholder→value map for a pod, using a
-// per-pod cache so multiple containers in the same pod share one credential
-// fetch. Cache is write-through to disk so the mapping survives plugin
-// restart within the pod's lifetime.
+// per-pod cache so multiple containers in the same pod share one
+// credential fetch. Cache is write-through to disk so the mapping
+// survives plugin restart within the pod's lifetime.
 //
-// On cache miss the plugin authenticates to Vault as itself, re-runs
-// CanIGetRoles for the target pod identity (defense-in-depth against
-// annotation forgery), and creates dynamic database credentials. The lease
-// is tagged with the pod UID so the existing renewer/revoker pipeline
-// picks it up unchanged.
-func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podName string, m k8s.NRIMapping) (map[string]string, error) {
+// On cache miss the plugin reads the pod's annotations (via the K8s
+// API for trusted identity), runs CanIGetRoles for the actual pod's
+// SA, and creates dynamic database credentials. The lease is tagged
+// with the pod UID so the existing renewer/revoker pipeline picks
+// it up unchanged.
+func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podName string) (map[string]string, error) {
 	p.mu.Lock()
 	cached, ok := p.cache[podUID]
 	p.mu.Unlock()
 	if ok {
 		return cached, nil
 	}
-	mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, m, podUID, podNamespace, podName)
+	mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, podUID, podNamespace, podName)
 	if err != nil {
 		return nil, err
 	}
@@ -182,11 +207,110 @@ func splitKV(line string) (string, string) {
 	return line, ""
 }
 
-// stubFor wires the plugin into the NRI stub framework.
+// envHasAnyPlaceholder is a fast-path filter — returns true if any env
+// entry's value contains at least one well-shaped placeholder. Avoids
+// calling the K8s API and Vault for pods that don't need substitution.
+func envHasAnyPlaceholder(env []string) bool {
+	for _, line := range env {
+		_, v := splitKV(line)
+		if !strings.Contains(v, placeholder.Prefix) {
+			continue
+		}
+		// Cheap heuristic: prefix present. Don't run full IsPlaceholder
+		// here on the whole value (URL parsing in URI mode), just
+		// confirm something looks like a placeholder.
+		return true
+	}
+	return false
+}
+
+// extractPlaceholdersFromEnv scans a container's env for placeholder
+// strings, then maps each to the corresponding credential field
+// ("username" or "password") using the user's env-key-dbuser /
+// env-key-dbpassword / env-key-uri annotations on the DbConfiguration.
+//
+// Returns map[placeholder]credential-field. Empty map = nothing to do.
+func extractPlaceholdersFromEnv(env []string, dbConf k8s.DbConfiguration) map[string]string {
+	out := make(map[string]string, 2)
+	mode := strings.ToLower(dbConf.Mode)
+	if mode == "" {
+		mode = k8s.DbModeClassic
+	}
+	switch mode {
+	case k8s.DbModeClassic:
+		userKeys := splitCSV(dbConf.DbUserEnvKey)
+		passKeys := splitCSV(dbConf.DbPasswordEnvKey)
+		for _, line := range env {
+			k, v := splitKV(line)
+			if !placeholder.IsPlaceholder(v) {
+				continue
+			}
+			if containsString(userKeys, k) {
+				out[v] = "username"
+			} else if containsString(passKeys, k) {
+				out[v] = "password"
+			}
+		}
+	case k8s.DbModeURI:
+		uriKeys := splitCSV(dbConf.DbURIEnvKey)
+		for _, line := range env {
+			k, v := splitKV(line)
+			if !containsString(uriKeys, k) {
+				continue
+			}
+			u, err := url.Parse(v)
+			if err != nil || u.User == nil {
+				continue
+			}
+			if user := u.User.Username(); placeholder.IsPlaceholder(user) {
+				out[user] = "username"
+			}
+			if pass, set := u.User.Password(); set && placeholder.IsPlaceholder(pass) {
+				out[pass] = "password"
+			}
+		}
+	}
+	return out
+}
+
+func splitCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func containsString(s []string, target string) bool {
+	for _, x := range s {
+		if x == target {
+			return true
+		}
+	}
+	return false
+}
+
+// stubFor wires the plugin into the NRI stub framework. Plugin name and
+// idx are configurable so multiple injector releases (e.g. prod + dev)
+// can register independent plugins on the same containerd socket.
 func stubFor(p *plugin) (stub.Stub, error) {
+	name := p.cfg.NRI.PluginName
+	if name == "" {
+		name = "vault-db-injector"
+	}
+	idx := p.cfg.NRI.PluginIndex
+	if idx == "" {
+		idx = "10"
+	}
 	s, err := stub.New(p,
-		stub.WithPluginName("vault-db-injector"),
-		stub.WithPluginIdx("10"),
+		stub.WithPluginName(name),
+		stub.WithPluginIdx(idx),
 		stub.WithSocketPath(p.cfg.NRI.SocketPath),
 	)
 	if err != nil {

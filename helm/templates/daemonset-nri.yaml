@@ -55,7 +55,7 @@ spec:
         - name: nri-socket
           mountPath: /var/run/nri
         - name: cache
-          mountPath: /run/vault-db-injector/nri
+          mountPath: /run/{{ include "vault-db-injector.fullname" . }}/nri
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -95,7 +95,7 @@ spec:
       # its retry leaks the placeholder string into the running app.
       - name: cache
         hostPath:
-          path: /run/vault-db-injector/nri
+          path: /run/{{ include "vault-db-injector.fullname" . }}/nri
           type: DirectoryOrCreate
       {{- if .Values.nri.tolerations }}
       tolerations:

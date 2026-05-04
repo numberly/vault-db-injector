@@ -2,41 +2,44 @@ package nri
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	nriapi "github.com/containerd/nri/pkg/api"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/logger"
+	"github.com/numberly/vault-db-injector/pkg/placeholder"
 )
 
-func TestCreateContainer_NoAnnotation(t *testing.T) {
+func TestCreateContainer_NoEnv(t *testing.T) {
 	p := newPlugin(&config.Config{}, logger.GetLogger())
-	pod := &nriapi.PodSandbox{Uid: "pod-1"}
+	pod := &nriapi.PodSandbox{
+		Uid:    "pod-1",
+		Labels: map[string]string{"vault-db-injector": "true"},
+	}
 	cont := &nriapi.Container{Env: []string{"FOO=bar"}}
+	p.cfg.NRI.PodLabel = "vault-db-injector"
 	adj, _, err := p.CreateContainer(context.Background(), pod, cont)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if adj != nil {
-		t.Fatalf("expected nil adjustment when annotation absent, got %v", adj)
+		t.Fatalf("expected nil adjustment when no placeholder in env, got %v", adj)
 	}
 }
 
-func TestCreateContainer_MalformedAnnotation(t *testing.T) {
+func TestCreateContainer_LabelMissing(t *testing.T) {
 	p := newPlugin(&config.Config{}, logger.GetLogger())
-	pod := &nriapi.PodSandbox{
-		Uid:         "pod-1",
-		Annotations: map[string]string{k8s.ANNOTATION_NRI_MAPPING: "{not json"},
-	}
-	cont := &nriapi.Container{}
+	p.cfg.NRI.PodLabel = "vault-db-injector"
+	ph := placeholder.Generate()
+	pod := &nriapi.PodSandbox{Uid: "pod-1"} // no label
+	cont := &nriapi.Container{Env: []string{"DB_PASS=" + ph}}
 	adj, _, err := p.CreateContainer(context.Background(), pod, cont)
 	if err != nil {
-		t.Fatalf("expected nil error on malformed annotation, got %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if adj != nil {
-		t.Fatalf("expected nil adjustment on malformed annotation, got %v", adj)
+		t.Fatalf("expected nil adjustment when label missing, got %v", adj)
 	}
 }
 
@@ -67,35 +70,55 @@ func TestSplitKV(t *testing.T) {
 	}
 }
 
-// Ensures the NRIMapping JSON shape (schema v2) round-trips cleanly.
-func TestNRIMappingMarshal(t *testing.T) {
-	m := k8s.NRIMapping{
-		SchemaVersion:     2,
-		DbPath:            "databases",
-		DbRole:            "postgres-readonly",
-		Placeholders:      map[string]string{"__VDBI_PH_aaa___": "username", "__VDBI_PH_bbb___": "password"},
-		RequestID:         "abc-123",
-		PodNamespace:      "default",
-		PodServiceAccount: "myapp",
+func TestExtractPlaceholdersFromEnv_Classic(t *testing.T) {
+	userPH := placeholder.Generate()
+	passPH := placeholder.Generate()
+	env := []string{"DB_USER=" + userPH, "DB_PASS=" + passPH, "FOO=bar"}
+	dbConf := k8s.DbConfiguration{
+		Mode:             k8s.DbModeClassic,
+		DbUserEnvKey:     "DB_USER",
+		DbPasswordEnvKey: "DB_PASS",
 	}
-	b, err := json.Marshal(m)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
+	out := extractPlaceholdersFromEnv(env, dbConf)
+	if out[userPH] != "username" || out[passPH] != "password" {
+		t.Fatalf("classic mapping incorrect: %v", out)
 	}
-	var back k8s.NRIMapping
-	if err := json.Unmarshal(b, &back); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+}
+
+func TestExtractPlaceholdersFromEnv_URI(t *testing.T) {
+	userPH := placeholder.Generate()
+	passPH := placeholder.Generate()
+	dsn := "postgres://" + userPH + ":" + passPH + "@db.example.com:5432/x?sslmode=require"
+	env := []string{"DB_URI=" + dsn}
+	dbConf := k8s.DbConfiguration{
+		Mode:        k8s.DbModeURI,
+		DbURIEnvKey: "DB_URI",
 	}
-	if back.DbPath != "databases" || back.DbRole != "postgres-readonly" {
-		t.Fatalf("db ref fields lost: %+v", back)
+	out := extractPlaceholdersFromEnv(env, dbConf)
+	if out[userPH] != "username" || out[passPH] != "password" {
+		t.Fatalf("uri mapping incorrect: %v", out)
 	}
-	if back.SchemaVersion != 2 {
-		t.Fatalf("schema version not preserved: %d", back.SchemaVersion)
+}
+
+func TestExtractPlaceholdersFromEnv_NoPlaceholder(t *testing.T) {
+	env := []string{"FOO=bar", "DB_USER=alice"}
+	dbConf := k8s.DbConfiguration{
+		Mode:             k8s.DbModeClassic,
+		DbUserEnvKey:     "DB_USER",
+		DbPasswordEnvKey: "DB_PASS",
 	}
-	if back.PodNamespace != "default" || back.PodServiceAccount != "myapp" {
-		t.Fatalf("pod identity fields lost: %+v", back)
+	out := extractPlaceholdersFromEnv(env, dbConf)
+	if len(out) != 0 {
+		t.Fatalf("expected empty map (no placeholder), got %v", out)
 	}
-	if len(back.Placeholders) != 2 {
-		t.Fatalf("placeholder count mismatch")
+}
+
+func TestEnvHasAnyPlaceholder(t *testing.T) {
+	ph := placeholder.Generate()
+	if !envHasAnyPlaceholder([]string{"X=" + ph}) {
+		t.Fatal("missed real placeholder")
+	}
+	if envHasAnyPlaceholder([]string{"X=plain"}) {
+		t.Fatal("false positive on plain value")
 	}
 }

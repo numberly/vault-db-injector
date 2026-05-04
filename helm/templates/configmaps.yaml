@@ -72,5 +72,8 @@ data:
     nri:
       enabled: true
       socketPath: /var/run/nri/nri.sock
-      cachePath: /run/vault-db-injector/nri/cache.json
+      cachePath: /run/{{ include "vault-db-injector.fullname" . }}/nri/cache.json
+      pluginName: {{ include "vault-db-injector.fullname" . }}
+      pluginIndex: {{ .Values.nri.pluginIndex | default "10" | quote }}
+      podLabel: {{ .Values.vaultDbInjector.configuration.webhookMatchLabels | quote }}
 {{- end }}

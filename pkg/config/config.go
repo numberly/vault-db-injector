@@ -32,6 +32,21 @@ type NRIConfig struct {
 	// across plugin DS restarts (hostPath tmpfs). Survives DS pod restart;
 	// cleared on node reboot. Must be writable by the plugin user.
 	CachePath string `yaml:"cachePath" envconfig:"nri_cache_path"`
+	// PluginName is the NRI plugin name used at registration. Must be
+	// unique per containerd instance — running multiple injector
+	// releases (prod + dev) on the same cluster requires distinct names
+	// (set via helm to {{ .Release.Name }}).
+	PluginName string `yaml:"pluginName" envconfig:"nri_plugin_name"`
+	// PluginIndex is the NRI plugin priority — must also be unique per
+	// containerd instance when multiple plugins coexist.
+	PluginIndex string `yaml:"pluginIndex" envconfig:"nri_plugin_index"`
+	// PodLabel is the pod label key the plugin filters on. Pods missing
+	// this label (or with value != "true") are not processed. With
+	// multiple injector releases, set this to the release-specific label
+	// the matching webhook's objectSelector uses (e.g.
+	// "vault-db-injector" or "vault-db-injector-dev"). Empty value
+	// disables the filter and processes every pod that has placeholders.
+	PodLabel string `yaml:"podLabel" envconfig:"nri_pod_label"`
 }
 
 type Config struct {
@@ -77,8 +92,11 @@ func NewConfig(configFile string) (*Config, error) {
 		DefaultEngine:     "databases",
 		VaultRateLimit:    30,
 		NRI: NRIConfig{
-			SocketPath: "/var/run/nri/nri.sock",
-			CachePath:  "/run/vault-db-injector/nri/cache.json",
+			SocketPath:  "/var/run/nri/nri.sock",
+			CachePath:   "/run/vault-db-injector/nri/cache.json",
+			PluginName:  "vault-db-injector",
+			PluginIndex: "10",
+			PodLabel:    "vault-db-injector",
 		},
 	}
 	if configFile != "" {
