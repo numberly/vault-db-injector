@@ -29,6 +29,10 @@ import (
 //   name-reuse race documented at #CRIT-1).
 // - The webhook already ran CanIGetRoles at admission; we re-run it
 //   here against the K8s-attested identity as defense in depth.
+// - In useProjectedSA mode, Vault performs the attestation natively
+//   (bound_service_account_names) during Login above and CanIGetRoles
+//   is skipped. The Vault role MUST be configured with token_period > 0
+//   so the pod-token (and its lease) survives until explicit revocation.
 func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, podNamespace, podName string) (map[string]string, *vault.DbCreds, error) {
 	k8sClient := k8s.NewClient()
 	clientset, err := k8sClient.GetKubernetesClient()
@@ -74,34 +78,50 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		return nil, nil, err
 	}
 
-	// Authenticate to Vault using the plugin's own SA. Re-run CanIGetRoles
-	// for the K8s-attested pod identity.
-	tok, err := k8sClient.GetServiceAccountToken()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "get serviceaccount token")
+	// Obtain the JWT for Vault login: pod's projected-SA in
+	// useProjectedSA mode, plugin's own SA otherwise.
+	var tok string
+	if cfg.UseProjectedSA {
+		tok, err = k8sClient.RequestSAToken(ctx, podNamespace, actualSA, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "TokenRequest for pod SA")
+		}
+	} else {
+		tok, err = k8sClient.GetServiceAccountToken()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "get serviceaccount token")
+		}
 	}
-	conn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
+
+	authRole := cfg.KubeRole
+	if cfg.UseProjectedSA {
+		authRole = dbConf.Role
+	}
+	conn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
 	if err := conn.Login(ctx); err != nil {
 		return nil, nil, errors.Wrap(err, "vault login")
 	}
 	conn.K8sSaVaultToken = conn.GetToken()
 
-	ok, err := conn.CanIGetRoles(ctx, contextID, actualSA, podNamespace, cfg.VaultAuthPath, dbConf.Role)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "vault CanIGetRoles")
-	}
-	if !ok {
-		return nil, nil, errors.Newf("pod %s/%s not authorized for vault role %s", podNamespace, actualSA, dbConf.Role)
+	if !cfg.UseProjectedSA {
+		ok, err := conn.CanIGetRoles(ctx, contextID, actualSA, podNamespace, cfg.VaultAuthPath, dbConf.Role)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "vault CanIGetRoles")
+		}
+		if !ok {
+			return nil, nil, errors.Newf("pod %s/%s not authorized for vault role %s", podNamespace, actualSA, dbConf.Role)
+		}
 	}
 
 	creds, err := conn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
-		ContextID:      contextID,
-		TTL:            cfg.TokenTTL,
-		PodNameUID:     contextID,
-		Namespace:      podNamespace,
-		SecretName:     cfg.VaultSecretName,
-		Prefix:         cfg.VaultSecretPrefix,
-		ServiceAccount: actualSA,
+		ContextID:          contextID,
+		TTL:                cfg.TokenTTL,
+		PodNameUID:         contextID,
+		Namespace:          podNamespace,
+		SecretName:         cfg.VaultSecretName,
+		Prefix:             cfg.VaultSecretPrefix,
+		ServiceAccount:     actualSA,
+		SkipOrphanCreation: cfg.UseProjectedSA,
 	})
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "vault GetDbCredentials")
