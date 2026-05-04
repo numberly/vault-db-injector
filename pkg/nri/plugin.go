@@ -112,22 +112,28 @@ func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, co
 
 	outEnv := Substitute(inEnv, mapping)
 
-	// Only emit an adjustment if something actually changed.
-	changed := false
-	for i := range inEnv {
-		if i >= len(outEnv) || inEnv[i] != outEnv[i] {
-			changed = true
-			break
-		}
-	}
-	if !changed {
-		return nil, nil, nil
-	}
-
+	// Emit AddEnv ONLY for env vars that actually changed. NRI rejects a
+	// CreateContainer when two plugin connections both adjust the same key
+	// (even with the same value), so reasserting unchanged vars like
+	// ROCKET_PORT would conflict with any other plugin — or with a stale
+	// connection of this same plugin that containerd hasn't cleaned up
+	// after a DS pod restart.
 	adj := &nriapi.ContainerAdjustment{}
-	for _, line := range outEnv {
-		k, v := splitKV(line)
+	changed := 0
+	n := len(inEnv)
+	if len(outEnv) < n {
+		n = len(outEnv)
+	}
+	for i := 0; i < n; i++ {
+		if inEnv[i] == outEnv[i] {
+			continue
+		}
+		k, v := splitKV(outEnv[i])
 		adj.AddEnv(k, v)
+		changed++
+	}
+	if changed == 0 {
+		return nil, nil, nil
 	}
 	metrics.NRISubstitutionsTotal.WithLabelValues().Inc()
 	return adj, nil, nil
