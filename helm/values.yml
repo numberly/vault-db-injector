@@ -112,3 +112,18 @@ nri:
   tolerations:
   - operator: Exists
   nodeSelector: {}
+
+# When useProjectedSA is enabled, the chart provisions dedicated SAs
+# for the renewer and revoker. The Vault operator must create matching
+# auth/kubernetes role entries:
+#   - auth/kubernetes/role/<release>-renewer:
+#       bound_service_account_names = <release>-renewer
+#       bound_service_account_namespaces = <Release.Namespace>
+#       token_policies = <release>-renewer
+#       (policy: update on auth/token/renew + sys/leases/renew)
+#   - auth/kubernetes/role/<release>-revoker:
+#       bound_service_account_names = <release>-revoker
+#       bound_service_account_namespaces = <Release.Namespace>
+#       token_policies = <release>-revoker
+#       (policy: update on auth/token/revoke-orphan + sys/leases/revoke)
+# See docs/how-it-works/projected-sa.md for the full Vault config.
