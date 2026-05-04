@@ -25,28 +25,33 @@ const (
 // When Enabled is false, the webhook produces literal env values (legacy
 // behavior). When true, the webhook wraps every credential and the NRI
 // DaemonSet substitutes placeholders at CreateContainer time.
+// NRIConfig — envconfig tags must NOT repeat the "nri_" prefix here:
+// envconfig walks nested structs and prepends the parent's tag, so
+// envconfig:"nri_enabled" on a field inside a struct tagged
+// envconfig:"nri" resolves to INJECTOR_NRI_NRI_ENABLED, not
+// INJECTOR_NRI_ENABLED. The inner tag is the suffix only.
 type NRIConfig struct {
-	Enabled    bool   `yaml:"enabled" envconfig:"nri_enabled"`
-	SocketPath string `yaml:"socketPath" envconfig:"nri_socket_path"`
+	Enabled    bool   `yaml:"enabled" envconfig:"enabled"`
+	SocketPath string `yaml:"socketPath" envconfig:"socket_path"`
 	// CachePath is the on-disk JSON cache that persists unwrapped credentials
 	// across plugin DS restarts (hostPath tmpfs). Survives DS pod restart;
 	// cleared on node reboot. Must be writable by the plugin user.
-	CachePath string `yaml:"cachePath" envconfig:"nri_cache_path"`
+	CachePath string `yaml:"cachePath" envconfig:"cache_path"`
 	// PluginName is the NRI plugin name used at registration. Must be
 	// unique per containerd instance — running multiple injector
 	// releases (prod + dev) on the same cluster requires distinct names
 	// (set via helm to {{ .Release.Name }}).
-	PluginName string `yaml:"pluginName" envconfig:"nri_plugin_name"`
+	PluginName string `yaml:"pluginName" envconfig:"plugin_name"`
 	// PluginIndex is the NRI plugin priority — must also be unique per
 	// containerd instance when multiple plugins coexist.
-	PluginIndex string `yaml:"pluginIndex" envconfig:"nri_plugin_index"`
+	PluginIndex string `yaml:"pluginIndex" envconfig:"plugin_index"`
 	// PodLabel is the pod label key the plugin filters on. Pods missing
 	// this label (or with value != "true") are not processed. With
 	// multiple injector releases, set this to the release-specific label
 	// the matching webhook's objectSelector uses (e.g.
 	// "vault-db-injector" or "vault-db-injector-dev"). Empty value
 	// disables the filter and processes every pod that has placeholders.
-	PodLabel string `yaml:"podLabel" envconfig:"nri_pod_label"`
+	PodLabel string `yaml:"podLabel" envconfig:"pod_label"`
 }
 
 type Config struct {

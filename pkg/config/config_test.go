@@ -432,3 +432,57 @@ nri:
 	assert.True(t, cfg.NRI.Enabled)
 	assert.Equal(t, "/custom/nri.sock", cfg.NRI.SocketPath)
 }
+
+// Regression: envconfig tags inside NRIConfig must NOT repeat the
+// "nri_" prefix — the parent tag adds it. Helm posts
+// INJECTOR_NRI_ENABLED=true on the injector deployment; if our tag
+// resolves to INJECTOR_NRI_NRI_ENABLED, the env var is silently
+// ignored and the webhook stays in legacy mode.
+func TestNRIConfig_EnvVarOverride(t *testing.T) {
+	tmpfile, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
+	require.NoError(t, err)
+	y := `
+mode: injector
+certFile: /tmp/cert
+keyFile: /tmp/key
+vaultAddress: https://vault
+vaultAuthPath: kubernetes
+kubeRole: x
+vaultSecretName: secret
+vaultSecretPrefix: prefix
+nri:
+  enabled: false
+  socketPath: /var/run/nri/nri.sock
+`
+	_, err = tmpfile.WriteString(y)
+	require.NoError(t, err)
+	require.NoError(t, tmpfile.Close())
+
+	for _, k := range []string{
+		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
+		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
+		"INJECTOR_CERT_FILE", "INJECTOR_KEY_FILE",
+	} {
+		t.Setenv(k, "")
+		os.Unsetenv(k)
+	}
+
+	// helm sets INJECTOR_NRI_ENABLED=true on the injector deployment
+	// when nri.enabled: true. The env var must override the YAML's
+	// nri.enabled: false.
+	t.Setenv("INJECTOR_NRI_ENABLED", "true")
+	t.Setenv("INJECTOR_NRI_SOCKET_PATH", "/env/nri.sock")
+	t.Setenv("INJECTOR_NRI_POD_LABEL", "my-release")
+	t.Setenv("INJECTOR_NRI_PLUGIN_NAME", "my-release-plugin")
+	t.Setenv("INJECTOR_NRI_PLUGIN_INDEX", "11")
+	t.Setenv("INJECTOR_NRI_CACHE_PATH", "/run/my-release/cache.json")
+
+	cfg, err := NewConfig(tmpfile.Name())
+	require.NoError(t, err)
+	assert.True(t, cfg.NRI.Enabled, "INJECTOR_NRI_ENABLED env var must override yaml")
+	assert.Equal(t, "/env/nri.sock", cfg.NRI.SocketPath)
+	assert.Equal(t, "my-release", cfg.NRI.PodLabel)
+	assert.Equal(t, "my-release-plugin", cfg.NRI.PluginName)
+	assert.Equal(t, "11", cfg.NRI.PluginIndex)
+	assert.Equal(t, "/run/my-release/cache.json", cfg.NRI.CachePath)
+}
