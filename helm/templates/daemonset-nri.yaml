@@ -43,8 +43,14 @@ spec:
         resources:
           {{- toYaml .Values.nri.resources | nindent 10 }}
         securityContext:
-          runAsNonRoot: true
-          runAsUser: 65534
+          # NRI socket /var/run/nri/nri.sock is created by containerd as
+          # 0755 root:root. Connect(2) on a unix socket requires write
+          # permission on the inode, so a non-root user cannot connect.
+          # We run as root but drop ALL capabilities and forbid privilege
+          # escalation — same effective surface as UID 65534, plus the
+          # ability to talk to the NRI socket.
+          runAsNonRoot: false
+          runAsUser: 0
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           capabilities:
