@@ -34,7 +34,12 @@ func vaultLoginToken(ctx context.Context, cfg *config.Config, k8sClient k8s.Clie
 	if saName == "" {
 		saName = "default"
 	}
-	return k8sClient.RequestSAToken(ctx, pod.Namespace, saName, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
+	tok, err := k8sClient.RequestSAToken(ctx, pod.Namespace, saName, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
+	if err != nil {
+		metrics.TokenRequestErrors.WithLabelValues(classifyTokenRequestError(err)).Inc()
+		return "", err
+	}
+	return tok, nil
 }
 
 func generateUUID(logger log.Logger) string {
@@ -43,6 +48,18 @@ func generateUUID(logger log.Logger) string {
 		logger.Infof("Error while generating UUID : %v", err)
 	}
 	return newUUID.String()
+}
+
+func classifyTokenRequestError(err error) string {
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "forbidden"):
+		return "rbac_denied"
+	case strings.Contains(msg, "not found"):
+		return "sa_not_found"
+	default:
+		return "other"
+	}
 }
 
 func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) kwhmutating.MutatorFunc {
@@ -111,6 +128,11 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 	}
 	vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, vaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
 	if err := vaultConn.Login(ctx); err != nil {
+		mode := "legacy"
+		if cfg.UseProjectedSA {
+			mode = "projected"
+		}
+		metrics.VaultLoginErrors.WithLabelValues("other", mode).Inc()
 		return nil, dbConf.Role, errors.Newf("cannot authenticate vault role: %s", err.Error())
 	}
 	vaultConn.K8sSaVaultToken = vaultConn.GetToken()
@@ -119,6 +141,10 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 	if cfg.UseProjectedSA {
 		// Vault attests the pod identity natively via bound_service_account_names
 		// during Login above; CanIGetRoles is redundant.
+		if period, err := vaultConn.VerifyTokenPeriod(ctx); err == nil && period == 0 {
+			metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
+			logger.WithValues(log.Kv{"role": dbConf.Role}).Warningf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
+		}
 		return vaultConn, dbConf.Role, nil
 	}
 

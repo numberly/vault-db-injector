@@ -2,6 +2,7 @@ package vault
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -257,5 +258,32 @@ func sliceToStrings(slice []any) ([]string, error) {
 		}
 	}
 	return stringSlice, nil
+}
+
+// VerifyTokenPeriod returns the period (in seconds) of the connector's
+// current token. Returns 0 if the token is not periodic.
+func (c *Connector) VerifyTokenPeriod(ctx context.Context) (int64, error) {
+	secret, err := c.client.Auth().Token().LookupSelfWithContext(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if secret == nil || secret.Data == nil {
+		return 0, nil
+	}
+	p, ok := secret.Data["period"]
+	if !ok {
+		return 0, nil
+	}
+	switch v := p.(type) {
+	case json.Number:
+		n, _ := v.Int64()
+		return n, nil
+	case float64:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	default:
+		return 0, nil
+	}
 }
 

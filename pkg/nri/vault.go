@@ -2,10 +2,13 @@ package nri
 
 import (
 	"context"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
+	"github.com/numberly/vault-db-injector/pkg/logger"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
 	"github.com/numberly/vault-db-injector/pkg/vault"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,6 +87,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	if cfg.UseProjectedSA {
 		tok, err = k8sClient.RequestSAToken(ctx, podNamespace, actualSA, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
 		if err != nil {
+			metrics.TokenRequestErrors.WithLabelValues(classifyTokenRequestError(err)).Inc()
 			return nil, nil, errors.Wrap(err, "TokenRequest for pod SA")
 		}
 	} else {
@@ -99,6 +103,11 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	}
 	conn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
 	if err := conn.Login(ctx); err != nil {
+		mode := "legacy"
+		if cfg.UseProjectedSA {
+			mode = "projected"
+		}
+		metrics.VaultLoginErrors.WithLabelValues("other", mode).Inc()
 		return nil, nil, errors.Wrap(err, "vault login")
 	}
 	conn.K8sSaVaultToken = conn.GetToken()
@@ -110,6 +119,13 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		}
 		if !ok {
 			return nil, nil, errors.Newf("pod %s/%s not authorized for vault role %s", podNamespace, actualSA, dbConf.Role)
+		}
+	} else {
+		// Vault attests the pod identity natively via bound_service_account_names
+		// during Login above; CanIGetRoles is redundant. Check token_period in projected mode.
+		if period, err := conn.VerifyTokenPeriod(ctx); err == nil && period == 0 {
+			metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
+			logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Warnf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
 		}
 	}
 
@@ -169,4 +185,16 @@ func checkConfigurationLite(dbConf k8s.DbConfiguration) error {
 		return errors.New("dbConfiguration missing role")
 	}
 	return nil
+}
+
+func classifyTokenRequestError(err error) string {
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "forbidden"):
+		return "rbac_denied"
+	case strings.Contains(msg, "not found"):
+		return "sa_not_found"
+	default:
+		return "other"
+	}
 }

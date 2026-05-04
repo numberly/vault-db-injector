@@ -230,6 +230,24 @@ var (
 			Help: "Number of NRI plugin unwrap failures by reason.",
 		}, []string{"reason"},
 	)
+	TokenRequestErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_token_request_errors_total",
+			Help: "Number of failed Kubernetes TokenRequest calls for projected-SA Vault login.",
+		}, []string{"reason"},
+	)
+	VaultLoginErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_vault_login_errors_total",
+			Help: "Number of failed Vault logins, labeled by auth_mode (legacy/projected).",
+		}, []string{"reason", "auth_mode"},
+	)
+	ProjectedRoleMisconfigured = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_projected_role_misconfigured_total",
+			Help: "Number of times a Vault role used in projected-SA mode was found without token_period > 0.",
+		}, []string{"role"},
+	)
 )
 
 func Init(prom *prometheus.Registry) {
@@ -238,6 +256,9 @@ func Init(prom *prometheus.Registry) {
 		MutatedPodWithSuccessCount,
 		NRISubstitutionsTotal,
 		NRIUnwrapFailures,
+		TokenRequestErrors,
+		VaultLoginErrors,
+		ProjectedRoleMisconfigured,
 		GetAllPodErrorCount,
 		GetAllPodSuccessCount,
 		RenewTokenCount,
