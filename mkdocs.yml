@@ -50,6 +50,7 @@ nav:
   - How it Works:
     - how-it-works/how-it-work.md
     - how-it-works/nri-mode.md
+    - how-it-works/projected-sa.md
     - how-it-works/configuration.md
     - how-it-works/injector.md
     - how-it-works/renewer.md
