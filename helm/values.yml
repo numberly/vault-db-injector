@@ -11,6 +11,23 @@ vaultDbInjector:
     sentryDsn: https://your-sentry@sentry/660
     webhookFqdn: vault-db-injector.numberly.io
     webhookMatchLabels: vault-db-injector
+    # When true, the injector authenticates to Vault per-pod by issuing
+    # a Kubernetes TokenRequest for the admitted pod's ServiceAccount,
+    # rather than using the injector's own SA. Requires:
+    #   - Each Vault auth/kubernetes role to have token_period > 0
+    #   - The chart will provision a ClusterRole granting create on
+    #     serviceaccounts/token
+    # See docs/how-it-works/projected-sa.md for the Vault config.
+    useProjectedSA: false
+    # Audiences set on the TokenRequest. Empty list = use the
+    # cluster-default audience (legacy compat). Recommended for new
+    # deployments: ["vault"], with a matching `audience` configured on
+    # each Vault k8s-auth role.
+    tokenRequestAudiences: []
+    # Requested lifetime of the TokenRequest JWT, in seconds. The
+    # apiserver may clamp upward to its
+    # --service-account-min-token-expiration flag (default 600).
+    tokenRequestExpirationSeconds: 60
   injector:
     args:
     - "--config=/injector/config.yaml"
