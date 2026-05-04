@@ -81,5 +81,12 @@ nri:
     limits:
       cpu: 200m
       memory: 256Mi
-  tolerations: []
+  # Tolerate every taint so the DS runs on every node regardless of
+  # control-plane / GPU / dedicated node taints. The plugin is
+  # node-local — if it's missing on a tainted node where pods with
+  # nri-mapping annotations are scheduled, those pods start with the
+  # placeholder string in env (visible CrashLoop, but still a leak
+  # window). Override if you want to restrict where the plugin runs.
+  tolerations:
+  - operator: Exists
   nodeSelector: {}
