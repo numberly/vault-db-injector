@@ -22,6 +22,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// vaultLoginToken returns the JWT to be used for the Vault login on
+// behalf of this admission. In legacy mode it returns the injector
+// SA's token (mounted in the injector pod). In projected-SA mode it
+// returns a TokenRequest-issued JWT for the admitted pod's SA.
+func vaultLoginToken(ctx context.Context, cfg *config.Config, k8sClient k8s.ClientInterface, pod *corev1.Pod) (string, error) {
+	if !cfg.UseProjectedSA {
+		return k8sClient.GetServiceAccountToken()
+	}
+	saName := pod.Spec.ServiceAccountName
+	if saName == "" {
+		saName = "default"
+	}
+	return k8sClient.RequestSAToken(ctx, pod.Namespace, saName, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
+}
+
 func generateUUID(logger log.Logger) string {
 	newUUID, err := uuid.NewUUID()
 	if err != nil {
@@ -32,7 +47,7 @@ func generateUUID(logger log.Logger) string {
 
 func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) kwhmutating.MutatorFunc {
 	k8sClient := k8s.NewClient()
-	return kwhmutating.MutatorFunc(func(_ context.Context, _ *kwhmodel.AdmissionReview, obj metav1.Object) (*kwhmutating.MutatorResult, error) {
+	return kwhmutating.MutatorFunc(func(admCtx context.Context, _ *kwhmodel.AdmissionReview, obj metav1.Object) (*kwhmutating.MutatorResult, error) {
 
 		contextID := generateUUID(logger)
 
@@ -53,9 +68,9 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 			return defaultResult, errors.Wrap(err, "failed to get Pod DB configuration")
 		}
 
-		tok, err := k8sClient.GetServiceAccountToken()
+		tok, err := vaultLoginToken(admCtx, cfg, k8sClient, pod)
 		if err != nil {
-			return defaultResult, errors.Wrap(err, "cannot get ServiceAccount token")
+			return defaultResult, errors.Wrap(err, "obtain Vault login token")
 		}
 		logger.WithValues(log.Kv{"contextID": contextID}).Debugf("got token from serviceAccount Successfully")
 
@@ -90,12 +105,22 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 //
 // The caller is responsible for revoking vaultConn.K8sSaVaultToken on error or after use.
 func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config, dbConf k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*vault.Connector, string, error) {
-	vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, vaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
+	authRole := cfg.KubeRole
+	if cfg.UseProjectedSA {
+		authRole = dbConf.Role
+	}
+	vaultConn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, vaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
 	if err := vaultConn.Login(ctx); err != nil {
 		return nil, dbConf.Role, errors.Newf("cannot authenticate vault role: %s", err.Error())
 	}
 	vaultConn.K8sSaVaultToken = vaultConn.GetToken()
-	logger.WithValues(log.Kv{"contextID": contextID}).Debugf("authenticated to vault using role %s/%s", cfg.VaultAuthPath, dbConf.Role)
+	logger.WithValues(log.Kv{"contextID": contextID}).Debugf("authenticated to vault using role %s/%s", cfg.VaultAuthPath, authRole)
+
+	if cfg.UseProjectedSA {
+		// Vault attests the pod identity natively via bound_service_account_names
+		// during Login above; CanIGetRoles is redundant.
+		return vaultConn, dbConf.Role, nil
+	}
 
 	serviceAccountName := pod.Spec.ServiceAccountName
 	ok, err := vaultConn.CanIGetRoles(ctx, contextID, serviceAccountName, pod.Namespace, cfg.VaultAuthPath, dbConf.Role)
@@ -111,13 +136,14 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 func fetchDbCredentials(ctx context.Context, contextID string, cfg *config.Config, dbConf k8s.DbConfiguration, logger log.Logger, vaultConn *vault.Connector, pod *corev1.Pod) (*vault.DbCreds, error) {
 	podUuid := generateUUID(logger)
 	creds, err := vaultConn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
-		ContextID:      contextID,
-		TTL:            cfg.TokenTTL,
-		PodNameUID:     podUuid,
-		Namespace:      pod.Namespace,
-		SecretName:     cfg.VaultSecretName,
-		Prefix:         cfg.VaultSecretPrefix,
-		ServiceAccount: pod.Spec.ServiceAccountName,
+		ContextID:          contextID,
+		TTL:                cfg.TokenTTL,
+		PodNameUID:         podUuid,
+		Namespace:          pod.Namespace,
+		SecretName:         cfg.VaultSecretName,
+		Prefix:             cfg.VaultSecretPrefix,
+		ServiceAccount:     pod.Spec.ServiceAccountName,
+		SkipOrphanCreation: cfg.UseProjectedSA,
 	})
 	if err != nil {
 		return nil, errors.Newf("cannot get database credentials from role %s: %s", dbConf.Role, err.Error())
