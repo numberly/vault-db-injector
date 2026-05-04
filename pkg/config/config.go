@@ -73,7 +73,6 @@ type Config struct {
 	InjectorLabel     string    `yaml:"injectorLabel" envconfig:"injector_label"`
 	DefaultEngine     string    `yaml:"defaultEngine" envconfig:"default_engine"`
 	VaultRateLimit    int       `yaml:"vaultRateLimit" envconfig:"vault_rate_limit"`
-	NRI               NRIConfig `yaml:"nri" envconfig:"nri"`
 
 	// UseProjectedSA, when true, switches the injector to per-pod
 	// authentication: a short-lived TokenRequest JWT for the pod's SA
@@ -93,6 +92,8 @@ type Config struct {
 	// (default 600s). Default 60s — only needs to live for one Vault
 	// login round-trip.
 	TokenRequestExpirationSeconds int64 `yaml:"tokenRequestExpirationSeconds" envconfig:"token_request_expiration_seconds"`
+
+	NRI NRIConfig `yaml:"nri" envconfig:"nri"`
 }
 
 func NewConfig(configFile string) (*Config, error) {

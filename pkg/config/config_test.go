@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -361,18 +360,10 @@ func TestConfig_ProjectedSADefaults(t *testing.T) {
 	t.Setenv("INJECTOR_KEY_FILE", "k")
 
 	cfg, err := NewConfig("")
-	if err != nil {
-		t.Fatalf("NewConfig: %v", err)
-	}
-	if cfg.UseProjectedSA {
-		t.Fatalf("UseProjectedSA default = true, want false")
-	}
-	if cfg.TokenRequestExpirationSeconds != 60 {
-		t.Fatalf("TokenRequestExpirationSeconds default = %d, want 60", cfg.TokenRequestExpirationSeconds)
-	}
-	if len(cfg.TokenRequestAudiences) != 0 {
-		t.Fatalf("TokenRequestAudiences default = %v, want empty", cfg.TokenRequestAudiences)
-	}
+	require.NoError(t, err)
+	assert.False(t, cfg.UseProjectedSA)
+	assert.EqualValues(t, 60, cfg.TokenRequestExpirationSeconds)
+	assert.Empty(t, cfg.TokenRequestAudiences)
 }
 
 func TestConfig_ProjectedSAEnvOverrides(t *testing.T) {
@@ -388,19 +379,10 @@ func TestConfig_ProjectedSAEnvOverrides(t *testing.T) {
 	t.Setenv("INJECTOR_TOKEN_REQUEST_EXPIRATION_SECONDS", "120")
 
 	cfg, err := NewConfig("")
-	if err != nil {
-		t.Fatalf("NewConfig: %v", err)
-	}
-	if !cfg.UseProjectedSA {
-		t.Fatalf("UseProjectedSA = false, want true")
-	}
-	if cfg.TokenRequestExpirationSeconds != 120 {
-		t.Fatalf("TokenRequestExpirationSeconds = %d, want 120", cfg.TokenRequestExpirationSeconds)
-	}
-	want := []string{"vault", "extra"}
-	if !reflect.DeepEqual(cfg.TokenRequestAudiences, want) {
-		t.Fatalf("TokenRequestAudiences = %v, want %v", cfg.TokenRequestAudiences, want)
-	}
+	require.NoError(t, err)
+	assert.True(t, cfg.UseProjectedSA)
+	assert.EqualValues(t, 120, cfg.TokenRequestExpirationSeconds)
+	assert.Equal(t, []string{"vault", "extra"}, cfg.TokenRequestAudiences)
 }
 
 // ---------------------------------------------------------------------------
