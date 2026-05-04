@@ -24,6 +24,7 @@ type KubernetesClient interface {
 	CoordinationV1() coordinationv1.CoordinationV1Interface
 	GetServiceAccountToken() (string, error)
 	RawClientset() kubernetes.Interface
+	RequestSAToken(ctx context.Context, namespace, saName string, audiences []string, expirationSeconds int64) (string, error)
 }
 
 type podServiceImpl struct {

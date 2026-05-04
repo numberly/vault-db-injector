@@ -30,6 +30,10 @@ func (f *fakeKubernetesClient) GetServiceAccountToken() (string, error) {
 
 func (f *fakeKubernetesClient) RawClientset() kubernetes.Interface { return nil }
 
+func (f *fakeKubernetesClient) RequestSAToken(_ context.Context, _, _ string, _ []string, _ int64) (string, error) {
+	return "fake-jwt", nil
+}
+
 func TestNewTokenRevoker_NotNil(t *testing.T) {
 	cfg := &config.Config{}
 	stopChan := make(chan struct{})

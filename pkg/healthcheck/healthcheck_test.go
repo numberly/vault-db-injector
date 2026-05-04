@@ -41,6 +41,10 @@ func (m *MockK8sClient) GetKubernetesClient() (*kubernetes.Clientset, error) {
 	return &kubernetes.Clientset{}, nil
 }
 
+func (m *MockK8sClient) RequestSAToken(_ context.Context, _, _ string, _ []string, _ int64) (string, error) {
+	return "fake-jwt", nil
+}
+
 func setupTestService(k8sShouldFail bool) (*Service, *mpatch.Patch) {
 	cfg := &config.Config{
 		LogLevel:      "info",

@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"crypto/x509"
 	"os"
 	"path/filepath"
@@ -20,16 +21,18 @@ type ClientInterface interface {
 	GetServiceAccountToken() (string, error)
 	GetKubernetesCACert() (*x509.CertPool, error)
 	GetKubernetesClient() (*kubernetes.Clientset, error)
+	RequestSAToken(ctx context.Context, namespace, saName string, audiences []string, expirationSeconds int64) (string, error)
 }
 
-// KubernetesClientAdapter wraps a *kubernetes.Clientset and adds
+// KubernetesClientAdapter wraps a kubernetes.Interface and adds
 // GetServiceAccountToken so it satisfies KubernetesClient.
 type KubernetesClientAdapter struct {
-	*kubernetes.Clientset
+	Clientset kubernetes.Interface
 }
 
 // NewKubernetesClientAdapter returns a KubernetesClientAdapter for the given clientset.
-func NewKubernetesClientAdapter(cs *kubernetes.Clientset) *KubernetesClientAdapter {
+// It accepts kubernetes.Interface so both real and fake clientsets can be used.
+func NewKubernetesClientAdapter(cs kubernetes.Interface) *KubernetesClientAdapter {
 	return &KubernetesClientAdapter{Clientset: cs}
 }
 
@@ -78,6 +81,14 @@ func (c *Client) GetKubernetesCACert() (*x509.CertPool, error) {
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
 	return caCertPool, nil
+}
+
+func (c *Client) RequestSAToken(ctx context.Context, namespace, saName string, audiences []string, expirationSeconds int64) (string, error) {
+	cs, err := c.GetKubernetesClient()
+	if err != nil {
+		return "", err
+	}
+	return NewKubernetesClientAdapter(cs).RequestSAToken(ctx, namespace, saName, audiences, expirationSeconds)
 }
 
 func (c *Client) GetKubernetesClient() (*kubernetes.Clientset, error) {

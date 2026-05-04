@@ -38,6 +38,10 @@ func (f *fakeKubernetesClientAdapter) RawClientset() kubernetes.Interface {
 	return f.inner
 }
 
+func (f *fakeKubernetesClientAdapter) RequestSAToken(_ context.Context, _, _ string, _ []string, _ int64) (string, error) {
+	return "fake-jwt", nil
+}
+
 var _ k8s.KubernetesClient = (*fakeKubernetesClientAdapter)(nil)
 
 func TestGetAllPodAndNamespace_NoPodsFound(t *testing.T) {

@@ -30,6 +30,9 @@ func (f *fakeKubernetesClient) CoreV1() corev1.CoreV1Interface                  
 func (f *fakeKubernetesClient) CoordinationV1() coordinationv1.CoordinationV1Interface  { return nil }
 func (f *fakeKubernetesClient) GetServiceAccountToken() (string, error)                 { return "fake-token", nil }
 func (f *fakeKubernetesClient) RawClientset() kubernetes.Interface                      { return nil }
+func (f *fakeKubernetesClient) RequestSAToken(_ context.Context, _, _ string, _ []string, _ int64) (string, error) {
+	return "fake-jwt", nil
+}
 
 var _ k8s.KubernetesClient = (*fakeKubernetesClient)(nil)
 
