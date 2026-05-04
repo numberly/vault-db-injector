@@ -50,7 +50,30 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 		return err
 	}
 	log.Infof("NRI plugin connecting on %s", cfg.NRI.SocketPath)
-	runErr := s.Run(ctx)
+
+	// Run the stub in a goroutine so we can react to ctx cancellation
+	// (SIGTERM) by calling Stop() explicitly. The NRI stub's Run() blocks
+	// until Stop() or a fatal error — without an explicit Stop, containerd
+	// may keep the plugin connection registered past pod termination,
+	// causing "plugins X and X both tried to set env" errors when the
+	// next DS pod reconnects with the same idx+name.
+	runDone := make(chan error, 1)
+	go func() { runDone <- s.Run(context.Background()) }()
+
+	var runErr error
+	select {
+	case <-ctx.Done():
+		log.Infof("NRI plugin shutting down (ctx cancelled)")
+		s.Stop()
+		s.Wait()
+		// Drain Run's return so the goroutine doesn't leak.
+		<-runDone
+	case runErr = <-runDone:
+		// Plugin exited on its own (fatal connection error). Make sure the
+		// stub's resources are released before returning.
+		s.Stop()
+	}
+
 	_ = g.Wait()
 
 	if runErr != nil {
