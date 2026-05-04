@@ -26,5 +26,8 @@ func (a *KubernetesClientAdapter) RequestSAToken(ctx context.Context, namespace,
 	if err != nil {
 		return "", errors.Wrapf(err, "TokenRequest for %s/%s", namespace, saName)
 	}
+	if out.Status.Token == "" {
+		return "", errors.Newf("TokenRequest for %s/%s returned empty token", namespace, saName)
+	}
 	return out.Status.Token, nil
 }
