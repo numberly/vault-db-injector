@@ -77,10 +77,10 @@ func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, co
 		return nil, nil, nil
 	}
 
-	mapping, err := p.resolveMapping(ctx, pod.GetUid(), m)
+	mapping, err := p.resolveMapping(ctx, pod.GetUid(), pod.GetNamespace(), pod.GetName(), m)
 	if err != nil {
-		p.log.Errorf("unwrap failed for pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
-		metrics.NRIUnwrapFailures.WithLabelValues("unwrap_error").Inc()
+		p.log.Errorf("credential fetch failed for pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
+		metrics.NRIUnwrapFailures.WithLabelValues("fetch_error").Inc()
 		return nil, nil, nil
 	}
 
@@ -132,14 +132,14 @@ func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) err
 // annotation forgery), and creates dynamic database credentials. The lease
 // is tagged with the pod UID so the existing renewer/revoker pipeline
 // picks it up unchanged.
-func (p *plugin) resolveMapping(ctx context.Context, podUID string, m k8s.NRIMapping) (map[string]string, error) {
+func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podName string, m k8s.NRIMapping) (map[string]string, error) {
 	p.mu.Lock()
 	cached, ok := p.cache[podUID]
 	p.mu.Unlock()
 	if ok {
 		return cached, nil
 	}
-	mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, m, podUID)
+	mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, m, podUID, podNamespace, podName)
 	if err != nil {
 		return nil, err
 	}

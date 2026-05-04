@@ -7,16 +7,20 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/vault"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // fetchAndBuildMapping authenticates to Vault as the plugin's own SA, runs
 // CanIGetRoles for the target pod's identity, and creates dynamic database
 // credentials. Returns a placeholder→real-value map ready for Substitute.
 //
-// This replaces the prior unwrap-only path: the wrap-token-as-bearer-credential
-// vulnerability (Hunter finding #H5) is closed by never putting any Vault
-// token in the pod annotation.
-func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, m k8s.NRIMapping, contextID string) (map[string]string, *vault.DbCreds, error) {
+// Pod identity (namespace + serviceAccountName) is verified against the
+// live K8s API — never trusted from the annotation. Otherwise an attacker
+// with pods.create could claim a privileged identity in the annotation
+// (e.g. ns=prod sa=trusted-app) while running their pod with their own
+// unprivileged SA, and the plugin would fetch the privileged creds for
+// the attacker's pod (Hunter finding #H6).
+func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, m k8s.NRIMapping, contextID, podNamespace, podName string) (map[string]string, *vault.DbCreds, error) {
 	if m.SchemaVersion != 2 {
 		return nil, nil, errors.Newf("unsupported nri-mapping schema version %d (expected 2)", m.SchemaVersion)
 	}
@@ -27,7 +31,30 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, m k8s.NRIMapp
 		return nil, nil, errors.New("nri-mapping has empty placeholders")
 	}
 
+	// Resolve actual pod identity from the K8s API. The annotation's
+	// pod_namespace / pod_service_account are NOT trusted — if they
+	// disagree with what kube-apiserver records for this pod UID, refuse
+	// to fetch credentials.
 	k8sClient := k8s.NewClient()
+	clientset, err := k8sClient.GetKubernetesClient()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "k8s clientset")
+	}
+	pod, err := clientset.CoreV1().Pods(podNamespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "get pod %s/%s", podNamespace, podName)
+	}
+	actualSA := pod.Spec.ServiceAccountName
+	if actualSA == "" {
+		actualSA = "default"
+	}
+	if podNamespace != m.PodNamespace || actualSA != m.PodServiceAccount {
+		return nil, nil, errors.Newf(
+			"pod identity mismatch: actual %s/%s != annotated %s/%s — refusing to fetch credentials",
+			podNamespace, actualSA, m.PodNamespace, m.PodServiceAccount,
+		)
+	}
+
 	tok, err := k8sClient.GetServiceAccountToken()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "get serviceaccount token")
@@ -38,26 +65,23 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, m k8s.NRIMapp
 	}
 	conn.K8sSaVaultToken = conn.GetToken()
 
-	// Re-verify pod's SA can use the role. Webhook already checked this at
-	// admission, but re-running here defends against annotation forgery via
-	// pods.update RBAC (an attacker who can update annotations but not
-	// create SAs cannot bypass the Vault-side authorization).
-	ok, err := conn.CanIGetRoles(ctx, contextID, m.PodServiceAccount, m.PodNamespace, cfg.VaultAuthPath, m.DbRole)
+	// Re-verify the (now-trusted) pod identity against the Vault auth role.
+	ok, err := conn.CanIGetRoles(ctx, contextID, actualSA, podNamespace, cfg.VaultAuthPath, m.DbRole)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "vault CanIGetRoles")
 	}
 	if !ok {
-		return nil, nil, errors.Newf("pod %s/%s not authorized for vault role %s", m.PodNamespace, m.PodServiceAccount, m.DbRole)
+		return nil, nil, errors.Newf("pod %s/%s not authorized for vault role %s", podNamespace, actualSA, m.DbRole)
 	}
 
 	creds, err := conn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
 		ContextID:      contextID,
 		TTL:            cfg.TokenTTL,
 		PodNameUID:     contextID, // re-use contextID (= pod UID) so renewer/revoker can correlate by pod
-		Namespace:      m.PodNamespace,
+		Namespace:      podNamespace,
 		SecretName:     cfg.VaultSecretName,
 		Prefix:         cfg.VaultSecretPrefix,
-		ServiceAccount: m.PodServiceAccount,
+		ServiceAccount: actualSA,
 	})
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "vault GetDbCredentials")
