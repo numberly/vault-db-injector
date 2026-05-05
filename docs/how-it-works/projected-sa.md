@@ -116,13 +116,41 @@ config.
 
 ## Migration
 
-1. **Before code rollout**: configure `token_period` on every Vault
-   role used by injected pods; create renewer/revoker roles + policies.
-2. **Code deploy** with `useProjectedSA: false` (no change in behavior).
-3. **Per cluster**, flip `useProjectedSA: true`. New pods use the new
-   path; pods already injected continue to be renewed/revoked normally
-   — no data migration.
-4. **Cleanup** (separate PR): drop DB policy from the injector SA.
+⚠️ **Important upgrade-path constraint**: enabling `useProjectedSA: true`
+provisions dedicated `<release>-renewer` and `<release>-revoker`
+ServiceAccounts AND switches the renewer/revoker deployments to use
+them. Before flipping the flag, the Vault auth/kubernetes roles
+`<release>-renewer` and `<release>-revoker` MUST exist with the
+correct `bound_service_account_names`/`bound_service_account_namespaces`
+and policies attached, otherwise renewer/revoker pods will fail to
+log into Vault and leases will expire silently.
+
+### Recommended migration order
+
+1. **Vault prep** (no chart change yet): create the renewer and
+   revoker policies + roles with the bindings shown above, AND set
+   `token_period > 0` on every Vault `auth/kubernetes` role used by
+   injected workloads.
+2. **Chart upgrade with `useProjectedSA: false`** (default): no
+   behavioral change. Verify the existing renewer/revoker still
+   authenticate successfully against Vault.
+3. **Per cluster, flip `useProjectedSA: true`**: the chart now
+   renders the dedicated renewer/revoker SAs and the
+   `serviceaccounts/token` ClusterRole for the injector. New pods
+   take the projected-SA path. Pods admitted before the flip
+   continue to be renewed/revoked using the still-valid pre-flip
+   token IDs (the renewer/revoker treat both kinds identically).
+4. **Cleanup** (separate PR): drop the broad DB policy from the
+   injector SA — only after every cluster runs with the flag on
+   and no rollback is planned.
+
+### Rollback
+
+Flipping `useProjectedSA: false` reverts the renewer/revoker SAs to
+the shared injector SA. Leases issued during the projected window
+remain valid and are renewed/revoked by the legacy SA — provided the
+legacy Vault role's `bound_service_account_names` still contains
+the injector SA.
 
 ## Troubleshooting
 
