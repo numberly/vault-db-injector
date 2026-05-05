@@ -30,12 +30,14 @@ import (
 //   namespace and serviceAccountName come from kube-apiserver.
 // - The K8s API pod.UID must match the NRI sandbox UID (closes the
 //   name-reuse race documented at #CRIT-1).
-// - The webhook already ran CanIGetRoles at admission; we re-run it
-//   here against the K8s-attested identity as defense in depth.
-// - In useProjectedSA mode, Vault performs the attestation natively
-//   (bound_service_account_names) during Login above and CanIGetRoles
-//   is skipped. The Vault role MUST be configured with token_period > 0
-//   so the pod-token (and its lease) survives until explicit revocation.
+// - In legacy mode (UseProjectedSA=false), the webhook ran CanIGetRoles
+//   at admission and we re-run it here against the K8s-attested identity
+//   as defense in depth.
+// - In projected mode (UseProjectedSA=true), Vault performs the equivalent
+//   attestation natively via bound_service_account_names during the per-pod
+//   login. CanIGetRoles is not called. The Vault role MUST be configured
+//   with token_period > 0 so the pod-token (and its lease) survives until
+//   explicit revocation.
 func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, podNamespace, podName string, bookCache *vault.BookkeepingTokenCache) (mapping map[string]string, creds *vault.DbCreds, retErr error) {
 	// liveConns accumulates every connector whose Login succeeded.
 	// On partial failure (iteration K fails after 0..K-1 succeeded) the
