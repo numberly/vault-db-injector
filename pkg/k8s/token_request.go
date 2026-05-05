@@ -16,9 +16,13 @@ import (
 // --service-account-min-token-expiration (default 600s).
 func (a *KubernetesClientAdapter) RequestSAToken(ctx context.Context, namespace, saName string, audiences []string, expirationSeconds int64) (string, error) {
 	exp := expirationSeconds
+	aud := audiences
+	if len(aud) == 0 {
+		aud = nil // omit field in JSON; apiserver applies cluster-default audience
+	}
 	tr := &authv1.TokenRequest{
 		Spec: authv1.TokenRequestSpec{
-			Audiences:         audiences,
+			Audiences:         aud,
 			ExpirationSeconds: &exp,
 		},
 	}
