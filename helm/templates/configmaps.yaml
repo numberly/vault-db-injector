@@ -29,7 +29,7 @@ data:
     vaultAddress: {{ .Values.vaultDbInjector.configuration.vaultAddress }}
     vaultAuthPath: {{ .Values.vaultDbInjector.configuration.vaultAuthPath }}
     logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
-    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
+    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRoleRenewer | default .Values.vaultDbInjector.configuration.kubeRole }}
     tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
     vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
     vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}
@@ -46,7 +46,7 @@ data:
     vaultAddress: {{ .Values.vaultDbInjector.configuration.vaultAddress }}
     vaultAuthPath: {{ .Values.vaultDbInjector.configuration.vaultAuthPath }}
     logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
-    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
+    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRoleRevoker | default .Values.vaultDbInjector.configuration.kubeRole }}
     tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
     vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
     vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}
@@ -65,7 +65,7 @@ data:
     vaultAddress: {{ .Values.vaultDbInjector.configuration.vaultAddress }}
     vaultAuthPath: {{ .Values.vaultDbInjector.configuration.vaultAuthPath }}
     logLevel: {{ .Values.vaultDbInjector.configuration.logLevel }}
-    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRole }}
+    kubeRole: {{ .Values.vaultDbInjector.configuration.kubeRoleNri | default .Values.vaultDbInjector.configuration.kubeRole }}
     tokenTTL: {{ .Values.vaultDbInjector.configuration.tokenTTL }}
     vaultSecretName: {{ .Values.vaultDbInjector.configuration.vaultSecretName }}
     vaultSecretPrefix: {{ .Values.vaultDbInjector.configuration.vaultSecretPrefix }}

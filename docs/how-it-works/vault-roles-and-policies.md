@@ -18,6 +18,13 @@ to confuse because both are configured by Helm values.
 | Path prefix inside the KV mount | `vaultSecretPrefix` | (empty) | `kubernetes1-dv-par5` |
 | Auth role used by the injector itself | `kubeRole` | (empty) | `vault-db-injector` |
 
+**Per-mode role overrides**: by default the injector (webhook), NRI
+plugin, renewer, and revoker all log in with the same `kubeRole`. Each
+can be overridden via Helm values `kubeRoleNri`, `kubeRoleRenewer`,
+`kubeRoleRevoker` — recommended in projected-SA mode where the renewer
+and revoker have dedicated Vault roles tied to their dedicated
+ServiceAccounts.
+
 Throughout this doc, paths are written using these placeholders so you
 can mentally substitute the values from your Helm `values.yaml`:
 

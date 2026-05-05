@@ -4,6 +4,13 @@ vaultDbInjector:
     vaultAuthPath: "kubernetes"
     logLevel: info
     kubeRole: "all-rw"
+    # Optional per-mode overrides for kubeRole. When empty, the mode
+    # falls back to `kubeRole` above. Useful in projected-SA mode where
+    # the renewer and revoker have dedicated Vault roles + policies.
+    # See docs/how-it-works/vault-roles-and-policies.md.
+    kubeRoleNri: ""
+    kubeRoleRenewer: ""
+    kubeRoleRevoker: ""
     tokenTTL: 8766h
     vaultSecretName: vault-injector
     vaultSecretPrefix: "kubernetes"
