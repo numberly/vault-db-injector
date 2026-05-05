@@ -449,56 +449,10 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 					}
 				}
 			} else {
-				leaseTooYoung, err := c.isLeaseTooYoung(ctx, ki.LeaseID)
-				if err != nil {
-					// "invalid lease" means Vault no longer knows this lease
-					// (already expired or revoked). The KV entry is otherwise
-					// unmanageable and would log-spam every cycle, so finish
-					// the cleanup: revoke the orphan token (no-ops if gone)
-					// and delete the KV entry.
-					if isLeaseUnrecoverable(err) {
-						c.Log.Infof("Lease %s already gone for uuid %s (%v), purging KV entry", ki.LeaseID, ki.PodNameUID, err)
-						if revErr := c.RevokeOrphanToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace); revErr != nil {
-							c.Log.Errorf("Can't revoke Token with UUID: %s: %v", ki.PodNameUID, revErr)
-							isOk.Store(false)
-							return
-						}
-						if delErr := c.DeleteData(ctx, secretName, ki.PodNameUID, ki.Namespace, prefix); delErr != nil {
-							c.Log.Errorf("Data for %s can't be deleted: %v", ki.PodNameUID, delErr)
-							isOk.Store(false)
-							return
-						}
-						metrics.LeaseExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-						metrics.TokenExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-						metrics.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-						metrics.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-						metrics.DataDeletedCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-						return
-					}
-					c.Log.Warnf("Cannot determine lease age for %s, skipping cleanup: %v", ki.LeaseID, err)
-					return
-				}
-				if leaseTooYoung {
-					c.Log.Infof("This lease: %s is too young to be cleaned up.", ki.LeaseID)
-					return
-				}
-				err = c.RevokeOrphanToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace)
-				if err != nil {
-					c.Log.Errorf("Can't revoke Token with UUID: %s", ki.PodNameUID)
-					isOk.Store(false)
-					return
-				}
-				if err := c.DeleteData(ctx, secretName, ki.PodNameUID, ki.Namespace, prefix); err != nil {
-					c.Log.Errorf("Data for %s can't be deleted: %v", ki.PodNameUID, err)
-					isOk.Store(false)
-					return
-				}
-				metrics.LeaseExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				metrics.TokenExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				metrics.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				metrics.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				metrics.DataDeletedCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				c.Log.Infof("Token has been revoked and data deleted")
+				// Pod no longer exists in the Kubernetes API — skip silently.
+				// The revoker owns safety-net cleanup (periodic safetyNetSync)
+				// so the renewer does not need revoke-orphan or KV-delete caps.
+				c.Log.Debugf("Pod for uuid %s not found in k8s, skipping (revoker handles cleanup)", ki.PodNameUID)
 			}
 		}(ki)
 	}
@@ -587,30 +541,6 @@ func (c *Connector) RenewSelfToken(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-// When you create a pod, sometime, it is not scheduled directly due to some cluster issue such has limit range / ...
-// To avoid the token / leaseID to be deleted, we decide that YoungToken should not be deleted by the Renewer
-// This doesnt change how the revoker work.
-// The value is totally arbitrary, this is to avoid corner case where pod are not scheduled direcly and their creds are deleted before the scheduler schedule them.
-func (c *Connector) isLeaseTooYoung(ctx context.Context, leaseID string) (bool, error) {
-	leaseInformations, err := c.client.Sys().LookupWithContext(ctx, leaseID)
-	if err != nil {
-		// Conservative: treat lookup failure as "too young" to avoid premature revocation.
-		return true, errors.Wrapf(err, "sys.Lookup failed for lease %s", leaseID)
-	}
-	issueTime, ok := leaseInformations.Data["issue_time"].(string)
-	if !ok {
-		return false, errors.Newf("unexpected type for issue_time in lease %s", leaseID)
-	}
-	issueTimeParsed, err := time.Parse(time.RFC3339, issueTime)
-	if err != nil {
-		return false, errors.Wrap(err, "error parsing issue time")
-	}
-	timeSinceIssue := time.Since(issueTimeParsed)
-	isYoungerThanTenMinutes := timeSinceIssue < 10*time.Minute
-
-	return isYoungerThanTenMinutes, nil
 }
 
 func (c *Connector) RenewLease(ctx context.Context, leaseID string, leaseTTL int, uuid, namespace string) error {

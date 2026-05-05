@@ -39,6 +39,43 @@ func NewTokenRevoker(cfg *config.Config, clientset k8s.KubernetesClient, stopcha
 	}
 }
 
+func (r *tokenRevokerImpl) safetyNetSync(ctx context.Context, vaultConn *vault.Connector) {
+	keyInfos, err := vaultConn.ListKeyInfo(ctx, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
+	if err != nil {
+		// ListKeyInfo may return partial results; log but continue with what we have.
+		r.log.Warnf("safetyNetSync ListKeyInfo partial error: %v", err)
+	}
+	if len(keyInfos) == 0 {
+		return
+	}
+
+	podSvc := k8s.NewPodService(r.clientset, r.cfg)
+	pods, err := podSvc.GetAllPodAndNamespace(ctx)
+	if err != nil {
+		r.log.Errorf("safetyNetSync GetAllPodAndNamespace failed: %v", err)
+		return
+	}
+
+	podUUIDs := make(map[string]bool)
+	for _, pi := range pods {
+		for _, uuid := range pi.PodNameUUIDs {
+			podUUIDs[uuid] = true
+		}
+	}
+
+	for _, ki := range keyInfos {
+		if podUUIDs[ki.PodNameUID] {
+			continue
+		}
+		// Pod for this UUID is gone — revoke + purge the KV entry.
+		if err := vaultConn.HandlePodDeletionToken(ctx, ki, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix); err != nil {
+			r.log.Warnf("safetyNetSync HandlePodDeletionToken for uuid %s: %v", ki.PodNameUID, err)
+			continue
+		}
+		r.log.Infof("safetyNetSync: revoked + purged orphan KV entry for uuid %s", ki.PodNameUID)
+	}
+}
+
 func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
 	saToken, err := r.clientset.GetServiceAccountToken()
 	if err != nil {
@@ -52,6 +89,22 @@ func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	// Periodic safety-net sync: catch pods that died while the revoker
+	// was down or the watch was disconnected.
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				r.log.Debug("safetyNetSync: starting periodic orphan cleanup")
+				r.safetyNetSync(ctx, vaultConn)
+			}
+		}
+	}()
 
 	go func() {
 		var watcher watch.Interface
