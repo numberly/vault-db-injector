@@ -1,50 +1,80 @@
 # Vault roles and policies required by vault-db-injector
 
-This page is the reference for everything that must exist on the Vault
-side for vault-db-injector to operate. Configuration scales with the
-features you enable: legacy mode needs only the injector role; NRI mode
-adds nothing on the Vault side; projected-SA mode adds dedicated roles
-and policies for the renewer and revoker, and per-app `token_period`
-on every k8s-auth role used by injected pods.
-
-The examples assume:
-- Helm release name: `vault-db-injector`
-- Release namespace: `vault-db-injector`
-- Vault k8s-auth mount: `kubernetes`
-
-Adjust to your environment.
+This page is the canonical reference for everything that must exist on
+the Vault side. Follow the section that matches your operating mode:
+**legacy** (the only mode in v2.x) or **projected-SA** (recommended in v3.0+).
 
 ---
 
-## 1. Always required — the injector role and its policy
+## 0. Vocabulary — two Vault mounts to keep distinct
 
-The webhook (and the NRI plugin) authenticates to Vault as the injector
-ServiceAccount in legacy mode. In projected-SA mode it still does so for
-non-projected paths and for the admission-time role lookup. So the
-injector role is **always required**.
+vault-db-injector touches **two different Vault mounts**. They are easy
+to confuse because both are configured by Helm values.
 
-### Policy: `vault-db-injector`
+| Vault concept | Helm value | Default | Example |
+|---|---|---|---|
+| Auth method mount (k8s OIDC login) | `vaultAuthPath` | `kubernetes` | `auth/kubernetes/` |
+| KV-v2 secrets engine (lease/token bookkeeping) | `vaultSecretName` | `vault-injector` | `vault-injector/` |
+| Path prefix inside the KV mount | `vaultSecretPrefix` | (empty) | `kubernetes1-dv-par5` |
+| Auth role used by the injector itself | `kubeRole` | (empty) | `vault-db-injector` |
+
+Throughout this doc, paths are written using these placeholders so you
+can mentally substitute the values from your Helm `values.yaml`:
+
+- `auth/<authPath>/` — the k8s auth mount, e.g. `auth/kubernetes/`
+- `<kvMount>/` — the KV-v2 mount, e.g. `vault-injector/`
+
+Bookkeeping objects live at:
+```
+<kvMount>/data/<vaultSecretPrefix>/<podUID>          # KV-v2 data API
+<kvMount>/metadata/<vaultSecretPrefix>/<podUID>      # KV-v2 metadata API
+```
+
+---
+
+## 1. Legacy mode (`useProjectedSA: false`)
+
+The original v2.x flow. The injector authenticates to Vault with **its
+own** ServiceAccount, validates the pod's authorization in-process via
+`CanIGetRoles`, then issues a Vault orphan token holding the role's
+policy and uses it to call `database/creds/<role>`. The renewer and
+revoker share the injector's SA and policy.
+
+### What you need
+
+1. **One Vault policy** for the injector — `vault-db-injector`
+2. **One Vault role** under `auth/<authPath>/role/` bound to the injector SA
+3. **Per-application** role + policy + DB role (see section 3)
+
+### Policy `vault-db-injector` (legacy mode)
 
 ```hcl
-# Read every database role's config (used by CanIGetRoles in legacy mode).
-path "auth/kubernetes/role/*" {
-  capabilities = ["read"]
+# --- KV-v2 bookkeeping (replace <kvMount> with vaultSecretName) ---
+# Read/write per-pod metadata: which lease, which token, which pod.
+path "<kvMount>/data/+/+" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+path "<kvMount>/metadata/+/+" {
+  capabilities = ["read", "delete", "list"]
 }
 
-# Issue and revoke orphan tokens used to carry per-pod DB credentials
-# in legacy mode.
+# --- Vault token operations ---
+# Create the orphan token that carries the per-pod DB role policy.
 path "auth/token/create-orphan" {
   capabilities = ["update", "sudo"]
 }
+# Revoke that orphan when the pod dies (revoker job, in-flight cleanup).
 path "auth/token/revoke-orphan" {
   capabilities = ["update", "sudo"]
 }
 path "auth/token/revoke" {
   capabilities = ["update"]
 }
+# Renew the orphan periodically (renewer job).
 path "auth/token/renew" {
   capabilities = ["update"]
 }
+# Renew the injector's own login token in long-running modes.
 path "auth/token/renew-self" {
   capabilities = ["update"]
 }
@@ -52,37 +82,30 @@ path "auth/token/lookup-self" {
   capabilities = ["read"]
 }
 
-# Issue dynamic database credentials for any role the injector can use.
-# Scope this down to specific paths in production if you can enumerate
-# them; the wildcard is shown for clarity.
+# --- Authorization check ---
+# CanIGetRoles reads each app role's config to verify the pod's SA
+# is in bound_service_account_names BEFORE issuing creds.
+path "auth/<authPath>/role/*" {
+  capabilities = ["read"]
+}
+
+# --- Database credential issuance ---
+# Issue dynamic credentials. Scope to specific role names in
+# production if you can enumerate them.
 path "database/creds/*" {
   capabilities = ["read"]
 }
 
-# KV writes for lease/token bookkeeping (the renewer/revoker rely on
-# this to discover what to renew/revoke). Path follows
-# vaultSecretName / vaultSecretPrefix from Helm values.
-path "kubernetes/data/+/+" {
-  capabilities = ["create", "read", "update", "delete"]
-}
-path "kubernetes/metadata/+/+" {
-  capabilities = ["read", "delete", "list"]
-}
-
-# Self health check used by liveness/readiness probes.
+# --- Probes ---
 path "sys/health" {
   capabilities = ["read"]
 }
 ```
 
-> ⚠️ When you enable projected-SA mode AND complete the cleanup phase
-> (drop DB-issuing privileges from the injector), this policy reduces
-> drastically. See section 4 below.
-
-### Role: `vault-db-injector`
+### Role `vault-db-injector` (legacy mode)
 
 ```bash
-vault write auth/kubernetes/role/vault-db-injector \
+vault write auth/<authPath>/role/vault-db-injector \
     bound_service_account_names="vault-db-injector" \
     bound_service_account_namespaces="vault-db-injector" \
     token_policies="vault-db-injector" \
@@ -90,21 +113,194 @@ vault write auth/kubernetes/role/vault-db-injector \
     token_max_ttl="24h"
 ```
 
-The Helm value `vaultDbInjector.configuration.kubeRole` must equal the
-role name (default: `vault-db-injector`).
+The Helm value `vaultDbInjector.configuration.kubeRole` must equal this
+role name (`vault-db-injector` here).
+
+### Renewer & revoker in legacy mode
+
+They **share** the injector SA and the same `vault-db-injector` policy
+above. No additional Vault objects are required.
 
 ---
 
-## 2. Per-application role — what user pods consume
+## 2. Projected-SA mode (`useProjectedSA: true`) — full config
 
-For each application that wants dynamic DB credentials, you need:
-1. A Vault DB connection + role under `database/`
-2. A k8s-auth role telling Vault which pod SA can use it
+Every pod authenticates as itself via Kubernetes TokenRequest, so:
+- Vault attests pod identity natively (`bound_service_account_names`)
+- The injector no longer needs `database/creds/*` or `create-orphan`
+- The renewer and revoker get **dedicated SAs** (provisioned by the chart)
+  with **dedicated minimal policies**
 
-### Per-app DB role
+You need **four Vault policies** and **three Vault roles** for the
+injector tier, plus the per-app roles (section 3).
+
+### 2a. Injector policy — `vault-db-injector` (projected mode, minimal)
+
+The injector itself only needs to:
+- Read app roles to know they exist (still used by `authorizeDbAccess`)
+- Write KV bookkeeping (the renewer/revoker discover work via this)
+- Probe its own health
+
+```hcl
+# --- KV-v2 bookkeeping ---
+path "<kvMount>/data/+/+" {
+  capabilities = ["create", "update"]
+}
+path "<kvMount>/metadata/+/+" {
+  capabilities = ["read"]
+}
+
+# --- Read app role config (still needed at admission) ---
+path "auth/<authPath>/role/*" {
+  capabilities = ["read"]
+}
+
+# --- Probes ---
+path "sys/health" {
+  capabilities = ["read"]
+}
+```
+
+> Notably **absent** vs. legacy mode: `database/creds/*`,
+> `auth/token/create-orphan`, `auth/token/revoke*`, `auth/token/renew*`.
+> All credential issuance happens under the per-pod token; renew/revoke
+> are owned by the dedicated jobs below.
+
+### 2b. Renewer policy — `vault-db-renewer` (projected mode)
+
+The renewer reads the KV bookkeeping to find pod tokens, then renews
+each one (which automatically renews their attached DB lease).
+
+```hcl
+# --- KV-v2 bookkeeping (read-only) ---
+path "<kvMount>/data/+/+" {
+  capabilities = ["read"]
+}
+path "<kvMount>/metadata/+/+" {
+  capabilities = ["read", "list"]
+}
+
+# --- Token operations ---
+path "auth/token/renew" {
+  capabilities = ["update"]
+}
+path "auth/token/lookup" {
+  capabilities = ["update"]
+}
+
+# --- Direct lease renewal (fallback when only the lease ID is known) ---
+path "sys/leases/renew" {
+  capabilities = ["update"]
+}
+
+# --- Self-token renewal (long-running CronJob) ---
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+
+path "sys/health" {
+  capabilities = ["read"]
+}
+```
+
+### 2c. Revoker policy — `vault-db-revoker` (projected mode)
+
+The revoker discovers gone pods via KV + Kubernetes API, revokes their
+tokens (which cascades to leases), and cleans up the KV entries.
+
+```hcl
+# --- KV-v2 bookkeeping (read + delete) ---
+path "<kvMount>/data/+/+" {
+  capabilities = ["read", "delete"]
+}
+path "<kvMount>/metadata/+/+" {
+  capabilities = ["read", "list", "delete"]
+}
+
+# --- Token operations ---
+path "auth/token/revoke" {
+  capabilities = ["update"]
+}
+path "auth/token/revoke-orphan" {
+  capabilities = ["update", "sudo"]
+}
+
+# --- Direct lease revocation (fallback) ---
+path "sys/leases/revoke" {
+  capabilities = ["update"]
+}
+
+# --- Self-token renewal ---
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+
+path "sys/health" {
+  capabilities = ["read"]
+}
+```
+
+### 2d. Roles for the three injector-tier SAs
+
+The chart provisions three Kubernetes ServiceAccounts when
+`useProjectedSA: true`:
+- `<release>` — the webhook + NRI plugin
+- `<release>-renewer` — the renewer Deployment
+- `<release>-revoker` — the revoker Deployment
+
+Create one Vault auth role per SA, each bound to its own policy:
 
 ```bash
-# One-time per database backend (Postgres, MySQL, ...)
+# Injector
+vault write auth/<authPath>/role/vault-db-injector \
+    bound_service_account_names="vault-db-injector" \
+    bound_service_account_namespaces="vault-db-injector" \
+    audience="vault" \
+    token_policies="vault-db-injector" \
+    token_ttl="1h" token_max_ttl="24h"
+
+# Renewer
+vault write auth/<authPath>/role/vault-db-injector-renewer \
+    bound_service_account_names="vault-db-injector-renewer" \
+    bound_service_account_namespaces="vault-db-injector" \
+    audience="vault" \
+    token_policies="vault-db-renewer" \
+    token_ttl="1h" token_max_ttl="24h"
+
+# Revoker
+vault write auth/<authPath>/role/vault-db-injector-revoker \
+    bound_service_account_names="vault-db-injector-revoker" \
+    bound_service_account_namespaces="vault-db-injector" \
+    audience="vault" \
+    token_policies="vault-db-revoker" \
+    token_ttl="1h" token_max_ttl="24h"
+```
+
+> The role names follow the pattern `<helm-fullname>` /
+> `<helm-fullname>-renewer` / `<helm-fullname>-revoker`. If your Helm
+> release name differs, adjust accordingly.
+>
+> The `audience="vault"` line is recommended (matches Helm
+> `tokenRequestAudiences: ["vault"]`). Omit it if you intentionally
+> want the apiserver-default audience for legacy compatibility.
+
+---
+
+## 3. Per-application setup (both modes)
+
+For each app that wants dynamic DB credentials you create:
+1. A DB connection + role under `database/`
+2. A Vault policy granting `read` on that DB role's creds path
+3. A k8s-auth role binding the policy to the app's SA
+
+The shape is the same in legacy and projected modes — **only**
+`token_period` is mandatory in projected mode (so the pod-token lives
+beyond `token_max_ttl`).
+
+### DB connection + role
+
+```bash
+# Once per database backend (Postgres, MySQL, ...)
 vault write database/config/myapp-postgres \
     plugin_name="postgresql-database-plugin" \
     connection_url="postgresql://{{username}}:{{password}}@db:5432/myapp" \
@@ -120,10 +316,9 @@ vault write database/roles/myapp-prod \
     max_ttl="24h"
 ```
 
-### Per-app policy
+### App policy `myapp-prod`
 
 ```hcl
-# vault-policy: myapp-prod
 path "database/creds/myapp-prod" {
   capabilities = ["read"]
 }
@@ -132,192 +327,80 @@ path "auth/token/renew-self" {
 }
 ```
 
-### Per-app k8s-auth role
+### App k8s-auth role
 
 ```bash
-vault write auth/kubernetes/role/myapp-prod \
+vault write auth/<authPath>/role/myapp-prod \
     bound_service_account_names="myapp" \
     bound_service_account_namespaces="team-myapp" \
     audience="vault" \
     token_policies="myapp-prod" \
     token_type="service" \
-    token_period="24h"
+    token_period="24h"     # MANDATORY in projected-SA mode
 ```
 
-> **Mandatory in projected-SA mode**: `token_period > 0`. Without it
-> the pod-token expires at `token_max_ttl` and the lease falls with
-> it. Use `scripts/vault-set-audience.sh` to bulk-set the audience on
-> every existing role at migration time.
+> **About `token_period`**: in projected mode the same Vault token
+> issues the lease and remains the handle for renewal/revocation. If
+> the role lacks `token_period`, the token expires at `token_max_ttl`
+> and the lease falls with it — apps lose creds in the middle of a
+> shift. The metric `vdbi_projected_role_misconfigured_total{role}`
+> increments when the injector sees a role without it.
 
 ---
 
-## 3. Projected-SA mode additions — renewer & revoker
+## 4. Audience migration helper
 
-When `useProjectedSA: true`, the chart provisions dedicated Kubernetes
-ServiceAccounts (`<release>-renewer`, `<release>-revoker`). You MUST
-create matching Vault roles + minimal policies before flipping the flag.
-
-### Renewer policy: `vault-db-renewer`
-
-```hcl
-# Renew per-pod tokens issued in projected-SA mode.
-path "auth/token/renew" {
-  capabilities = ["update"]
-}
-path "auth/token/lookup" {
-  capabilities = ["update"]
-}
-
-# Renew underlying DB leases.
-path "sys/leases/renew" {
-  capabilities = ["update"]
-}
-
-# Read KV bookkeeping to find what to renew.
-path "kubernetes/data/+/+" {
-  capabilities = ["read"]
-}
-path "kubernetes/metadata/+/+" {
-  capabilities = ["read", "list"]
-}
-
-path "sys/health" {
-  capabilities = ["read"]
-}
-```
-
-### Revoker policy: `vault-db-revoker`
-
-```hcl
-# Revoke per-pod tokens (cascades to their DB leases).
-path "auth/token/revoke" {
-  capabilities = ["update"]
-}
-path "auth/token/revoke-orphan" {
-  capabilities = ["update", "sudo"]
-}
-
-# Direct lease revocation as a fallback when only the lease ID is known.
-path "sys/leases/revoke" {
-  capabilities = ["update"]
-}
-
-# KV bookkeeping: read to discover, delete to clean up.
-path "kubernetes/data/+/+" {
-  capabilities = ["read", "delete"]
-}
-path "kubernetes/metadata/+/+" {
-  capabilities = ["read", "list", "delete"]
-}
-
-path "sys/health" {
-  capabilities = ["read"]
-}
-```
-
-### Vault roles for the renewer/revoker SAs
-
-```bash
-vault write auth/kubernetes/role/vault-db-injector-renewer \
-    bound_service_account_names="vault-db-injector-renewer" \
-    bound_service_account_namespaces="vault-db-injector" \
-    audience="vault" \
-    token_policies="vault-db-renewer" \
-    token_ttl="1h" \
-    token_max_ttl="24h"
-
-vault write auth/kubernetes/role/vault-db-injector-revoker \
-    bound_service_account_names="vault-db-injector-revoker" \
-    bound_service_account_namespaces="vault-db-injector" \
-    audience="vault" \
-    token_policies="vault-db-revoker" \
-    token_ttl="1h" \
-    token_max_ttl="24h"
-```
-
-The role names follow the pattern `<helm-release-fullname>-renewer` and
-`<helm-release-fullname>-revoker`. Adjust if your release name differs.
-
----
-
-## 4. Projected-SA cleanup — minimal injector policy
-
-After every cluster runs with `useProjectedSA: true` and you are
-confident no rollback is needed, drop DB-issuing privileges from the
-injector policy. The minimum it needs in projected-only mode is:
-
-```hcl
-# Health probes
-path "sys/health" {
-  capabilities = ["read"]
-}
-
-# Read role config — still needed by the admission-time pre-check
-# (CanIGetRoles is skipped in projected mode, but the chart's
-#  startup sequence still issues a Vault login)
-path "auth/kubernetes/role/*" {
-  capabilities = ["read"]
-}
-
-# KV bookkeeping the injector itself writes lease metadata to
-path "kubernetes/data/+/+" {
-  capabilities = ["create", "update"]
-}
-path "kubernetes/metadata/+/+" {
-  capabilities = ["read"]
-}
-```
-
-Notably absent from this minimal policy:
-- `database/creds/*` — the pod-token issues credentials, not the injector
-- `auth/token/create-orphan` — no orphan creation in projected mode
-- `auth/token/revoke*` — the revoker has its own policy now
-- `auth/token/renew*` — same, renewer has its own
-
-Apply this only after the rollout is stable. There is no automation —
-flip the policy in your Terraform module / Vault setup script.
-
----
-
-## 5. Audience migration
-
-When introducing a new audience requirement (recommended for new
-deployments: `audience="vault"`), use the helper script to update every
-existing k8s-auth role at once:
+If you are switching to projected-SA mode and want to enforce a
+specific JWT audience (recommended), use the bundled script to update
+every existing k8s-auth role at once:
 
 ```bash
 export VAULT_ADDR=https://vault.example.com:8200
-export VAULT_TOKEN="<a token with list+read+update on auth/kubernetes/role/*>"
+export VAULT_TOKEN="<a token with list+read+update on auth/<authPath>/role/*>"
 
 # Preview
-./scripts/vault-set-audience.sh kubernetes vault --dry-run
+./scripts/vault-set-audience.sh <authPath> vault --dry-run
 
 # Apply
-./scripts/vault-set-audience.sh kubernetes vault
+./scripts/vault-set-audience.sh <authPath> vault
 ```
 
-The script:
-- Lists every role under `auth/<mount>/role/`
-- Reads each role's full config
-- Re-writes it with the new audience while preserving every other
-  field (`bound_service_account_names`, `token_policies`, `token_period`,
-  etc.) — `vault write` is CREATE-or-REPLACE, NOT a partial update,
-  so the read-then-write flow is mandatory
-- Skips roles that already have the desired audience (idempotent)
+The script reads each role's full config and re-writes it with the new
+audience while preserving every other field. `vault write` on a role
+is CREATE-or-REPLACE, NOT a partial update — the read-then-write flow
+is mandatory.
 
 After applying, set `tokenRequestAudiences: ["vault"]` in your Helm
-values to start emitting JWTs that match.
+values so the injector emits matching JWTs.
 
 ---
 
-## 6. Capability summary by mode
+## 5. What goes where — quick lookup
 
-| Capability | Legacy | NRI mode | Projected-SA mode | Projected + cleanup |
-|---|---|---|---|---|
-| Injector reads `auth/kubernetes/role/*` | ✓ | ✓ | ✓ | ✓ |
-| Injector creates orphan tokens | ✓ | ✓ | — | — |
-| Injector reads `database/creds/*` | ✓ | ✓ | — | — |
-| Injector revokes tokens | ✓ | ✓ | (renewer/revoker only) | — |
-| Renewer/revoker have own policies | — | — | ✓ | ✓ |
-| Per-app role has `token_period > 0` | optional | optional | **required** | **required** |
-| Per-app role has `audience` | optional | optional | recommended | recommended |
+| You want to … | Vault path | Capability |
+|---|---|---|
+| Inject (legacy): create the per-pod orphan token | `auth/token/create-orphan` | `update`, `sudo` |
+| Inject (legacy): issue DB creds | `database/creds/*` | `read` |
+| Inject (both modes): write KV bookkeeping | `<kvMount>/data/+/+` | `create`, `update` |
+| Inject (both modes): read app role config | `auth/<authPath>/role/*` | `read` |
+| Renew (legacy or projected): renew a token | `auth/token/renew` | `update` |
+| Renew (both modes): read KV to find work | `<kvMount>/data/+/+` | `read` |
+| Revoke (legacy or projected): revoke a token | `auth/token/revoke-orphan` | `update`, `sudo` |
+| Revoke (both modes): clean up KV | `<kvMount>/data/+/+` | `delete` |
+| Pod-side (projected): issue DB creds | `database/creds/<role>` | `read` (in app policy) |
+| Pod-side (projected): renew its own token | `auth/token/renew-self` | `update` (in app policy) |
+
+## 6. Mode comparison
+
+| Capability owner | Legacy | Projected-SA |
+|---|---|---|
+| `auth/token/create-orphan` | injector | — |
+| `database/creds/*` (inject path) | injector | per-app (the pod) |
+| `auth/token/revoke-orphan` | injector + revoker | revoker only |
+| `auth/token/renew` | injector + renewer | renewer only |
+| `auth/<authPath>/role/*` read | injector | injector |
+| `<kvMount>/data/+/+` write | injector | injector |
+| `<kvMount>/data/+/+` read | renewer + revoker | renewer + revoker |
+| `<kvMount>/data/+/+` delete | revoker | revoker |
+| Per-app role `token_period > 0` | optional | **required** |
+| Per-app role `audience` | optional | recommended |
