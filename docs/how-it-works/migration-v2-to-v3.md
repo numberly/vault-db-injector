@@ -278,6 +278,20 @@ In summary:
    pods get a Vault token whose `policies` list contains only their
    role policy (verifiable via `vault token lookup <stored-tokenID>`).
 
+> ⚠️ **Important**: when you flip `useProjectedSA: true`, the chart
+> immediately switches the renewer and revoker Deployments to use
+> dedicated ServiceAccounts (`<release>-renewer`, `<release>-revoker`).
+> Vault auth/kubernetes roles bound to these SAs (`<release>-renewer`,
+> `<release>-revoker`) MUST exist BEFORE the chart upgrade, otherwise
+> the renewer/revoker pods will crash-loop on Vault login and existing
+> leases will silently expire at TTL.
+>
+> Recommended order:
+> 1. Create the new Vault roles + policies (see vault-roles-and-policies.md §2c-§2d)
+> 2. `helm upgrade` with `useProjectedSA: true`
+> 3. Verify renewer/revoker pods Ready
+> 4. Optionally: tighten the legacy injector policy (see §4 of that doc)
+
 ---
 
 ## Rollback
