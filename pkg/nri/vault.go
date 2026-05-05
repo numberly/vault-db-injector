@@ -143,6 +143,11 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	mergedMapping := map[string]string{}
 	var lastCreds *vault.DbCreds
 
+	// tok is the pod's TokenRequest JWT, valid for cfg.TokenRequestExpirationSeconds
+	// (default 600s). All dbConfig iterations reuse the same JWT — if the loop
+	// exceeds the JWT TTL (extreme edge case under Vault rate-limiting), later
+	// iterations will fail with "jwt expired". The loop duration should be far
+	// below 600s in practice.
 	for i, dbConf := range *pdc.DbConfigurations {
 		if err := checkConfigurationLite(dbConf); err != nil {
 			return nil, nil, err
