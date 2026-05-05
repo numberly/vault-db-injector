@@ -39,6 +39,10 @@ vaultDbInjector:
     # one Vault login round-trip, so 600 is the practical minimum.
     tokenRequestExpirationSeconds: 600
   injector:
+    # Override the ServiceAccount used by the injector Deployment.
+    # Empty = chart-managed default (<release>). Set to BYO an SA
+    # provisioned outside the chart (e.g., shared SA across releases).
+    serviceAccountName: ""
     args:
     - "--config=/injector/config.yaml"
     containerSecurityContext:
@@ -59,6 +63,10 @@ vaultDbInjector:
       annotations: {}
     type: ClusterIP
   renewer:
+    # Override the ServiceAccount used by the renewer Deployment.
+    # Empty = chart-managed default (<release> in legacy mode,
+    # <release>-renewer when useProjectedSA: true).
+    serviceAccountName: ""
     args:
     - "--config=/renewer/config.yaml"
     containerSecurityContext:
@@ -73,6 +81,10 @@ vaultDbInjector:
       tag: 2.0.12
     imagePullPolicy: Always
   revoker:
+    # Override the ServiceAccount used by the revoker Deployment.
+    # Empty = chart-managed default (<release> in legacy mode,
+    # <release>-revoker when useProjectedSA: true).
+    serviceAccountName: ""
     args:
     - "--config=/revoker/config.yaml"
     containerSecurityContext:
@@ -88,6 +100,9 @@ vaultDbInjector:
     imagePullPolicy: Always
 
 nri:
+  # Override the ServiceAccount used by the NRI DaemonSet.
+  # Empty = chart-managed default (<release>).
+  serviceAccountName: ""
   # When true, deploys the NRI DaemonSet AND tells the injector to wrap
   # every credential it issues. Both pieces are tied to this single switch
   # so the cluster cannot end up in a "webhook produces placeholders but

@@ -69,7 +69,7 @@ spec:
           timeoutSeconds: 1
       imagePullSecrets:
       - name: registry-token
-      serviceAccountName: {{ include "vault-db-injector.fullname" . }}{{ if .Values.vaultDbInjector.configuration.useProjectedSA }}-renewer{{ end }}
+      serviceAccountName: {{ .Values.vaultDbInjector.renewer.serviceAccountName | default (printf "%s%s" (include "vault-db-injector.fullname" .) (ternary "-renewer" "" .Values.vaultDbInjector.configuration.useProjectedSA)) }}
       volumes:
         - configMap:
             defaultMode: 420

@@ -83,7 +83,7 @@ spec:
           timeoutSeconds: 1
       imagePullSecrets:
       - name: registry-token
-      serviceAccountName: {{ include "vault-db-injector.fullname" . }}
+      serviceAccountName: {{ .Values.nri.serviceAccountName | default (include "vault-db-injector.fullname" .) }}
       volumes:
       - configMap:
           defaultMode: 420
