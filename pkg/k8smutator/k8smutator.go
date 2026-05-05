@@ -102,7 +102,7 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 			mode = "projected"
 		}
 		metrics.VaultLoginErrors.WithLabelValues("other", mode).Inc()
-		return nil, dbConf.Role, errors.Newf("cannot authenticate vault role: %s", err.Error())
+		return nil, dbConf.Role, errors.Wrapf(err, "cannot authenticate vault role")
 	}
 	if cfg.UseProjectedSA {
 		vaultConn.PodVaultToken = vaultConn.GetToken()
@@ -145,7 +145,7 @@ func fetchDbCredentials(ctx context.Context, contextID string, cfg *config.Confi
 		SkipOrphanCreation: cfg.UseProjectedSA,
 	})
 	if err != nil {
-		return nil, errors.Newf("cannot get database credentials from role %s: %s", dbConf.Role, err.Error())
+		return nil, errors.Wrapf(err, "cannot get database credentials from role %s", dbConf.Role)
 	}
 	logger.WithValues(log.Kv{"contextID": contextID}).Debugf("got DB credentials using role %s", dbConf.Role)
 	creds.PodUUID = podUuid
