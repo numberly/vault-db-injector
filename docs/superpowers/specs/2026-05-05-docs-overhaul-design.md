@@ -210,7 +210,6 @@ Manual review at the end of phase 5: a fresh reader walks the Getting Started pa
 
 | Risk | Mitigation |
 |---|---|
-| Broken external links from the published site (search engines, blog posts) | Keep the `index.md`, `getting-started/`, `how-it-works/`, `monitoring/` paths used by the current sitemap intact during phases 1–5; only delete in phase 6, after the new structure is in place. Add redirects via `mkdocs-redirects` plugin if needed |
 | FR drift from EN over time | Treat FR as a regenerated mirror, not a parallel-edited tree. Any future edit goes EN-first, then FR is updated in the same commit |
 | Agent ignores humanizer pass | Make humanizer invocation an explicit deliverable in each agent prompt, and verify on review that the produced text does not contain known AI tells |
 | Scope creep into code/Helm changes | Spec is documentation-only. Any code change discovered as needed during writing is filed as a separate issue, not bundled |
