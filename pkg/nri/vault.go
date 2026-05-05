@@ -110,7 +110,11 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		metrics.VaultLoginErrors.WithLabelValues("other", mode).Inc()
 		return nil, nil, errors.Wrap(err, "vault login")
 	}
-	conn.K8sSaVaultToken = conn.GetToken()
+	if cfg.UseProjectedSA {
+		conn.PodVaultToken = conn.GetToken()
+	} else {
+		conn.K8sSaVaultToken = conn.GetToken()
+	}
 
 	if !cfg.UseProjectedSA {
 		ok, err := conn.CanIGetRoles(ctx, contextID, actualSA, podNamespace, cfg.VaultAuthPath, dbConf.Role)

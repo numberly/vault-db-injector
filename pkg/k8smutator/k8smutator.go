@@ -135,7 +135,11 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 		metrics.VaultLoginErrors.WithLabelValues("other", mode).Inc()
 		return nil, dbConf.Role, errors.Newf("cannot authenticate vault role: %s", err.Error())
 	}
-	vaultConn.K8sSaVaultToken = vaultConn.GetToken()
+	if cfg.UseProjectedSA {
+		vaultConn.PodVaultToken = vaultConn.GetToken()
+	} else {
+		vaultConn.K8sSaVaultToken = vaultConn.GetToken()
+	}
 	logger.WithValues(log.Kv{"contextID": contextID}).Debugf("authenticated to vault using role %s/%s", cfg.VaultAuthPath, authRole)
 
 	if cfg.UseProjectedSA {
@@ -292,7 +296,7 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 		// modes.
 		vaultConn, role, err := authorizeDbAccess(ctx, contextID, cfg, dbConf, logger, vaultDbPath, tok, pod)
 		if err != nil {
-			if vaultConn != nil {
+			if vaultConn != nil && vaultConn.K8sSaVaultToken != "" {
 				if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
 					logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
 				}
@@ -311,23 +315,27 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 		if !cfg.NRI.Enabled {
 			creds, err = fetchDbCredentials(ctx, contextID, cfg, dbConf, logger, vaultConn, pod)
 			if err != nil {
-				if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
-					logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
+				if vaultConn.K8sSaVaultToken != "" {
+					if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
+						logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
+					}
 				}
 				return nil, role, nil, err
 			}
 		}
 
 		if err := applyEnvToContainers(ctx, pod, dbConf, creds, vaultDbPath, cfg); err != nil {
-			if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
-				logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
+			if vaultConn.K8sSaVaultToken != "" {
+				if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
+					logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
+				}
 			}
 			return nil, role, nil, err
 		}
 
 		// Best-effort: revoke webhook's own vault SA token. Plugin will
 		// authenticate independently when it fetches creds.
-		if cfg.NRI.Enabled {
+		if cfg.NRI.Enabled && vaultConn.K8sSaVaultToken != "" {
 			if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
 				logger.WithValues(log.Kv{"contextID": contextID}).Infof("RevokeSelfToken (NRI mode webhook) warning: %v", revokeErr)
 			}
