@@ -507,12 +507,27 @@ func (c *Connector) RevokeOrphanToken(ctx context.Context, tokenID, uuid, namesp
 	return nil
 }
 
+// RevokeSelfToken revokes the given tokenID by building a fresh Vault client
+// authenticated as that token and calling auth/token/revoke-self.
+// This avoids the SDK footgun where RevokeSelfWithContext ignores the tokenID
+// argument and always revokes whatever token the caller's client currently holds.
 func (c *Connector) RevokeSelfToken(ctx context.Context, tokenID string) error {
-	err := c.client.Auth().Token().RevokeSelfWithContext(ctx, tokenID)
+	if tokenID == "" {
+		return nil
+	}
+	cli, err := vault.NewClient(&vault.Config{Address: c.address})
 	if err != nil {
+		return errors.Wrap(err, "RevokeSelfToken: build client")
+	}
+	cli.SetToken(tokenID)
+	abbrev := tokenID
+	if len(tokenID) > 8 {
+		abbrev = tokenID[:8]
+	}
+	if err := cli.Auth().Token().RevokeSelfWithContext(ctx, ""); err != nil {
 		metrics.RevokeTokenErrorCount.WithLabelValues("", "").Inc()
 		c.Log.Errorf("error while revoking token: %v", err)
-		return err
+		return errors.Wrapf(err, "RevokeSelfToken: revoke %s", abbrev)
 	}
 	metrics.RevokeTokenCount.WithLabelValues("").Inc()
 	return nil

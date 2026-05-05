@@ -341,3 +341,51 @@ func TestSyncAndCleanupTokens_EmptyKeysUnit(t *testing.T) {
 	// empty-keys success with a live Vault cluster is covered in the integration test.
 	t.Skip("empty-keys success path requires live Vault cluster — see integration test")
 }
+
+// TestRevokeSelfToken_RevokesGivenTokenNotClientToken verifies the C1 fix:
+// RevokeSelfToken(tokenA) actually revokes tokenA, not the connector's
+// current token (which may be tokenB). It does this by recording the
+// X-Vault-Token header sent to the fake /v1/auth/token/revoke-self endpoint
+// and asserting it equals tokenA, not tokenB.
+func TestRevokeSelfToken_RevokesGivenTokenNotClientToken(t *testing.T) {
+	const tokenA = "token-to-revoke-aaaaaaaaa"
+	const tokenB = "connector-current-bbbbbbb"
+
+	var capturedToken string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/auth/token/revoke-self" {
+			capturedToken = r.Header.Get("X-Vault-Token")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		// Vault sys/health needed by client init
+		if r.URL.Path == "/v1/sys/health" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"initialized":true,"sealed":false,"standby":false}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	// Build a connector whose client is currently authenticated as tokenB.
+	cfg := vaultapi.DefaultConfig()
+	cfg.Address = srv.URL
+	client, err := vaultapi.NewClient(cfg)
+	require.NoError(t, err)
+	client.SetToken(tokenB)
+
+	conn := &Connector{
+		address: srv.URL,
+		client:  client,
+		Log:     logrus.New(),
+	}
+
+	// RevokeSelfToken must send tokenA in the X-Vault-Token header,
+	// not tokenB (which is what the broken pre-C1 code would send).
+	err = conn.RevokeSelfToken(context.Background(), tokenA)
+	require.NoError(t, err)
+	assert.Equal(t, tokenA, capturedToken,
+		"RevokeSelfToken must authenticate as the given tokenID, not the connector's current token")
+}
