@@ -5,7 +5,7 @@
 Ce guide explique comment obtenir un environnement de développement fonctionnel et
 comment valider le mode NRI en local sur un cluster k3d.
 
-Pour les informations générales sur le projet, consultez le [site de documentation](https://numberly.github.io/vault-db-injector).
+Pour les informations générales sur le projet, consultez la [page d'accueil](../index.md).
 
 ## Démarrage rapide
 
