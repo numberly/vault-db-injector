@@ -72,6 +72,12 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	}
 	actualSA := pod.Spec.ServiceAccountName
 	if actualSA == "" {
+		if cfg.UseProjectedSA {
+			return nil, nil, errors.Newf(
+				"pod %s/%s has empty serviceAccountName — refusing to TokenRequest in projected-SA mode",
+				podNamespace, podName,
+			)
+		}
 		actualSA = "default"
 	}
 
