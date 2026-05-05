@@ -56,6 +56,7 @@ nav:
     - how-it-works/renewer.md
     - how-it-works/revoker.md
     - how-it-works/vault.md
+    - how-it-works/vault-roles-and-policies.md
     - how-it-works/kubernetes.md
     - how-it-works/leaderelection.md
     - how-it-works/healthcheck.md
