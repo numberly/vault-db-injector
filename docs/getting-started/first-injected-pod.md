@@ -42,6 +42,36 @@ Apply it:
 kubectl apply -f myapp.yaml
 ```
 
+If your application reads a single connection string from one environment variable, use URI mode instead. Replace the annotations with:
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: myapp
+  namespace: team-myapp
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp
+  namespace: team-myapp
+  annotations:
+    db-creds-injector.numberly.io/cluster: database
+    db-creds-injector.numberly.io/myapp.role: myapp-prod
+    db-creds-injector.numberly.io/myapp.mode: uri
+    db-creds-injector.numberly.io/myapp.template: postgresql://@db.team-myapp.svc:5432/myapp?sslmode=require
+    db-creds-injector.numberly.io/myapp.env-key-uri: DATABASE_URL
+  labels:
+    vault-db-injector: "true"
+spec:
+  serviceAccountName: myapp
+  containers:
+    - name: app
+      image: postgres:16
+      command: ["sleep", "infinity"]
+```
+
 ## Verify the credentials work
 
 ```bash
@@ -53,6 +83,8 @@ Expected output shows the real username and password, not a placeholder:
 DB_USER=vault-myapp-prod-1746345600-x8k2j9ab
 DB_PASS=A1B2-c3d4-E5F6-g7h8
 ```
+
+For URI mode, the env var is `DATABASE_URL` instead of `DB_USER`/`DB_PASS`.
 
 Test the database connection:
 

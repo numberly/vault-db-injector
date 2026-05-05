@@ -63,7 +63,14 @@ If you have `nerdctl` on the node:
 nerdctl --namespace=k8s.io system info | grep -i nri
 ```
 
-Expected output includes a line referencing the NRI plugin registration.
+Expected output:
+```
+nri:
+  disable: false
+  socket_path: /var/run/nri/nri.sock
+```
+
+If the output is empty, NRI is disabled in containerd. See containerd documentation for enabling NRI.
 
 ## Create the injector namespace
 

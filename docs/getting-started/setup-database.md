@@ -34,9 +34,13 @@ CREATE ROLE vaultadmin WITH LOGIN SUPERUSER PASSWORD '<strong-random>';
 
 ## Other database engines
 
-### MySQL and MariaDB
+### MySQL
 
 The setup follows the same pattern: create a Vault admin user (`CREATE USER 'vaultadmin'@'%' IDENTIFIED BY '...' WITH GRANT OPTION`), then configure the Vault `mysql-database-plugin` or `mysql-legacy-database-plugin`. See the [Vault MySQL plugin documentation](https://developer.hashicorp.com/vault/docs/secrets/databases/mysql-maria) for the connection URL format and required grants.
+
+### MariaDB
+
+MariaDB uses the same `mysql-database-plugin` in Vault as MySQL. The connection and admin user setup are identical, but the `creation_statements` SQL syntax differs slightly — MariaDB does not support all MySQL 8 privilege syntax. See the [Vault MariaDB plugin documentation](https://developer.hashicorp.com/vault/docs/secrets/databases/mysql-maria) for the correct `creation_statements` format.
 
 ### Oracle
 
