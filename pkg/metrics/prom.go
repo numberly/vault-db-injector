@@ -252,12 +252,6 @@ var (
 			Help: "Number of times a Vault role used in projected-SA mode was found without token_period > 0.",
 		}, []string{"role"},
 	)
-	ProjectedAudienceUnconstrained = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "vdbi_projected_audience_unconstrained",
-			Help: "Set to 1 when useProjectedSA is enabled with no tokenRequestAudiences (security hardening recommended). 0 otherwise.",
-		}, []string{},
-	)
 	NRIResolveDuplicateTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "vdbi_nri_resolve_duplicate_total",
@@ -275,7 +269,6 @@ func Init(prom *prometheus.Registry) {
 		TokenRequestErrors,
 		VaultLoginErrors,
 		ProjectedRoleMisconfigured,
-		ProjectedAudienceUnconstrained,
 		GetAllPodErrorCount,
 		GetAllPodSuccessCount,
 		RenewTokenCount,

@@ -385,6 +385,30 @@ func TestConfig_ProjectedSAEnvOverrides(t *testing.T) {
 	assert.Equal(t, []string{"vault", "extra"}, cfg.TokenRequestAudiences)
 }
 
+// TestValidate_ProjectedSARequiresAudiences verifies that useProjectedSA=true
+// without tokenRequestAudiences is rejected at config validation time.
+func TestValidate_ProjectedSARequiresAudiences(t *testing.T) {
+	c := baseValidConfig()
+	c.UseProjectedSA = true
+	c.TokenRequestAudiences = []string{}
+
+	err := c.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tokenRequestAudiences")
+}
+
+// TestValidate_ProjectedSAWithAudiences verifies that useProjectedSA=true
+// with audiences passes validation.
+func TestValidate_ProjectedSAWithAudiences(t *testing.T) {
+	c := baseValidConfig()
+	c.UseProjectedSA = true
+	c.TokenRequestAudiences = []string{"vault"}
+	c.TokenRequestExpirationSeconds = 600
+
+	err := c.Validate()
+	assert.NoError(t, err)
+}
+
 // ---------------------------------------------------------------------------
 // ModeNRI + NRIConfig
 // ---------------------------------------------------------------------------

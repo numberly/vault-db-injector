@@ -176,6 +176,7 @@ func (cfg *Config) Validate() error {
 		{cfg.VaultSecretName == "", "no vaultSecretName specified"},
 		{cfg.VaultSecretPrefix == "", "no vaultSecretPrefix specified"},
 		{cfg.Sentry && cfg.SentryDsn == "", "no sentryDsn specified"},
+		{cfg.UseProjectedSA && len(cfg.TokenRequestAudiences) == 0, "tokenRequestAudiences must be set (e.g., [\"vault\"]) when useProjectedSA is true — empty audience disables the cryptographic SA-impersonation bound"},
 		{cfg.UseProjectedSA && cfg.TokenRequestExpirationSeconds <= 0, "tokenRequestExpirationSeconds must be > 0 when useProjectedSA is enabled"},
 	}
 

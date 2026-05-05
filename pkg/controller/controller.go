@@ -18,20 +18,15 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
-// warnProjectedAudienceUnconstrained emits a startup warning and sets the
-// vdbi_projected_audience_unconstrained gauge when useProjectedSA is enabled
-// without any tokenRequestAudiences. Must be called after metrics.Init.
-func warnProjectedAudienceUnconstrained(cfg *config.Config, log logger.Logger) {
-	if cfg.UseProjectedSA && len(cfg.TokenRequestAudiences) == 0 {
-		metrics.ProjectedAudienceUnconstrained.WithLabelValues().Set(1)
-		log.Warnf("useProjectedSA is enabled but tokenRequestAudiences is empty — " +
-			"TokenRequests will use the apiserver's default audience. " +
-			"This degrades the security promise: a JWT minted for the cluster default audience " +
-			"can be presented to any service that does not strictly check the audience. " +
-			"Set tokenRequestAudiences (and the matching audience field on each Vault auth/kubernetes role) " +
-			"to constrain tokens cryptographically to Vault.")
-	} else {
-		metrics.ProjectedAudienceUnconstrained.WithLabelValues().Set(0)
+// warnLegacyMode emits a startup warning when neither projected-SA mode nor
+// NRI mode is enabled (credentials injected as cleartext in PodSpec).
+// Must be called after metrics.Init.
+func warnLegacyMode(cfg *config.Config, log logger.Logger) {
+	if !cfg.UseProjectedSA && !cfg.NRI.Enabled {
+		log.Warnf("vault-db-injector running in LEGACY mode: credentials are injected as cleartext env vars in the PodSpec. " +
+			"Consider enabling NRI mode (nri.enabled=true) to remove plaintext credentials, " +
+			"and/or projected-SA mode (useProjectedSA=true) for least-privilege Vault auth. " +
+			"See docs/how-it-works/migration-v2-to-v3.md.")
 	}
 }
 
@@ -54,7 +49,7 @@ func NewController(cfg *config.Config, Clientset k8s.KubernetesClient, sentrySvc
 // RunInjector starts the webhook injector and blocks until ctx is cancelled or a fatal error occurs.
 func (c *Controller) RunInjector(ctx context.Context) error {
 	c.log.Info("Starting server in mode injector")
-	warnProjectedAudienceUnconstrained(c.Cfg, c.log)
+	warnLegacyMode(c.Cfg, c.log)
 
 	stopChan := make(chan struct{})
 	// Bridge ctx cancellation to stopChan for components that still use it.
@@ -86,7 +81,7 @@ func (c *Controller) RunInjector(ctx context.Context) error {
 // RunRenewer starts the token renewer with leader election and blocks until ctx is cancelled or a fatal error occurs.
 func (c *Controller) RunRenewer(ctx context.Context) error {
 	c.log.Info("Starting server in mode renewer")
-	warnProjectedAudienceUnconstrained(c.Cfg, c.log)
+	warnLegacyMode(c.Cfg, c.log)
 
 	stopChan := make(chan struct{})
 	podName, lock, err := c.buildLock("lock-injector-renewer")
@@ -129,7 +124,7 @@ func (c *Controller) RunRenewer(ctx context.Context) error {
 // RunRevoker starts the token revoker with leader election and blocks until ctx is cancelled or a fatal error occurs.
 func (c *Controller) RunRevoker(ctx context.Context) error {
 	c.log.Info("Starting server in mode revoker")
-	warnProjectedAudienceUnconstrained(c.Cfg, c.log)
+	warnLegacyMode(c.Cfg, c.log)
 
 	stopChan := make(chan struct{})
 	podName, lock, err := c.buildLock("lock-injector-revoker")
@@ -174,7 +169,7 @@ func (c *Controller) RunRevoker(ctx context.Context) error {
 // CreateContainer time.
 func (c *Controller) RunNRI(ctx context.Context) error {
 	c.log.Info("Starting server in mode nri")
-	warnProjectedAudienceUnconstrained(c.Cfg, c.log)
+	warnLegacyMode(c.Cfg, c.log)
 	if !c.Cfg.NRI.Enabled {
 		c.log.Warn("RunNRI called but cfg.NRI.Enabled is false; idle until shutdown")
 		<-ctx.Done()
