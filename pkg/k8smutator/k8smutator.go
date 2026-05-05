@@ -22,26 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// vaultLoginToken returns the JWT to be used for the Vault login on
-// behalf of this admission. In legacy mode it returns the injector
-// SA's token (mounted in the injector pod). In projected-SA mode it
-// returns a TokenRequest-issued JWT for the admitted pod's SA.
-func vaultLoginToken(ctx context.Context, cfg *config.Config, k8sClient k8s.ClientInterface, pod *corev1.Pod) (string, error) {
-	if !cfg.UseProjectedSA {
-		return k8sClient.GetServiceAccountToken()
-	}
-	saName := pod.Spec.ServiceAccountName
-	if saName == "" {
-		saName = "default"
-	}
-	tok, err := k8sClient.RequestSAToken(ctx, pod.Namespace, saName, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
-	if err != nil {
-		metrics.TokenRequestErrors.WithLabelValues(k8s.ClassifyTokenRequestError(err)).Inc()
-		return "", err
-	}
-	return tok, nil
-}
-
 func generateUUID(logger log.Logger) string {
 	newUUID, err := uuid.NewUUID()
 	if err != nil {
@@ -73,8 +53,9 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 			return defaultResult, errors.Wrap(err, "failed to get Pod DB configuration")
 		}
 
-		tok, err := vaultLoginToken(admCtx, cfg, k8sClient, pod)
+		tok, err := k8s.VaultLoginToken(admCtx, k8sClient, pod, cfg.UseProjectedSA, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
 		if err != nil {
+			metrics.TokenRequestErrors.WithLabelValues(k8s.ClassifyTokenRequestError(err)).Inc()
 			return defaultResult, errors.Wrap(err, "obtain Vault login token")
 		}
 		logger.WithValues(log.Kv{"contextID": contextID}).Debugf("got token from serviceAccount Successfully")

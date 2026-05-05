@@ -82,18 +82,10 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 
 	// Obtain the JWT for Vault login: pod's projected-SA in
 	// useProjectedSA mode, plugin's own SA otherwise.
-	var tok string
-	if cfg.UseProjectedSA {
-		tok, err = k8sClient.RequestSAToken(ctx, podNamespace, actualSA, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
-		if err != nil {
-			metrics.TokenRequestErrors.WithLabelValues(k8s.ClassifyTokenRequestError(err)).Inc()
-			return nil, nil, errors.Wrap(err, "TokenRequest for pod SA")
-		}
-	} else {
-		tok, err = k8sClient.GetServiceAccountToken()
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "get serviceaccount token")
-		}
+	tok, err := k8s.VaultLoginToken(ctx, k8sClient, pod, cfg.UseProjectedSA, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
+	if err != nil {
+		metrics.TokenRequestErrors.WithLabelValues(k8s.ClassifyTokenRequestError(err)).Inc()
+		return nil, nil, errors.Wrap(err, "vault login token")
 	}
 
 	authRole := cfg.KubeRole
