@@ -57,6 +57,7 @@ func ConnectToVault(ctx context.Context, cfg *config.Config, saToken string) (*C
 	vaultConn := NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, "random", "random", saToken, cfg.VaultRateLimit)
 	if err := vaultConn.Login(ctx); err != nil {
 		metrics.ConnectVaultError.WithLabelValues().Inc()
+		metrics.VaultLoginErrors.WithLabelValues(ClassifyLoginError(err), "legacy").Inc()
 		return nil, errors.Wrapf(err, "cannot authenticate vault role")
 	}
 	vaultConn.K8sSaVaultToken = vaultConn.client.Token()
