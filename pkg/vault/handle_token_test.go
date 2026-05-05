@@ -347,6 +347,55 @@ func TestSyncAndCleanupTokens_EmptyKeysUnit(t *testing.T) {
 // isLeaseUnrecoverable (I8)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// isNotFound / DeleteData 404 idempotency (I9)
+// ---------------------------------------------------------------------------
+
+// TestIsNotFound verifies the helper correctly identifies Vault 404 errors.
+func TestIsNotFound(t *testing.T) {
+	makeVaultErr := func(code int) *vaultapi.ResponseError {
+		return &vaultapi.ResponseError{StatusCode: code, Errors: []string{"not found"}}
+	}
+	assert.True(t, isNotFound(makeVaultErr(404)))
+	assert.False(t, isNotFound(makeVaultErr(400)))
+	assert.False(t, isNotFound(makeVaultErr(403)))
+	assert.False(t, isNotFound(errors.New("not found")))
+	assert.False(t, isNotFound(nil))
+}
+
+// TestDeleteData_404IsIdempotent verifies that when Vault returns 404 for
+// both kv.Delete and kv.DeleteMetadata, DeleteData returns nil (success)
+// and does NOT increment DataErrorDeletedCount. This covers the renewer ↔
+// revoker race where both fire on the same gone pod (I9).
+func TestDeleteData_404IsIdempotent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// KVv2 Delete  → DELETE /v1/<mount>/data/<path>
+		// KVv2 DeleteMetadata → DELETE /v1/<mount>/metadata/<path>
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"errors":["not found"]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel)
+
+	vaultCfg := vaultapi.DefaultConfig()
+	vaultCfg.Address = srv.URL
+	client, err := vaultapi.NewClient(vaultCfg)
+	require.NoError(t, err)
+	client.SetToken("s.testtoken")
+
+	c := &Connector{
+		address: srv.URL,
+		client:  client,
+		Log:     log,
+	}
+
+	err = c.DeleteData(context.Background(), "vault-injector", "pod-uuid-123", "default", "prefix")
+	assert.NoError(t, err, "404 from Vault KV delete must be treated as idempotent success")
+}
+
 // TestIsLeaseUnrecoverable covers the tightened implementation that requires
 // a Vault *ResponseError with HTTP 400 and a matching message substring.
 func TestIsLeaseUnrecoverable(t *testing.T) {

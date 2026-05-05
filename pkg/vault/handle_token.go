@@ -152,20 +152,32 @@ func (c *Connector) DeleteData(ctx context.Context, secretName, uuid, namespace,
 	fullPath := fmt.Sprintf("%s/%s", prefix, uuid)
 	c.Log.Debugf("Full path for deleting data is : %s", fullPath)
 
-	err := kv.Delete(ctx, fullPath)
-	if err != nil {
-		metrics.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
-		return errors.Wrapf(err, "kv.Delete failed for path %s", fullPath)
+	if err := kv.Delete(ctx, fullPath); err != nil {
+		if !isNotFound(err) {
+			metrics.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
+			return errors.Wrapf(err, "kv.Delete failed for path %s", fullPath)
+		}
+		c.Log.Debugf("kv.Delete: path %s already gone (idempotent success)", fullPath)
 	}
 
-	err = kv.DeleteMetadata(ctx, fullPath)
-	if err != nil {
-		metrics.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
-		return errors.Wrapf(err, "kv.DeleteMetadata failed for path %s", fullPath)
+	if err := kv.DeleteMetadata(ctx, fullPath); err != nil {
+		if !isNotFound(err) {
+			metrics.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
+			return errors.Wrapf(err, "kv.DeleteMetadata failed for path %s", fullPath)
+		}
+		c.Log.Debugf("kv.DeleteMetadata: path %s already gone (idempotent success)", fullPath)
 	}
 
 	metrics.DataDeletedCount.WithLabelValues(uuid, namespace).Inc()
 	return nil
+}
+
+// isNotFound reports whether a Vault SDK error represents a 404 Not Found.
+// Used to treat concurrent double-delete (renewer + revoker racing on the
+// same gone pod's KV entry) as idempotent success (I9).
+func isNotFound(err error) bool {
+	var ve *vault.ResponseError
+	return errors.As(err, &ve) && ve.StatusCode == 404
 }
 
 func safeString(v any) string {
