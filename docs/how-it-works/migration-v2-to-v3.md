@@ -118,7 +118,7 @@ Three new keys under `vaultDbInjector.configuration`:
 ```yaml
 useProjectedSA: false                    # default false
 tokenRequestAudiences: []                # default empty
-tokenRequestExpirationSeconds: 60        # default 60s
+tokenRequestExpirationSeconds: 600       # default 600s (apiserver minimum)
 ```
 
 Plus the entire `nri:` top-level block (see `nri-mode.md`). Defaults

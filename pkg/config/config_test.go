@@ -362,7 +362,7 @@ func TestConfig_ProjectedSADefaults(t *testing.T) {
 	cfg, err := NewConfig("")
 	require.NoError(t, err)
 	assert.False(t, cfg.UseProjectedSA)
-	assert.EqualValues(t, 60, cfg.TokenRequestExpirationSeconds)
+	assert.EqualValues(t, 600, cfg.TokenRequestExpirationSeconds)
 	assert.Empty(t, cfg.TokenRequestAudiences)
 }
 

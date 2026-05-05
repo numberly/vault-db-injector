@@ -255,6 +255,6 @@ ClusterRole at cluster scope without audience constraint).
 
 ## Open questions
 
-- Confirm `min-token-expiration-seconds` floor on the target clusters (apiserver flag). Default is 600s; if unchanged, an `expirationSeconds: 60` request will be clamped to 600 by apiserver. Functional but worth knowing for documentation accuracy.
+- ~~Confirm `min-token-expiration-seconds` floor on the target clusters~~ — **resolved post-deploy**: the kube-apiserver does NOT clamp; it rejects requests below the floor with `Invalid value: spec.expirationSeconds: may not specify a duration less than 10 minutes`. Default raised from 60 to 600s.
 - Whether to keep `CanIGetRoles` for the legacy (`useProjectedSA=false`) flow only — yes, kept untouched there. Removed only on the projected path.
 - Branch rename: current branch `feat/ebpf-injection-mode` actually contains only NRI work. Rename to `feat/nri-plugin` (or similar) before this work continues, so the new branch can be `feat/projected-sa-vault-auth` cleanly.

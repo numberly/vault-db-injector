@@ -32,9 +32,11 @@ vaultDbInjector:
     # each Vault k8s-auth role.
     tokenRequestAudiences: []
     # Requested lifetime of the TokenRequest JWT, in seconds. The
-    # apiserver may clamp upward to its
-    # --service-account-min-token-expiration flag (default 600).
-    tokenRequestExpirationSeconds: 60
+    # kube-apiserver enforces a hard floor of 600s (--service-account-
+    # min-token-expiration default) and rejects lower values with
+    # `Invalid value: spec.expirationSeconds`. The JWT is only used for
+    # one Vault login round-trip, so 600 is the practical minimum.
+    tokenRequestExpirationSeconds: 600
   injector:
     args:
     - "--config=/injector/config.yaml"

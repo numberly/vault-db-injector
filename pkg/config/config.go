@@ -87,10 +87,11 @@ type Config struct {
 	TokenRequestAudiences []string `yaml:"tokenRequestAudiences" envconfig:"token_request_audiences"`
 
 	// TokenRequestExpirationSeconds is the requested lifetime of the
-	// JWT used to log in to Vault. The Kubernetes apiserver may clamp
-	// this up to its `--service-account-min-token-expiration` flag
-	// (default 600s). Default 60s — only needs to live for one Vault
-	// login round-trip.
+	// JWT used to log in to Vault. The Kubernetes apiserver enforces
+	// a hard floor of 600s (10 min) on this field — values below that
+	// are rejected with `Invalid value: spec.expirationSeconds`. The
+	// JWT only needs to live for the one Vault login round-trip, so
+	// this default is set to the minimum apiserver-accepted value.
 	TokenRequestExpirationSeconds int64 `yaml:"tokenRequestExpirationSeconds" envconfig:"token_request_expiration_seconds"`
 
 	NRI NRIConfig `yaml:"nri" envconfig:"nri"`
@@ -125,7 +126,7 @@ func NewConfig(configFile string) (*Config, error) {
 		},
 		UseProjectedSA:                false,
 		TokenRequestAudiences:         nil,
-		TokenRequestExpirationSeconds: 60,
+		TokenRequestExpirationSeconds: 600,
 	}
 	if configFile != "" {
 		data, err := os.ReadFile(configFile)

@@ -76,7 +76,7 @@ vaultDbInjector:
   configuration:
     useProjectedSA: true
     tokenRequestAudiences: ["vault"]   # must match the role's `audience`
-    tokenRequestExpirationSeconds: 60
+    tokenRequestExpirationSeconds: 600   # 10 min — apiserver enforces this as the hard floor
 ```
 
 The chart automatically:
