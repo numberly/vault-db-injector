@@ -79,11 +79,12 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		if mutatedPod.Annotations == nil {
 			mutatedPod.Annotations = make(map[string]string)
 		}
-		// In NRI transparent mode no creds are fetched at admission so podUuids
-		// is empty — writing "" would collide every NRI pod onto a single map
-		// key in the renewer's lookup. Skip the annotation entirely; the
-		// renewer falls back to pod.UID (which the NRI plugin uses as
-		// PodNameUID when storing the KV entry).
+		// In NRI mode, podUuids holds one pre-generated UUID per dbConfig
+		// (stamped by injectCredentialsIntoPod). The annotation lists them
+		// comma-separated in the same order as the parser returns dbConfigs,
+		// so the NRI plugin can key each KV entry distinctly per dbConfig.
+		// In legacy (non-NRI) mode, podUuids holds the UUID from each actual
+		// credential fetch. Either way, skip the annotation when empty.
 		if len(podUuids) > 0 {
 			mutatedPod.Annotations["db-creds-injector.numberly.io/uuid"] = strings.Join(podUuids, ",")
 		}
@@ -339,6 +340,12 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 
 		if creds != nil {
 			podUuids = append(podUuids, creds.PodUUID)
+		} else if cfg.NRI.Enabled {
+			// NRI mode: webhook didn't fetch creds, but we still need a stable
+			// per-dbConfig UUID so the NRI plugin and renewer/revoker can key
+			// KV bookkeeping per dbConfig. Without this, multi-dbConfig pods
+			// collide on the same pod-UID key and only the last write wins.
+			podUuids = append(podUuids, generateUUID(logger))
 		}
 	}
 	return pod, "", podUuids, nil

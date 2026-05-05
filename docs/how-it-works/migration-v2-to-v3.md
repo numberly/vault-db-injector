@@ -138,6 +138,23 @@ distinct `PodVaultToken` field used in projected mode. External
 operators don't need to do anything; this is documented to support
 out-of-tree code that imports `pkg/vault`.
 
+### B6. Multi-dbConfiguration in NRI mode now works correctly
+
+Previously, pods with multiple `db-creds-injector.numberly.io/role-N`
+annotations in NRI mode would only have their **first** dbConfig
+credential pair resolved; all other placeholder pairs were left
+unsubstituted (app would crash with a literal placeholder as password).
+
+This is fixed: the webhook now stamps one UUID per dbConfig into the
+`db-creds-injector.numberly.io/uuid` annotation, and the NRI plugin
+iterates all dbConfigs using those UUIDs as distinct KV keys.
+
+**Upgrade behavior**: pods admitted before upgrading to this version
+carry no UUID annotation. The NRI plugin falls back to the pod UID for
+the first dbConfig only (preserving single-dbConfig behavior). Pods
+with multiple dbConfigs must be re-rolled after the upgrade to get the
+UUID annotation stamped for all dbConfigs.
+
 ---
 
 ## What does NOT change

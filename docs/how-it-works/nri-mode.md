@@ -44,9 +44,11 @@ containerd (NRI enabled)
      ↓      annotations to learn (vault path, db role, env-key map)
      ↓   5. authenticate to Vault as the plugin's OWN SA token
      ↓   6. CanIGetRoles for the K8s-attested pod identity
-     ↓   7. GetDbCredentials — dynamic credential issued, lease tagged
-     ↓      with pod UID for renewer/revoker correlation
-     ↓   8. map env-key → placeholder → cred field, build substitution
+     ↓   7. for each dbConfig: GetDbCredentials — dynamic credential
+     ↓      issued, lease tagged with per-dbConfig UUID (from the
+     ↓      db-creds-injector.numberly.io/uuid annotation) for
+     ↓      renewer/revoker correlation
+     ↓   8. map env-key → placeholder → cred field, merge all mappings
      ↓   9. emit ContainerAdjustment{env: substituted}
 runc
      ↓ execve with real envp

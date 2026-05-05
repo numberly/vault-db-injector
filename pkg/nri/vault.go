@@ -2,6 +2,7 @@ package nri
 
 import (
 	"context"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
@@ -93,12 +94,17 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		return nil, nil, errors.New("pod has placeholders in env but no db-creds-injector annotations")
 	}
 
-	// Multi-DbConfiguration on a single pod is not supported in NRI mode
-	// (one credential pair per pod). Pick the first; the webhook would
-	// have rejected admission with multiple at this point too.
-	dbConf := (*pdc.DbConfigurations)[0]
-	if err := checkConfigurationLite(dbConf); err != nil {
-		return nil, nil, err
+	// Read the per-dbConfig UUIDs the webhook stamped at admission. Order
+	// MUST match the dbConfigs returned by the parser (both the webhook
+	// and parser iterate the same annotation set in the same order).
+	var podUuids []string
+	if uuidAnno := pod.Annotations["db-creds-injector.numberly.io/uuid"]; uuidAnno != "" {
+		podUuids = strings.Split(uuidAnno, ",")
+	}
+	// Legacy path (pod admitted before this fix, or single-dbConfig pod
+	// with no uuid annotation): fall back to pod UID for the first dbConfig.
+	if len(podUuids) == 0 {
+		podUuids = []string{contextID}
 	}
 
 	// Obtain the JWT for Vault login: pod's projected-SA in
@@ -120,79 +126,103 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		}
 	}
 
-	authRole := cfg.KubeRole
-	if cfg.UseProjectedSA {
-		authRole = dbConf.Role
-	}
-	conn = vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
-	if err := conn.Login(ctx); err != nil {
-		mode := "legacy"
+	// Merge placeholder→value maps from all dbConfigs into a single map.
+	// If ANY dbConfig fails, return the error to fail the whole CreateContainer
+	// (partial substitution is worse than no substitution).
+	mergedMapping := map[string]string{}
+	var lastCreds *vault.DbCreds
+
+	for i, dbConf := range *pdc.DbConfigurations {
+		if err := checkConfigurationLite(dbConf); err != nil {
+			return nil, nil, err
+		}
+
+		// Use the per-dbConfig UUID from the annotation when available;
+		// fall back to contextID for out-of-range index (pre-fix pod).
+		podNameUID := contextID
+		if i < len(podUuids) {
+			podNameUID = podUuids[i]
+		}
+
+		authRole := cfg.KubeRole
 		if cfg.UseProjectedSA {
-			mode = "projected"
+			authRole = dbConf.Role
 		}
-		metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), mode).Inc()
-		return nil, nil, errors.Wrap(err, "vault login")
-	}
-	loginOK = true
-	if cfg.UseProjectedSA {
-		conn.PodVaultToken = conn.GetToken()
-	} else {
-		conn.K8sSaVaultToken = conn.GetToken()
-	}
+		conn = vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
+		if err := conn.Login(ctx); err != nil {
+			mode := "legacy"
+			if cfg.UseProjectedSA {
+				mode = "projected"
+			}
+			metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), mode).Inc()
+			return nil, nil, errors.Wrapf(err, "vault login for dbConfig %d (role %s)", i, dbConf.Role)
+		}
+		loginOK = true
+		if cfg.UseProjectedSA {
+			conn.PodVaultToken = conn.GetToken()
+		} else {
+			conn.K8sSaVaultToken = conn.GetToken()
+		}
 
-	if !cfg.UseProjectedSA {
-		ok, err := conn.CanIGetRoles(ctx, contextID, actualSA, podNamespace, cfg.VaultAuthPath, dbConf.Role)
+		if !cfg.UseProjectedSA {
+			ok, err := conn.CanIGetRoles(ctx, contextID, actualSA, podNamespace, cfg.VaultAuthPath, dbConf.Role)
+			if err != nil {
+				return nil, nil, errors.Wrapf(err, "vault CanIGetRoles for dbConfig %d (role %s)", i, dbConf.Role)
+			}
+			if !ok {
+				return nil, nil, errors.Newf("pod %s/%s not authorized for vault role %s", podNamespace, actualSA, dbConf.Role)
+			}
+		} else {
+			// Vault attests the pod identity natively via bound_service_account_names
+			// during Login above; CanIGetRoles is redundant. Check token_period in projected mode.
+			if period, err := conn.VerifyTokenPeriod(ctx); err != nil {
+				logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Debugf("VerifyTokenPeriod lookup-self failed: %v", err)
+			} else if period == 0 {
+				metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
+				logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Warnf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
+			}
+
+			// The pod-token has no KV-write capability. Perform a separate
+			// injector-SA login to get a token used exclusively by StoreDataAsync
+			// for bookkeeping writes. See vault-roles-and-policies.md §2a.
+			bookToken, err := vault.LoginAsInjectorSA(ctx, cfg, injectorSaToken)
+			if err != nil {
+				metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), "projected_bookkeeping").Inc()
+				return nil, nil, errors.Wrapf(err, "vault login as injector SA for bookkeeping (dbConfig %d)", i)
+			}
+			conn.K8sSaVaultToken = bookToken
+		}
+
+		creds, err = conn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
+			ContextID:          contextID,
+			TTL:                cfg.TokenTTL,
+			PodNameUID:         podNameUID,
+			Namespace:          podNamespace,
+			SecretName:         cfg.VaultSecretName,
+			Prefix:             cfg.VaultSecretPrefix,
+			ServiceAccount:     actualSA,
+			SkipOrphanCreation: cfg.UseProjectedSA,
+		})
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "vault CanIGetRoles")
+			return nil, nil, errors.Wrapf(err, "vault GetDbCredentials for dbConfig %d (role %s)", i, dbConf.Role)
 		}
-		if !ok {
-			return nil, nil, errors.Newf("pod %s/%s not authorized for vault role %s", podNamespace, actualSA, dbConf.Role)
-		}
-	} else {
-		// Vault attests the pod identity natively via bound_service_account_names
-		// during Login above; CanIGetRoles is redundant. Check token_period in projected mode.
-		if period, err := conn.VerifyTokenPeriod(ctx); err != nil {
-			logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Debugf("VerifyTokenPeriod lookup-self failed: %v", err)
-		} else if period == 0 {
-			metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
-			logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Warnf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
-		}
+		creds.PodUUID = podNameUID
 
-		// The pod-token has no KV-write capability. Perform a separate
-		// injector-SA login to get a token used exclusively by StoreDataAsync
-		// for bookkeeping writes. See vault-roles-and-policies.md §2a.
-		bookToken, err := vault.LoginAsInjectorSA(ctx, cfg, injectorSaToken)
-		if err != nil {
-			metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), "projected_bookkeeping").Inc()
-			return nil, nil, errors.Wrap(err, "vault login as injector SA for bookkeeping")
+		// Walk the container env (across init + main containers) to find
+		// placeholders that correspond to dbConf.DbUserEnvKey /
+		// DbPasswordEnvKey / DbURIEnvKey, and map them to the correct
+		// credential field.
+		partial := buildMappingFromPodEnv(pod, dbConf, creds)
+		for ph, val := range partial {
+			mergedMapping[ph] = val
 		}
-		conn.K8sSaVaultToken = bookToken
+		lastCreds = creds
 	}
 
-	creds, err = conn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
-		ContextID:          contextID,
-		TTL:                cfg.TokenTTL,
-		PodNameUID:         contextID,
-		Namespace:          podNamespace,
-		SecretName:         cfg.VaultSecretName,
-		Prefix:             cfg.VaultSecretPrefix,
-		ServiceAccount:     actualSA,
-		SkipOrphanCreation: cfg.UseProjectedSA,
-	})
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "vault GetDbCredentials")
+	if len(mergedMapping) == 0 {
+		return nil, nil, errors.New("no placeholders matched any dbConfiguration env keys")
 	}
-	creds.PodUUID = contextID
-
-	// Walk the container env (across init + main containers) to find
-	// placeholders that correspond to dbConf.DbUserEnvKey /
-	// DbPasswordEnvKey / DbURIEnvKey, and map them to the correct
-	// credential field.
-	mapping = buildMappingFromPodEnv(pod, dbConf, creds)
-	if len(mapping) == 0 {
-		return nil, nil, errors.New("no placeholders matched the dbConfiguration env keys")
-	}
-	return mapping, creds, nil
+	return mergedMapping, lastCreds, nil
 }
 
 func buildMappingFromPodEnv(pod *corev1.Pod, dbConf k8s.DbConfiguration, creds *vault.DbCreds) map[string]string {

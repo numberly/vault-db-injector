@@ -1,12 +1,14 @@
 package k8smutator
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/placeholder"
 	"github.com/numberly/vault-db-injector/pkg/vault"
+	log "github.com/slok/kubewebhook/v2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -368,10 +370,90 @@ func TestApplyEnvToContainers_NRIDisabled_Classic_Unchanged(t *testing.T) {
 	assert.Equal(t, "secret", got["DB_PASSWORD"])
 }
 
-// Transparent NRI: with no nri-mapping annotation written by the
-// webhook, multi-DbConfiguration is no longer rejected at apply time.
-// The plugin handles only the first DbConfiguration; multi-DB
-// scenarios should be enforced upstream (one db role per pod).
+// TestNRIMode_MultiDbConfig_PlaceholdersAreDistinct verifies that when NRI mode
+// is active and a pod has two dbConfig annotations, applyEnvToContainersWithNRI
+// generates two independent placeholder pairs — one per dbConfig. This is the
+// env-side precondition for the NRI plugin to resolve both credential sets.
+func TestNRIMode_MultiDbConfig_PlaceholdersAreDistinct(t *testing.T) {
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "app"}},
+		},
+	}
+	dbConf1 := k8s.DbConfiguration{
+		DbName:           "db1",
+		Mode:             k8s.DbModeClassic,
+		DbUserEnvKey:     "DB1_USER",
+		DbPasswordEnvKey: "DB1_PASS",
+		Role:             "role1",
+	}
+	dbConf2 := k8s.DbConfiguration{
+		DbName:           "db2",
+		Mode:             k8s.DbModeClassic,
+		DbUserEnvKey:     "DB2_USER",
+		DbPasswordEnvKey: "DB2_PASS",
+		Role:             "role2",
+	}
+
+	// In NRI mode the creds argument is nil; applyEnvToContainersWithNRI
+	// generates fresh placeholders internally.
+	err := applyEnvToContainersWithNRI(pod, dbConf1, nil, "databases", true)
+	require.NoError(t, err)
+	err = applyEnvToContainersWithNRI(pod, dbConf2, nil, "databases", true)
+	require.NoError(t, err)
+
+	env := pod.Spec.Containers[0].Env
+	require.Len(t, env, 4, "expect 4 env vars: 2 per dbConfig")
+
+	vals := map[string]string{}
+	for _, e := range env {
+		vals[e.Name] = e.Value
+	}
+
+	// All four must be valid placeholders.
+	for _, key := range []string{"DB1_USER", "DB1_PASS", "DB2_USER", "DB2_PASS"} {
+		require.True(t, placeholder.IsPlaceholder(vals[key]), "env %s value %q must be a placeholder", key, vals[key])
+	}
+
+	// Placeholders across configs must be distinct — collision would cause
+	// the NRI plugin to substitute the same cred value into both env vars.
+	allPH := []string{vals["DB1_USER"], vals["DB1_PASS"], vals["DB2_USER"], vals["DB2_PASS"]}
+	seen := map[string]struct{}{}
+	for _, ph := range allPH {
+		_, dup := seen[ph]
+		require.False(t, dup, "placeholder %q appears more than once — placeholders must be unique across dbConfigs", ph)
+		seen[ph] = struct{}{}
+	}
+}
+
+// TestGenerateUUID_Uniqueness verifies that successive generateUUID calls never
+// return the same value. This is the basis for the per-dbConfig UUID annotation
+// written by the webhook in NRI mode (used by the NRI plugin to key KV entries).
+func TestGenerateUUID_Uniqueness(t *testing.T) {
+	logger := &stubLogger{}
+	seen := map[string]struct{}{}
+	for range 100 {
+		u := generateUUID(logger)
+		require.NotEmpty(t, u)
+		_, dup := seen[u]
+		require.False(t, dup, "generateUUID returned duplicate value %q", u)
+		seen[u] = struct{}{}
+	}
+}
+
+// stubLogger satisfies the log.Logger interface with no-op methods so
+// generateUUID can be called from tests without a real logger.
+type stubLogger struct{}
+
+func (s *stubLogger) Infof(format string, args ...interface{})                              {}
+func (s *stubLogger) Warningf(format string, args ...interface{})                           {}
+func (s *stubLogger) Errorf(format string, args ...interface{})                             {}
+func (s *stubLogger) Debugf(format string, args ...interface{})                             {}
+func (s *stubLogger) WithValues(kvs map[string]interface{}) log.Logger                     { return s }
+func (s *stubLogger) WithCtxValues(ctx context.Context) log.Logger                         { return s }
+func (s *stubLogger) SetValuesOnCtx(parent context.Context, kvs map[string]interface{}) context.Context {
+	return parent
+}
 
 func TestApplyEnvToContainers_NRIEnabled_AcceptsLongCredentials(t *testing.T) {
 	// NRI mode imposes no length cap — long credentials must flow through.
