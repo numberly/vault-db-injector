@@ -131,12 +131,17 @@ When `useProjectedSA: true`, the in-process `CanIGetRoles` check is
 natively at login time. In legacy mode (`useProjectedSA: false`),
 `CanIGetRoles` is unchanged.
 
-### B5. PodVaultToken vs K8sSaVaultToken
+### B5. Dual Vault identity in projected-SA mode
 
-Internal API change for downstream forks: `Connector` now has a
-distinct `PodVaultToken` field used in projected mode. External
-operators don't need to do anything; this is documented to support
-out-of-tree code that imports `pkg/vault`.
+In projected-SA mode the injector holds two distinct Vault tokens per
+pod credential fetch: the pod-token (issued via the pod's projected
+ServiceAccount TokenRequest, used for `database/creds`) and the
+bookkeeping token (`K8sSaVaultToken`, issued via the injector's own SA,
+used for KV writes and lease management). Cleanup paths use
+`conn.GetToken()` for the pod-token and `conn.K8sSaVaultToken` for the
+bookkeeping token. External operators and out-of-tree `pkg/vault`
+importers should use these accessors; the deprecated `PodVaultToken`
+field has been removed.
 
 ### B6. Multi-dbConfiguration in NRI mode now works correctly
 

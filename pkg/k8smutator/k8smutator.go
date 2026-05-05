@@ -120,9 +120,7 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 		metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), mode).Inc()
 		return nil, dbConf.Role, errors.Wrapf(err, "cannot authenticate vault role")
 	}
-	if cfg.UseProjectedSA {
-		vaultConn.PodVaultToken = vaultConn.GetToken()
-	} else {
+	if !cfg.UseProjectedSA {
 		vaultConn.K8sSaVaultToken = vaultConn.GetToken()
 	}
 	logger.WithValues(log.Kv{"contextID": contextID}).Debugf("authenticated to vault using role %s/%s", cfg.VaultAuthPath, authRole)

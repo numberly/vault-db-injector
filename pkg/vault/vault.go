@@ -21,12 +21,6 @@ type Connector struct {
 	dbRole          string
 	k8sSaToken      string
 	K8sSaVaultToken string
-	// PodVaultToken stores the per-pod Vault token issued from a
-	// projected-SA TokenRequest login. It is the token used to call
-	// database/creds and ends up as the stored DbTokenID. Distinct from
-	// K8sSaVaultToken (which holds the long-lived injector-SA login token
-	// that the renewer/revoker use for their own Vault auth).
-	PodVaultToken   string
 	vaultToken      string
 	authRole        string
 	dbMountPath     string

@@ -170,6 +170,9 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		// if a subsequent iteration fails.
 		liveConns = append(liveConns, conn)
 		if !cfg.UseProjectedSA {
+			// In legacy mode the same login token serves both KV bookkeeping
+			// and DB credential fetching. Record it so the renewer/revoker
+			// pipeline can re-authenticate using this token.
 			conn.K8sSaVaultToken = conn.GetToken()
 		}
 
