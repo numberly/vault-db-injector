@@ -14,6 +14,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/logger"
 	"github.com/numberly/vault-db-injector/pkg/metrics"
 	"github.com/numberly/vault-db-injector/pkg/placeholder"
+	"golang.org/x/sync/singleflight"
 )
 
 type plugin struct {
@@ -22,6 +23,11 @@ type plugin struct {
 
 	mu    sync.Mutex
 	cache map[string]map[string]string // pod UID → placeholder→value map
+	// sf deduplicates concurrent fetchAndBuildMapping calls for the same pod UID.
+	// Multi-container pods trigger CreateContainer near-simultaneously; without
+	// singleflight both calls would issue separate Vault credentials — only the
+	// second cache write survives, leaving the first token+lease unmanageable.
+	sf singleflight.Group
 }
 
 func newPlugin(cfg *config.Config, log logger.Logger) *plugin {
@@ -170,20 +176,43 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podNa
 	if ok {
 		return cached, nil
 	}
-	mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, podUID, podNamespace, podName)
+
+	// Single-flight: the first concurrent caller for a given podUID fetches
+	// credentials from Vault; all other callers for the same pod wait and
+	// share the result. This prevents duplicate credential issuance when
+	// multiple containers in the same pod trigger CreateContainer simultaneously.
+	v, err, shared := p.sf.Do(podUID, func() (interface{}, error) {
+		// Re-check cache under the singleflight slot — a concurrent caller
+		// that arrived just before us may have already populated it.
+		p.mu.Lock()
+		if cached, ok := p.cache[podUID]; ok {
+			p.mu.Unlock()
+			return cached, nil
+		}
+		p.mu.Unlock()
+
+		mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, podUID, podNamespace, podName)
+		if err != nil {
+			return nil, err
+		}
+		p.mu.Lock()
+		p.cache[podUID] = mapping
+		p.mu.Unlock()
+		if err := saveCache(p.cfg.NRI.CachePath, p.snapshot()); err != nil {
+			// Cache write failure is non-fatal: the in-memory cache still works
+			// for this plugin instance. We just lose persistence — the pod will
+			// hit the bug if both this plugin restarts AND the container retries.
+			p.log.Warnf("save cache after fetch for pod %s: %v", podUID, err)
+		}
+		return mapping, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	p.mu.Lock()
-	p.cache[podUID] = mapping
-	p.mu.Unlock()
-	if err := saveCache(p.cfg.NRI.CachePath, p.snapshot()); err != nil {
-		// Cache write failure is non-fatal: the in-memory cache still works
-		// for this plugin instance. We just lose persistence — the pod will
-		// hit the bug if both this plugin restarts AND the container retries.
-		p.log.Warnf("save cache after fetch for pod %s: %v", podUID, err)
+	if shared {
+		metrics.NRIResolveDuplicateTotal.WithLabelValues().Inc()
 	}
-	return mapping, nil
+	return v.(map[string]string), nil
 }
 
 // snapshot returns a deep copy of the cache for atomic write to disk.

@@ -258,6 +258,12 @@ var (
 			Help: "Set to 1 when useProjectedSA is enabled with no tokenRequestAudiences (security hardening recommended). 0 otherwise.",
 		}, []string{},
 	)
+	NRIResolveDuplicateTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_nri_resolve_duplicate_total",
+			Help: "Number of resolveMapping calls that hit a concurrent in-flight call (singleflight share). Indicates multi-container pods triggering simultaneous CreateContainer.",
+		}, []string{},
+	)
 )
 
 func Init(prom *prometheus.Registry) {
@@ -300,5 +306,6 @@ func Init(prom *prometheus.Registry) {
 		IsLeader,
 		LeaseElectionAttempts,
 		LeaseDuration,
+		NRIResolveDuplicateTotal,
 	)
 }
