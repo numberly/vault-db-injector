@@ -17,7 +17,7 @@ data:
     sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
     sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
     useProjectedSA: {{ .Values.vaultDbInjector.configuration.useProjectedSA }}
-    tokenRequestAudiences: {{ toYaml .Values.vaultDbInjector.configuration.tokenRequestAudiences | nindent 6 }}
+    tokenRequestAudiences: {{ toYaml (.Values.vaultDbInjector.configuration.tokenRequestAudiences | default list) | nindent 6 }}
     tokenRequestExpirationSeconds: {{ .Values.vaultDbInjector.configuration.tokenRequestExpirationSeconds }}
 ---
 apiVersion: v1
@@ -73,7 +73,7 @@ data:
     sentry: {{ .Values.vaultDbInjector.configuration.sentry }}
     sentryDsn: {{ .Values.vaultDbInjector.configuration.sentryDsn }}
     useProjectedSA: {{ .Values.vaultDbInjector.configuration.useProjectedSA }}
-    tokenRequestAudiences: {{ toYaml .Values.vaultDbInjector.configuration.tokenRequestAudiences | nindent 6 }}
+    tokenRequestAudiences: {{ toYaml (.Values.vaultDbInjector.configuration.tokenRequestAudiences | default list) | nindent 6 }}
     tokenRequestExpirationSeconds: {{ .Values.vaultDbInjector.configuration.tokenRequestExpirationSeconds }}
     nri:
       enabled: true

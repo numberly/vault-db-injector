@@ -170,6 +170,7 @@ func (cfg *Config) Validate() error {
 		{cfg.VaultSecretName == "", "no vaultSecretName specified"},
 		{cfg.VaultSecretPrefix == "", "no vaultSecretPrefix specified"},
 		{cfg.Sentry && cfg.SentryDsn == "", "no sentryDsn specified"},
+		{cfg.UseProjectedSA && cfg.TokenRequestExpirationSeconds <= 0, "tokenRequestExpirationSeconds must be > 0 when useProjectedSA is enabled"},
 	}
 
 	for _, check := range checks {

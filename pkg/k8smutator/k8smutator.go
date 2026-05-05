@@ -114,7 +114,9 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 	if cfg.UseProjectedSA {
 		// Vault attests the pod identity natively via bound_service_account_names
 		// during Login above; CanIGetRoles is redundant.
-		if period, err := vaultConn.VerifyTokenPeriod(ctx); err == nil && period == 0 {
+		if period, err := vaultConn.VerifyTokenPeriod(ctx); err != nil {
+			logger.WithValues(log.Kv{"role": dbConf.Role}).Debugf("VerifyTokenPeriod lookup-self failed: %v", err)
+		} else if period == 0 {
 			metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
 			logger.WithValues(log.Kv{"role": dbConf.Role}).Warningf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
 		}

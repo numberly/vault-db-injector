@@ -231,6 +231,28 @@ Symmetric to webhook in `fetchAndBuildMapping`.
 - `docs/how-it-works/security-model.md` (or update existing): explain the difference between attestation by injector (`CanIGetRoles`) vs by Vault, and the least-privilege guarantee in projected mode.
 - `values.yaml` comments referencing the doc.
 
+## Defense-in-depth: identity boundaries
+
+In the webhook path, `pod.Spec.ServiceAccountName` comes from the
+AdmissionReview, which a malicious user could try to populate with a
+privileged SA name (e.g., `kube-system/cluster-admin`). The chain that
+prevents abuse:
+
+1. **K8s RBAC on `serviceaccounts/token`** is namespace-scoped: the
+   injector SA can only `create` token requests in namespaces the
+   ClusterRoleBinding grants — and crucially the apiserver enforces
+   that the targeted SA exists in the target namespace. A pod
+   admitted to namespace `team-foo` cannot reference an SA from
+   `kube-system` via TokenRequest, since the request is issued
+   against `team-foo`.
+2. **Vault `bound_service_account_namespaces`** is the second wall:
+   even if a TokenRequest succeeds, Vault rejects login if the SA's
+   namespace is not in the role's binding list.
+
+The combination is sound. This boundary is documented here so it
+isn't accidentally relaxed (e.g., by binding the injector
+ClusterRole at cluster scope without audience constraint).
+
 ## Open questions
 
 - Confirm `min-token-expiration-seconds` floor on the target clusters (apiserver flag). Default is 600s; if unchanged, an `expirationSeconds: 60` request will be clamped to 600 by apiserver. Functional but worth knowing for documentation accuracy.

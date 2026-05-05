@@ -140,7 +140,9 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	} else {
 		// Vault attests the pod identity natively via bound_service_account_names
 		// during Login above; CanIGetRoles is redundant. Check token_period in projected mode.
-		if period, err := conn.VerifyTokenPeriod(ctx); err == nil && period == 0 {
+		if period, err := conn.VerifyTokenPeriod(ctx); err != nil {
+			logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Debugf("VerifyTokenPeriod lookup-self failed: %v", err)
+		} else if period == 0 {
 			metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
 			logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Warnf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
 		}
