@@ -55,7 +55,7 @@ admin must restrict who can mount these paths.
    default `container_runtime_t` socket label prevents user pods from
    connecting even if they bypass the hostPath check.
 
-See [docs/how-it-works/nri-mode.md](docs/how-it-works/nri-mode.md) for
+See [docs/operators/security.md](docs/operators/security.md) for
 the complete threat model.
 
 ##  4. <a name='Contribution'></a>Contribution
