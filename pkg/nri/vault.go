@@ -113,7 +113,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		if cfg.UseProjectedSA {
 			mode = "projected"
 		}
-		metrics.VaultLoginErrors.WithLabelValues("other", mode).Inc()
+		metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), mode).Inc()
 		return nil, nil, errors.Wrap(err, "vault login")
 	}
 	loginOK = true

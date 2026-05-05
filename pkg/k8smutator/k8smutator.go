@@ -101,7 +101,7 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 		if cfg.UseProjectedSA {
 			mode = "projected"
 		}
-		metrics.VaultLoginErrors.WithLabelValues("other", mode).Inc()
+		metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), mode).Inc()
 		return nil, dbConf.Role, errors.Wrapf(err, "cannot authenticate vault role")
 	}
 	if cfg.UseProjectedSA {
