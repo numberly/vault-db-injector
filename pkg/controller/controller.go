@@ -20,7 +20,13 @@ import (
 
 // warnLegacyMode emits a startup warning when neither projected-SA mode nor
 // NRI mode is enabled (credentials injected as cleartext in PodSpec).
-// Must be called after metrics.Init.
+//
+// Only meaningful for the webhook injector (RunInjector) — the renewer,
+// revoker and NRI plugin operate on stored KV bookkeeping regardless of
+// which mode the webhook used to admit pods, and their configmaps do not
+// even include useProjectedSA / nri.enabled by design. Calling it from
+// those modes would always log "LEGACY" regardless of cluster state and
+// confuse operators.
 func warnLegacyMode(cfg *config.Config, log logger.Logger) {
 	if !cfg.UseProjectedSA && !cfg.NRI.Enabled {
 		log.Warnf("vault-db-injector running in LEGACY mode: credentials are injected as cleartext env vars in the PodSpec. " +
@@ -81,7 +87,6 @@ func (c *Controller) RunInjector(ctx context.Context) error {
 // RunRenewer starts the token renewer with leader election and blocks until ctx is cancelled or a fatal error occurs.
 func (c *Controller) RunRenewer(ctx context.Context) error {
 	c.log.Info("Starting server in mode renewer")
-	warnLegacyMode(c.Cfg, c.log)
 
 	stopChan := make(chan struct{})
 	podName, lock, err := c.buildLock("lock-injector-renewer")
@@ -124,7 +129,6 @@ func (c *Controller) RunRenewer(ctx context.Context) error {
 // RunRevoker starts the token revoker with leader election and blocks until ctx is cancelled or a fatal error occurs.
 func (c *Controller) RunRevoker(ctx context.Context) error {
 	c.log.Info("Starting server in mode revoker")
-	warnLegacyMode(c.Cfg, c.log)
 
 	stopChan := make(chan struct{})
 	podName, lock, err := c.buildLock("lock-injector-revoker")
@@ -169,7 +173,6 @@ func (c *Controller) RunRevoker(ctx context.Context) error {
 // CreateContainer time.
 func (c *Controller) RunNRI(ctx context.Context) error {
 	c.log.Info("Starting server in mode nri")
-	warnLegacyMode(c.Cfg, c.log)
 	if !c.Cfg.NRI.Enabled {
 		c.log.Warn("RunNRI called but cfg.NRI.Enabled is false; idle until shutdown")
 		<-ctx.Done()
