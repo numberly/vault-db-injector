@@ -1,3 +1,11 @@
+{{- $injectorSA := .Values.vaultDbInjector.injector.serviceAccountName | default (include "vault-db-injector.fullname" .) -}}
+{{- $renewerSA  := .Values.vaultDbInjector.renewer.serviceAccountName  | default (printf "%s%s" (include "vault-db-injector.fullname" .) (ternary "-renewer" "" .Values.vaultDbInjector.configuration.useProjectedSA)) -}}
+{{- $revokerSA  := .Values.vaultDbInjector.revoker.serviceAccountName  | default (printf "%s%s" (include "vault-db-injector.fullname" .) (ternary "-revoker" "" .Values.vaultDbInjector.configuration.useProjectedSA)) -}}
+{{- $nriSA      := .Values.nri.serviceAccountName                       | default (include "vault-db-injector.fullname" .) -}}
+{{- $podsSubjects := list $injectorSA $renewerSA $revokerSA -}}
+{{- if .Values.nri.enabled -}}{{- $podsSubjects = append $podsSubjects $nriSA -}}{{- end -}}
+{{- $podsSubjects = uniq $podsSubjects -}}
+{{- $leasesSubjects := uniq (list $renewerSA $revokerSA) -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -20,9 +28,11 @@ roleRef:
   kind: ClusterRole
   name: '{{ include "vault-db-injector.fullname" . }}'
 subjects:
+{{- range $podsSubjects }}
 - kind: ServiceAccount
-  name: '{{ include "vault-db-injector.fullname" . }}'
-  namespace: '{{ .Release.Namespace }}'
+  name: {{ . }}
+  namespace: '{{ $.Release.Namespace }}'
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -55,91 +65,57 @@ roleRef:
   kind: Role
   name: '{{ include "vault-db-injector.fullname" . }}'
 subjects:
+{{- range $leasesSubjects }}
 - kind: ServiceAccount
-  name: '{{ include "vault-db-injector.fullname" . }}'
-  namespace: '{{ .Release.Namespace }}'
+  name: {{ . }}
+  namespace: '{{ $.Release.Namespace }}'
+{{- end }}
+{{- if not .Values.vaultDbInjector.injector.serviceAccountName }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "vault-db-injector.fullname" . }}
+  name: {{ $injectorSA }}
   labels:
   {{- include "vault-db-injector.labels" . | nindent 4 }}
+{{- if .Values.vaultDbInjector.injector.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml .Values.vaultDbInjector.injector.serviceAccount.annotations | nindent 4 }}
+{{- end }}
+{{- end }}
 {{- if .Values.vaultDbInjector.configuration.useProjectedSA }}
+{{- if not .Values.vaultDbInjector.renewer.serviceAccountName }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "vault-db-injector.fullname" . }}-renewer
+  name: {{ $renewerSA }}
   labels:
   {{- include "vault-db-injector.labels" . | nindent 4 }}
+{{- end }}
+{{- if not .Values.vaultDbInjector.revoker.serviceAccountName }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "vault-db-injector.fullname" . }}-revoker
+  name: {{ $revokerSA }}
   labels:
   {{- include "vault-db-injector.labels" . | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- if and .Values.nri.enabled (not .Values.nri.serviceAccountName) (ne $nriSA $injectorSA) }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+apiVersion: v1
+kind: ServiceAccount
 metadata:
-  name: {{ include "vault-db-injector.fullname" . }}-renewer-pods
+  name: {{ $nriSA }}
   labels:
   {{- include "vault-db-injector.labels" . | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: '{{ include "vault-db-injector.fullname" . }}'
-subjects:
-- kind: ServiceAccount
-  name: '{{ include "vault-db-injector.fullname" . }}-renewer'
-  namespace: '{{ .Release.Namespace }}'
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ include "vault-db-injector.fullname" . }}-revoker-pods
-  labels:
-  {{- include "vault-db-injector.labels" . | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: '{{ include "vault-db-injector.fullname" . }}'
-subjects:
-- kind: ServiceAccount
-  name: '{{ include "vault-db-injector.fullname" . }}-revoker'
-  namespace: '{{ .Release.Namespace }}'
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ include "vault-db-injector.fullname" . }}-renewer-leases
-  labels:
-  {{- include "vault-db-injector.labels" . | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: '{{ include "vault-db-injector.fullname" . }}'
-subjects:
-- kind: ServiceAccount
-  name: '{{ include "vault-db-injector.fullname" . }}-renewer'
-  namespace: '{{ .Release.Namespace }}'
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ include "vault-db-injector.fullname" . }}-revoker-leases
-  labels:
-  {{- include "vault-db-injector.labels" . | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: '{{ include "vault-db-injector.fullname" . }}'
-subjects:
-- kind: ServiceAccount
-  name: '{{ include "vault-db-injector.fullname" . }}-revoker'
-  namespace: '{{ .Release.Namespace }}'
+{{- end }}
+{{- if .Values.vaultDbInjector.configuration.useProjectedSA }}
+{{- $tokenSubjects := list $injectorSA -}}
+{{- if .Values.nri.enabled -}}{{- $tokenSubjects = append $tokenSubjects $nriSA -}}{{- end -}}
+{{- $tokenSubjects = uniq $tokenSubjects }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -163,7 +139,9 @@ roleRef:
   kind: ClusterRole
   name: {{ include "vault-db-injector.fullname" . }}-token-requester
 subjects:
+{{- range $tokenSubjects }}
 - kind: ServiceAccount
-  name: {{ include "vault-db-injector.fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ . }}
+  namespace: {{ $.Release.Namespace }}
+{{- end }}
 {{- end }}
