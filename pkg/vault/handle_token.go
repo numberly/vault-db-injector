@@ -288,7 +288,7 @@ func (c *Connector) ListKeyInfo(ctx context.Context, path, prefix string) ([]*Ke
 			// Wait for the rate limiter
 			if err := limiter.Wait(ctx); err != nil {
 				c.Log.Errorf("Rate limiter error: %v", err)
-				errChan <- errors.Newf("rate limiter error: %v", err)
+				errChan <- errors.Wrapf(err, "rate limiter error")
 				return
 			}
 
@@ -305,7 +305,7 @@ func (c *Connector) ListKeyInfo(ctx context.Context, path, prefix string) ([]*Ke
 			podSecret, err := c.client.Logical().ReadWithContext(ctx, dataPath)
 			if err != nil {
 				c.Log.Errorf("Error while trying to recover data informations for: %s: %v", podName, err)
-				errChan <- errors.Newf("failed to read data for %s: %v", podName, err)
+				errChan <- errors.Wrapf(err, "failed to read data for %s", podName)
 				return
 			}
 

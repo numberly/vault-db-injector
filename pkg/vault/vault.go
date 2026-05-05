@@ -86,7 +86,7 @@ func (c *Connector) CreateOrphanToken(ctx context.Context, ttl string, policies 
 	})
 	if err != nil {
 		metrics.OrphanErrorTicketCreatedCount.WithLabelValues().Inc()
-		return "", errors.Newf("failed to create orphan token: %v", err)
+		return "", errors.Wrapf(err, "failed to create orphan token")
 	}
 
 	metrics.OrphanTicketCreatedCount.WithLabelValues().Inc()
@@ -116,7 +116,7 @@ func (c *Connector) CanIGetRoles(ctx context.Context, contextID, serviceAccountN
 	}
 	boundServiceAccountNames, err := sliceToStrings(rawNames)
 	if err != nil {
-		return false, errors.Newf("invalid bound_service_account_names in role %s: %v", dbRole, err)
+		return false, errors.Wrapf(err, "invalid bound_service_account_names in role %s", dbRole)
 	}
 
 	rawNamespaces, ok := role.Data["bound_service_account_namespaces"].([]any)
@@ -125,7 +125,7 @@ func (c *Connector) CanIGetRoles(ctx context.Context, contextID, serviceAccountN
 	}
 	boundServiceAccountNamespaces, err := sliceToStrings(rawNamespaces)
 	if err != nil {
-		return false, errors.Newf("invalid bound_service_account_namespaces in role %s: %v", dbRole, err)
+		return false, errors.Wrapf(err, "invalid bound_service_account_namespaces in role %s", dbRole)
 	}
 
 	rawPolicies, ok := role.Data["token_policies"].([]any)
@@ -134,7 +134,7 @@ func (c *Connector) CanIGetRoles(ctx context.Context, contextID, serviceAccountN
 	}
 	tokenPolicies, err := sliceToStrings(rawPolicies)
 	if err != nil {
-		return false, errors.Newf("invalid token_policies in role %s: %v", dbRole, err)
+		return false, errors.Wrapf(err, "invalid token_policies in role %s", dbRole)
 	}
 
 	if !stringInSlice(dbRole, tokenPolicies) {

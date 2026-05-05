@@ -146,7 +146,7 @@ func NewConfig(configFile string) (*Config, error) {
 	}
 	err := envconfig.Process("INJECTOR", cfg)
 	if err != nil {
-		return nil, errors.Newf("error processing environment variables for prefix %s: %v", "INJECTOR_", err)
+		return nil, errors.Wrapf(err, "error processing environment variables for prefix INJECTOR_")
 	}
 
 	err = cfg.Validate()

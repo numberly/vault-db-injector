@@ -173,7 +173,7 @@ func SentryRecoveryMiddleware(sentrySvc sentry.SentryService) func(http.Handler)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := recover(); err != nil {
-					sentrySvc.CaptureError(errors.Newf("panic in webhook handler: %v", err))
+					sentrySvc.CaptureError(errors.Wrapf(errors.New(fmt.Sprintf("%v", err)), "panic in webhook handler"))
 					w.WriteHeader(http.StatusInternalServerError)
 				}
 			}()
