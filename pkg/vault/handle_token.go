@@ -476,10 +476,12 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 	}
 
 	wg.Wait()
-	if err := c.RevokeSelfToken(ctx, c.client.Token()); err != nil {
-		c.Log.Errorf("RevokeSelfToken failed: %v", err)
-	}
-	c.SetToken(c.K8sSaVaultToken)
+	// The legacy code revoked the per-cycle orphan token here and
+	// reset c.vaultToken to K8sSaVaultToken. With the orphan dance
+	// removed, c.vaultToken IS the renewer's own login token —
+	// revoking it would 403 every subsequent operation (and force a
+	// reconnect every cycle). The login token's lifetime is managed
+	// by StartTokenRenewal (RenewSelfToken), so leave it intact.
 	return isOk.Load()
 }
 
