@@ -162,7 +162,7 @@ The NRI DaemonSet runs as `root` on every node to read the containerd NRI socket
 - Monitor `NRIPluginMissingOnNode` (above) and
   `vdbi_nri_unwrap_failures_total{reason="fetch_error"}`
 - Apply the Kyverno policy at
-  [helm/policies/kyverno-restrict-nri-socket.yaml](../../helm/policies/kyverno-restrict-nri-socket.yaml)
+  [helm/policies/kyverno-restrict-nri-socket.yaml](https://github.com/numberly/vault-db-injector/blob/main/helm/policies/kyverno-restrict-nri-socket.yaml)
   to block hostPath mounts of `/var/run/nri`, `/opt/nri`, and
   `/run/<release-fullname>` outside the plugin's namespace
 - On RHEL/CoreOS leave SELinux enforcing; do not run user pods with

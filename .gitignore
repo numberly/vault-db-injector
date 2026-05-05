@@ -1,3 +1,5 @@
 .desloppify/
 pkg/nri/.tmp
 .claude/
+.venv/
+site/
