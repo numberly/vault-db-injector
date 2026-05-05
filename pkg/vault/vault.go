@@ -78,6 +78,10 @@ func (c *Connector) Clone() *Connector {
 
 // CreateOrphanToken creates a Vault orphan token and returns it without mutating connector state.
 // Callers that need to use the orphan token must call c.SetToken(orphanToken) explicitly.
+//
+// Used exclusively by the legacy GetDbCredentials flow (SkipOrphanCreation=false).
+// In projected-SA mode this is never called; the per-pod token issued by
+// auth/kubernetes/login is used directly without an orphan step.
 func (c *Connector) CreateOrphanToken(ctx context.Context, ttl string, policies []string) (string, error) {
 	secret, err := c.client.Auth().Token().CreateOrphanWithContext(ctx, &vault.TokenCreateRequest{
 		Period:      ttl,
