@@ -148,6 +148,10 @@ The plugin emits Prometheus metrics:
    on its node via the K8s API and evicts cache entries whose UIDs
    no longer exist.
 
+## Security considerations
+
+The NRI DaemonSet runs as `root` on every node to read the containerd NRI socket at `/var/run/nri/nri.sock`. When `useProjectedSA=true`, the plugin obtains a Kubernetes ServiceAccount token via TokenRequest (API-attested) and logs into Vault natively, gaining credentials that inherit the `create serviceaccounts/token` cluster-wide permission granted to its RBAC role. A container escape from the plugin pod is therefore equivalent to full cluster Vault access. **Recommendation**: Deploy NRI mode only on dedicated or hardened nodes, apply Pod Security Admission policies to restrict privileged containers, and review node images regularly for compromise.
+
 ## Hardening checklist
 
 - Set resource requests on the DS so it is not OOM-killed on memory

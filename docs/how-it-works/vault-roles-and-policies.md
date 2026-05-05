@@ -331,6 +331,12 @@ vault write auth/<authPath>/role/vault-db-injector-revoker \
 
 ---
 
+## Security considerations for projected-SA mode
+
+In projected-SA mode with NRI, the injector (webhook + NRI plugin DaemonSet) runs with a Kubernetes ServiceAccount bound to a Vault role that grants `create serviceaccounts/token` at the cluster level. The NRI plugin DaemonSet runs as `root` to read the containerd socket. A container escape from either component (or a compromised node image) grants full cluster Vault access. **Recommendation**: Deploy NRI mode only on dedicated or hardened nodes; apply Pod Security Admission policies to restrict privileged containers; and review node images regularly for compromise.
+
+---
+
 ## 3. Per-application setup (both modes)
 
 For each app that wants dynamic DB credentials you create:
