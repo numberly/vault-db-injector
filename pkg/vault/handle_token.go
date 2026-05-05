@@ -575,6 +575,15 @@ func (c *Connector) RenewLease(ctx context.Context, leaseID string, leaseTTL int
 			c.Log.Debugf("Lease for uuid %s has been revoked by the revoker", uuid)
 			return nil
 		}
+		// Unrecoverable errors (lease gone, role deleted) are handled by
+		// the caller via isLeaseUnrecoverable + KV purge. Log them at
+		// debug level here so Sentry doesn't fire on the way up the
+		// stack — the caller's purge log line covers operator visibility.
+		if isLeaseUnrecoverable(err) {
+			c.Log.Debugf("RenewLease unrecoverable for uuid %s (caller will purge): %v", uuid, err)
+			metrics.RenewLeaseErrorCount.WithLabelValues(uuid, namespace).Inc()
+			return err
+		}
 		c.Log.Errorf("error while renewing lease: %v", err)
 		metrics.RenewLeaseErrorCount.WithLabelValues(uuid, namespace).Inc()
 		return err
