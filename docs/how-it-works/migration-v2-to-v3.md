@@ -99,7 +99,7 @@ New metrics in v3.0 (no v2.x equivalent):
 | `vdbi_token_request_errors_total{reason}` | counter | Kubernetes TokenRequest failed (projected mode) |
 | `vdbi_vault_login_errors_total{reason,auth_mode}` | counter | Vault login failed; `auth_mode` is `legacy` or `projected` |
 | `vdbi_projected_role_misconfigured_total{role}` | counter | A Vault role used in projected mode lacks `token_period > 0` |
-| `vdbi_projected_audience_unconstrained` | gauge | 1 when projected mode is enabled with empty `tokenRequestAudiences` (security degraded) |
+| `vdbi_nri_resolve_duplicate_total` | counter | Concurrent in-flight `resolveMapping` calls collapsed by singleflight. Should stay near 0; spikes indicate sidecar/main race we successfully prevent from issuing duplicate creds. |
 
 **Migration**: see "Updating dashboards & alerts" below for an automated `sed` recipe.
 
@@ -113,16 +113,27 @@ those SAs are not created and the existing single-SA topology is preserved
 
 ### B3. Config schema additions
 
-Three new keys under `vaultDbInjector.configuration`:
+New keys under `vaultDbInjector.configuration`:
 
 ```yaml
 useProjectedSA: false                    # default false
 tokenRequestAudiences: []                # default empty
 tokenRequestExpirationSeconds: 600       # default 600s (apiserver minimum)
+kubeRoleNri: ""                          # optional override; falls back to kubeRole
+kubeRoleRenewer: ""                      # optional override; falls back to kubeRole
+kubeRoleRevoker: ""                      # optional override; falls back to kubeRole
 ```
 
 Plus the entire `nri:` top-level block (see `nri-mode.md`). Defaults
 keep all new features OFF.
+
+> ⚠️ **Hard-fail validation**: when `useProjectedSA: true` is set, the
+> binary now refuses to start unless `tokenRequestAudiences` is non-empty.
+> An empty audience disables the cryptographic SA-impersonation bound
+> (any JWT bearer can present any SA's token to any service that does not
+> strictly check the audience), defeating the security goal of projected
+> mode. Set `tokenRequestAudiences: ["vault"]` (or your matching audience
+> name) before flipping the flag.
 
 ### B4. CanIGetRoles is skipped in projected mode
 
@@ -160,9 +171,39 @@ the first dbConfig only (preserving single-dbConfig behavior). Pods
 with multiple dbConfigs must be re-rolled after the upgrade to get the
 UUID annotation stamped for all dbConfigs.
 
+### B7. Renewer and revoker responsibility split (projected-SA mode)
+
+The renewer's safety-net cleanup logic (revoking + KV-deleting orphaned
+entries for pods that no longer exist) has been moved to the revoker as
+a periodic ticker (5-minute interval). Two consequences:
+
+1. The **renewer Vault policy** is now strictly minimal: read on KV +
+   `auth/token/renew` + `sys/leases/renew` + `auth/token/renew-self` +
+   `sys/health`. Notably, it no longer needs `auth/token/revoke-orphan`
+   nor KV `delete`. If you previously granted the wider policy following
+   an earlier version of the doc, it's safe (and recommended) to revoke
+   the extra capabilities.
+
+2. The **revoker Vault policy** now needs `sys/leases/lookup` (used to
+   look up lease metadata when running the safety-net sync). Add this
+   capability to your `vault-db-revoker` policy before upgrading.
+
+See `vault-roles-and-policies.md` §2b (renewer) and §2c (revoker) for
+the exact policy blocks.
+
 ---
 
 ## What does NOT change
+
+- All annotations on user pods (`db-creds-injector.numberly.io/*`).
+- Vault KV layout for stored lease/token information.
+- Renewer / revoker behavior on existing leases.
+- The mutating webhook URL, certificate bootstrap, NetworkPolicy.
+- Default Helm values (legacy webhook + plaintext envs unless flags flipped).
+
+A v2.x cluster upgraded to v3.0 with **no values changes** runs the
+exact same flow it ran before, with the same observable behavior
+modulo metric names.
 
 - All annotations on user pods (`db-creds-injector.numberly.io/*`).
 - Vault KV layout for stored lease/token information.
@@ -325,7 +366,8 @@ Caveats:
 | `vdbi_token_request_errors_total{reason="rbac_denied"}` increases | `useProjectedSA: true` but ClusterRoleBinding for `serviceaccounts/token` not yet applied |
 | `vdbi_vault_login_errors_total{reason="audience_mismatch"}` | Vault role has `audience="vault"` but `tokenRequestAudiences: []` (or vice versa) |
 | `vdbi_projected_role_misconfigured_total{role=…} > 0` | The named Vault role lacks `token_period`; pod-token will die at `token_max_ttl` |
-| `vdbi_projected_audience_unconstrained == 1` | `useProjectedSA: true` with empty audiences — security degraded but functional |
+| Injector pod fails to start with `tokenRequestAudiences must be set` | `useProjectedSA: true` but `tokenRequestAudiences: []`. The chart now hard-fails at startup to prevent silent security degradation. Set `tokenRequestAudiences: ["vault"]` (or your audience name) in values. |
+| `vdbi_nri_resolve_duplicate_total > 0` | Sidecars or multi-container pods triggered concurrent `CreateContainer`. The plugin correctly de-duplicates via singleflight, so this is informational only — but persistently high values may indicate a hot pod creation pattern worth investigating. |
 | NRI plugin pods CrashLoop | Cluster doesn't meet NRI prereqs (containerd < 1.7 without NRI plugin enabled). See `nri-mode.md` |
 
 ---

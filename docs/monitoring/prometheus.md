@@ -35,5 +35,21 @@ Our application exports several Prometheus metrics for monitoring and observabil
 | `vdbi_leader_election_duration_seconds`    | Duration in seconds that this instance has been the leader                | `lease_name`, `leader_name`, `mode`   |
 | `vdbi_fetch_pods_success_count`            | Count that increase when their is no error retrieving pods                |                                       |
 | `vdbi_fetch_pods_error_count`              | Count that increase when their is an error retrieving pods                |                                       |
+| `vdbi_mutated_pods_success_count`          | Count that increase when a pod is successfully mutated                    |                                       |
 | `vdbi_mutated_pods_error_count`            | Count that increase when their is an error mutating pods                  |                                       |
-| `vdbi_mutated_pods_error_count`            | Count that increase when their is an error mutating pods                  |                                       |
+
+## v3.0 metrics — NRI mode
+
+| Metric Name                                | Description                                                               | Labels                                |
+|--------------------------------------------|---------------------------------------------------------------------------|---------------------------------------|
+| `vdbi_nri_substitutions_total`             | Number of CreateContainer events where the NRI plugin emitted an env adjustment | |
+| `vdbi_nri_unwrap_failures_total`           | Number of NRI plugin failures resolving credentials at CreateContainer    | `reason`                              |
+| `vdbi_nri_resolve_duplicate_total`         | Number of `resolveMapping` calls that hit a concurrent in-flight call (singleflight share). Should stay near 0 in normal operation; spikes indicate concurrent CreateContainer races. | |
+
+## v3.0 metrics — projected-SA mode
+
+| Metric Name                                | Description                                                               | Labels                                |
+|--------------------------------------------|---------------------------------------------------------------------------|---------------------------------------|
+| `vdbi_token_request_errors_total`          | Number of failed Kubernetes TokenRequest calls (per pod's SA, projected-SA mode) | `reason` (`rbac_denied`, `sa_not_found`, `unauthorized`, `other`) |
+| `vdbi_vault_login_errors_total`            | Number of failed Vault logins, classified for triage                      | `reason` (`audience_mismatch`, `sa_not_bound`, `role_not_found`, `vault_sealed`, `permission_denied`, `other`), `auth_mode` (`legacy`, `projected`, `projected_bookkeeping`) |
+| `vdbi_projected_role_misconfigured_total`  | Number of times a Vault role used in projected-SA mode was found without `token_period > 0` (pod-token will die at `token_max_ttl`) | `role` |

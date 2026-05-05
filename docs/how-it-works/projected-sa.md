@@ -89,13 +89,26 @@ The chart automatically:
 
 | Role `audience` | `tokenRequestAudiences` | Result |
 |---|---|---|
-| empty | `[]` | Apiserver-default audience accepted by Vault (legacy compat) |
-| `"vault"` | `["vault"]` | Strict cryptographic binding to Vault |
-| `"vault"` | `[]` | Vault rejects login (audience mismatch) |
-| empty | `["vault"]` | Works but defeats the purpose — set the role audience too |
+| any        | `[]`        | ❌ **Binary refuses to start** — hard-fail validation in v3.0 |
+| `"vault"`  | `["vault"]` | ✅ Strict cryptographic binding to Vault |
+| `"vault"`  | `["other"]` | ❌ Vault rejects login (audience mismatch) |
+| empty      | `["vault"]` | ⚠️ Works but defeats the purpose — set the role `audience` too |
+
+> ⚠️ As of v3.0, `useProjectedSA: true` with `tokenRequestAudiences: []`
+> is rejected at startup with the message:
+> `tokenRequestAudiences must be set (e.g., ["vault"]) when
+> useProjectedSA is true — empty audience disables the cryptographic
+> SA-impersonation bound`.
+>
+> Rationale: an empty audience produces a JWT that any SA's bearer can
+> reuse against any service that does not strictly check the audience,
+> defeating goal B (least-privilege injector). The hard-fail prevents
+> silent security degradation.
 
 **Recommendation for new deployments**: configure `audience="vault"` on
-the role and `tokenRequestAudiences: ["vault"]` on the chart.
+each Vault `auth/kubernetes/role/<X>` and `tokenRequestAudiences: ["vault"]`
+on the chart. Use `scripts/vault-set-audience.sh` to bulk-update existing
+roles at migration time.
 
 ## Verification
 
