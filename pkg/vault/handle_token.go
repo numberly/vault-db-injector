@@ -332,14 +332,11 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 		}
 	}
 
-	kubePolicies := []string{c.authRole}
-	orphanToken, err := c.CreateOrphanToken(ctx, "1h", kubePolicies)
-	if err != nil {
-		c.Log.Errorf("Can't create orphan ticket: %v", err)
-		c.Log.Error("Token renew has been cancelled")
-		return false
-	}
-	c.SetToken(orphanToken)
+	// Use the renewer's own login token (set by ConnectAndRenew) for all
+	// renew/revoke/KV operations. The previous version created an orphan
+	// token here purely as a side-effect of the legacy broad-policy era;
+	// in projected-SA mode the renewer's policy is dedicated and minimal,
+	// and create-orphan is intentionally NOT granted to it.
 
 	// Create a rate limiter
 	rateLimit := rate.Limit(cfg.VaultRateLimit) // requests per second

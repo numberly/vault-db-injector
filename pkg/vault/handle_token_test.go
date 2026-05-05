@@ -332,13 +332,12 @@ func TestStoreDataAsync_UsesK8sSaVaultTokenDirectly(t *testing.T) {
 }
 
 // TestSyncAndCleanupTokens_EmptyKeys verifies that an empty keysInformations slice
-// returns true (no-op success). Requires a Vault client for CreateOrphanToken;
-// the actual goroutine loop is skipped when the slice is empty.
-// This variant is tested more thoroughly in handle_token_integration_test.go
-// where a real Vault cluster is available.
+// returns true (no-op success). No Vault client is required: the orphan-token
+// dance was removed; SyncAndCleanupTokens now uses the renewer's own login token
+// throughout. The goroutine loop is also a no-op when the slice is empty.
+// Covered more thoroughly in handle_token_integration_test.go.
 func TestSyncAndCleanupTokens_EmptyKeysUnit(t *testing.T) {
-	// Without a vault client, CreateOrphanToken will panic/nil-deref.
-	// We validate only the pod-service-error branch here; empty-keys with
-	// a live vault is covered in the integration test.
+	// The pod-service-error branch is the only unit-testable early exit here;
+	// empty-keys success with a live Vault cluster is covered in the integration test.
 	t.Skip("empty-keys success path requires live Vault cluster — see integration test")
 }
