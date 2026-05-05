@@ -212,7 +212,7 @@ func (c *Connector) GetKeyInfo(ctx context.Context, podName, uuid, path, prefix 
 // indicates the lease can never be renewed again, so the only sane
 // follow-up is to revoke the token + delete the KV bookkeeping entry.
 //
-// Two distinct upstream conditions land here:
+// Two distinct upstream conditions land here, both as HTTP 400 from Vault:
 //
 //   - "invalid lease": Vault has no record of the lease at all (already
 //     expired or revoked).
@@ -220,13 +220,24 @@ func (c *Connector) GetKeyInfo(ctx context.Context, podName, uuid, path, prefix 
 //     the database role it was issued under has since been deleted, so
 //     Vault cannot regenerate or extend the credential. From the
 //     renewer's perspective, the lease is just as dead.
+//
+// The status-code guard (HTTP 400 only) reduces the risk of a proxy- or
+// WAF-injected error string triggering spurious KV cleanup. Errors from
+// other status codes (403, 429, 5xx) propagate to the caller unmodified.
 func isLeaseUnrecoverable(err error) bool {
 	if err == nil {
 		return false
 	}
-	msg := err.Error()
-	return strings.Contains(msg, "invalid lease") ||
-		strings.Contains(msg, "could not find role")
+	var ve *vault.ResponseError
+	if !errors.As(err, &ve) {
+		return false
+	}
+	if ve.StatusCode != 400 {
+		return false
+	}
+	body := strings.Join(ve.Errors, "\n")
+	return strings.Contains(body, "invalid lease") ||
+		strings.Contains(body, "could not find role")
 }
 
 // ListKeyInfo lists all KeyInfo entries under the given path/prefix.

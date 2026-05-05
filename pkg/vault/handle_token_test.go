@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -340,6 +341,41 @@ func TestSyncAndCleanupTokens_EmptyKeysUnit(t *testing.T) {
 	// The pod-service-error branch is the only unit-testable early exit here;
 	// empty-keys success with a live Vault cluster is covered in the integration test.
 	t.Skip("empty-keys success path requires live Vault cluster — see integration test")
+}
+
+// ---------------------------------------------------------------------------
+// isLeaseUnrecoverable (I8)
+// ---------------------------------------------------------------------------
+
+// TestIsLeaseUnrecoverable covers the tightened implementation that requires
+// a Vault *ResponseError with HTTP 400 and a matching message substring.
+func TestIsLeaseUnrecoverable(t *testing.T) {
+	makeVaultErr := func(code int, msgs ...string) *vaultapi.ResponseError {
+		return &vaultapi.ResponseError{StatusCode: code, Errors: msgs}
+	}
+
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil error", nil, false},
+		{"plain stdlib error", errors.New("invalid lease"), false},
+		{"vault 403 permission denied", makeVaultErr(403, "permission denied"), false},
+		{"vault 429 rate limit", makeVaultErr(429, "rate limit quota exceeded"), false},
+		{"vault 400 invalid lease", makeVaultErr(400, "invalid lease ID"), true},
+		{"vault 400 could not find role", makeVaultErr(400, "could not find role my-role"), true},
+		{"vault 400 unrelated message", makeVaultErr(400, "something else entirely"), false},
+		{"vault 500 invalid lease substring", makeVaultErr(500, "invalid lease"), false},
+		{"wrapped vault 400 invalid lease", fmt.Errorf("outer: %w", makeVaultErr(400, "invalid lease")), true},
+		{"wrapped vault 403", fmt.Errorf("outer: %w", makeVaultErr(403, "invalid lease")), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isLeaseUnrecoverable(tt.err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 // TestRevokeSelfToken_RevokesGivenTokenNotClientToken verifies the C1 fix:
