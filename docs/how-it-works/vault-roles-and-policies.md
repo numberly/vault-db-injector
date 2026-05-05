@@ -195,49 +195,34 @@ path "sys/health" {
 
 ### 2b. Renewer policy — `vault-db-renewer` (projected mode)
 
-The renewer's primary job is to renew pod tokens and their DB leases,
-but it also performs **safety-net cleanup**: when a pod no longer
-exists in the Kubernetes API, the renewer revokes the orphan token and
-deletes the KV bookkeeping entry (pods that died without the revoker
-noticing — e.g., revoker was down or restarting). This means the
-renewer needs both renew **and** revoke + KV-delete capabilities,
-making its policy overlap significantly with the revoker's.
-
-> **Separation of concerns**: operators who want stricter capability
-> separation can remove the cleanup logic from the renewer (leaving
-> cleanup exclusively to the revoker). That is out of scope here.
+The renewer's **only** job is to renew pod tokens and their DB leases.
+Safety-net cleanup of orphaned KV entries (pods that died while the
+revoker was down) is now owned exclusively by the revoker's periodic
+`safetyNetSync`. This makes the renewer policy truly minimal: no
+revoke, no KV-delete, no `sys/leases/lookup`.
 
 ```hcl
-# vault-db-renewer policy (projected-SA mode)
-# The renewer's job is mostly to renew leases and tokens, but it also
-# does safety-net cleanup of orphaned KV entries (pods that died
-# without the revoker noticing — e.g., revoker was down). So the
-# policy includes both renew AND revoke capabilities.
+# vault-db-renewer policy (projected-SA mode) — truly minimal.
+# Safety-net cleanup moved to the revoker (safetyNetSync).
 
-# --- KV-v2 bookkeeping (read for discovery, write+delete for cleanup) ---
+# --- KV-v2 bookkeeping (read-only — discover work) ---
 path "<kvMount>/data/+/+" {
-  capabilities = ["create", "read", "update", "delete"]
+  capabilities = ["read"]
 }
 path "<kvMount>/metadata/+/+" {
-  capabilities = ["read", "list", "delete"]
+  capabilities = ["read", "list"]
 }
 
-# --- Token operations: renew (primary) + revoke (cleanup) ---
+# --- Token renew (primary job) ---
 path "auth/token/renew" {
   capabilities = ["update"]
 }
 path "auth/token/lookup" {
   capabilities = ["update"]
 }
-path "auth/token/revoke-orphan" {
-  capabilities = ["update", "sudo"]
-}
 
-# --- Direct lease operations ---
+# --- Direct lease renewal ---
 path "sys/leases/renew" {
-  capabilities = ["update"]
-}
-path "sys/leases/revoke" {
   capabilities = ["update"]
 }
 
@@ -253,10 +238,19 @@ path "sys/health" {
 
 ### 2c. Revoker policy — `vault-db-revoker` (projected mode)
 
-The revoker discovers gone pods via KV + Kubernetes API, revokes their
-tokens (which cascades to leases), and cleans up the KV entries.
+The revoker handles **all** revocation:
+- k8s pod-watch `Deleted` events (real-time path)
+- Periodic `safetyNetSync` (catches pods that died while the revoker
+  was down or the watch was disconnected)
+
+It needs revoke, KV-delete, and `sys/leases/lookup` (for the
+`isLeaseTooYoung`-equivalent age check in future safety-net
+enhancements; included now for forward compatibility).
 
 ```hcl
+# vault-db-revoker policy (projected-SA mode) — handles ALL revocation
+# (k8s pod-watch events + periodic safety-net sync for missed deletes).
+
 # --- KV-v2 bookkeeping (read + delete) ---
 path "<kvMount>/data/+/+" {
   capabilities = ["read", "delete"]
@@ -265,7 +259,7 @@ path "<kvMount>/metadata/+/+" {
   capabilities = ["read", "list", "delete"]
 }
 
-# --- Token operations ---
+# --- Token revoke ---
 path "auth/token/revoke" {
   capabilities = ["update"]
 }
@@ -273,8 +267,11 @@ path "auth/token/revoke-orphan" {
   capabilities = ["update", "sudo"]
 }
 
-# --- Direct lease revocation (fallback) ---
+# --- Lease revocation + lookup (safety-net sync) ---
 path "sys/leases/revoke" {
+  capabilities = ["update"]
+}
+path "sys/leases/lookup" {
   capabilities = ["update"]
 }
 
@@ -434,6 +431,7 @@ values so the injector emits matching JWTs.
 | Renew (legacy or projected): renew a token | `auth/token/renew` | `update` |
 | Renew (both modes): read KV to find work | `<kvMount>/data/+/+` | `read` |
 | Revoke (legacy or projected): revoke a token | `auth/token/revoke-orphan` | `update`, `sudo` |
+| Revoke (projected): safety-net lease age check | `sys/leases/lookup` | `update` |
 | Revoke (both modes): clean up KV | `<kvMount>/data/+/+` | `delete` |
 | Pod-side (projected): issue DB creds | `database/creds/<role>` | `read` (in app policy) |
 | Pod-side (projected): renew its own token | `auth/token/renew-self` | `update` (in app policy) |
@@ -444,12 +442,15 @@ values so the injector emits matching JWTs.
 |---|---|---|
 | `auth/token/create-orphan` | injector | — |
 | `database/creds/*` (inject path) | injector | per-app (the pod) |
-| `auth/token/revoke-orphan` | injector + revoker | renewer + revoker (safety-net cleanup) |
+| `auth/token/revoke-orphan` | injector + revoker | revoker only |
 | `auth/token/renew` | injector + renewer | renewer only |
 | `auth/<authPath>/role/*` read | injector | injector |
 | `<kvMount>/data/+/+` write | injector | injector |
 | `<kvMount>/data/+/+` read | renewer + revoker | renewer + revoker |
-| `<kvMount>/data/+/+` delete | revoker | renewer + revoker (safety-net cleanup) |
-| `sys/leases/revoke` | injector + revoker | renewer + revoker (safety-net cleanup) |
+| `<kvMount>/data/+/+` delete | revoker | revoker only |
+| `sys/leases/revoke` | injector + revoker | revoker only |
+| `sys/leases/lookup` | renewer (age check) | revoker only (safety-net sync) |
+| Orphaned KV cleanup ownership | shared renewer + revoker | revoker only (safetyNetSync) |
+| Renewer/revoker have own policies | ✗ (shared) | ✓ |
 | Per-app role `token_period > 0` | optional | **required** |
 | Per-app role `audience` | optional | recommended |
