@@ -3,6 +3,7 @@ package nri
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 
@@ -286,9 +287,9 @@ func extractPlaceholdersFromEnv(env []string, dbConf k8s.DbConfiguration) map[st
 			if !placeholder.IsPlaceholder(v) {
 				continue
 			}
-			if containsString(userKeys, k) {
+			if slices.Contains(userKeys, k) {
 				out[v] = "username"
-			} else if containsString(passKeys, k) {
+			} else if slices.Contains(passKeys, k) {
 				out[v] = "password"
 			}
 		}
@@ -296,7 +297,7 @@ func extractPlaceholdersFromEnv(env []string, dbConf k8s.DbConfiguration) map[st
 		uriKeys := splitCSV(dbConf.DbURIEnvKey)
 		for _, line := range env {
 			k, v := splitKV(line)
-			if !containsString(uriKeys, k) {
+			if !slices.Contains(uriKeys, k) {
 				continue
 			}
 			u, err := url.Parse(v)
@@ -326,15 +327,6 @@ func splitCSV(s string) []string {
 		}
 	}
 	return out
-}
-
-func containsString(s []string, target string) bool {
-	for _, x := range s {
-		if x == target {
-			return true
-		}
-	}
-	return false
 }
 
 // stubFor wires the plugin into the NRI stub framework. Plugin name and
