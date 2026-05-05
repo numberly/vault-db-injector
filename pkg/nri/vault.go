@@ -36,7 +36,7 @@ import (
 //   (bound_service_account_names) during Login above and CanIGetRoles
 //   is skipped. The Vault role MUST be configured with token_period > 0
 //   so the pod-token (and its lease) survives until explicit revocation.
-func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, podNamespace, podName string) (mapping map[string]string, creds *vault.DbCreds, retErr error) {
+func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, podNamespace, podName string, bookCache *vault.BookkeepingTokenCache) (mapping map[string]string, creds *vault.DbCreds, retErr error) {
 	// liveConns accumulates every connector whose Login succeeded.
 	// On partial failure (iteration K fails after 0..K-1 succeeded) the
 	// deferred cleanup revokes all pod-tokens and bookkeeping tokens that
@@ -197,10 +197,22 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 			// The pod-token has no KV-write capability. Perform a separate
 			// injector-SA login to get a token used exclusively by StoreDataAsync
 			// for bookkeeping writes. See vault-roles-and-policies.md §2a.
-			bookToken, err := vault.LoginAsInjectorSA(ctx, cfg, injectorSaToken)
-			if err != nil {
-				metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), "projected_bookkeeping").Inc()
-				return nil, nil, errors.Wrapf(err, "vault login as injector SA for bookkeeping (dbConfig %d)", i)
+			// Use KubeRoleNri when configured to enable privilege separation
+			// between webhook and NRI DaemonSet; fall back to KubeRole.
+			nriBookRole := cfg.KubeRoleNri
+			if nriBookRole == "" {
+				nriBookRole = cfg.KubeRole
+			}
+			var bookToken string
+			var bookErr error
+			if bookCache != nil {
+				bookToken, bookErr = bookCache.Get(ctx, cfg, injectorSaToken, nriBookRole)
+			} else {
+				bookToken, bookErr = vault.LoginAsInjectorSA(ctx, cfg, injectorSaToken, nriBookRole)
+			}
+			if bookErr != nil {
+				metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(bookErr), "projected_bookkeeping").Inc()
+				return nil, nil, errors.Wrapf(bookErr, "vault login as injector SA for bookkeeping (dbConfig %d)", i)
 			}
 			conn.K8sSaVaultToken = bookToken
 		}

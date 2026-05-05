@@ -61,6 +61,11 @@ type Config struct {
 	VaultAuthPath     string    `yaml:"vaultAuthPath" envconfig:"vault_auth_path"`
 	LogLevel          string    `yaml:"logLevel" envconfig:"log_level"`
 	KubeRole          string    `yaml:"kubeRole" envconfig:"kube_role"`
+	// KubeRoleNri, when set, overrides KubeRole for the NRI plugin's injector-SA
+	// bookkeeping login. Allows privilege separation between the webhook
+	// (injector role) and the NRI DaemonSet (nri-injector role). Falls back to
+	// KubeRole when empty.
+	KubeRoleNri       string    `yaml:"kubeRoleNri" envconfig:"kube_role_nri"`
 	TokenTTL          string    `yaml:"tokenTTL" envconfig:"token_ttl"`
 	VaultSecretName   string    `yaml:"vaultSecretName" envconfig:"vault_secret_name"`
 	VaultSecretPrefix string    `yaml:"vaultSecretPrefix" envconfig:"vault_secret_prefix"`

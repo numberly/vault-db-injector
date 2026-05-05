@@ -14,18 +14,25 @@ import (
 
 // LoginAsInjectorSA performs a fresh Vault login using the injector
 // binary's own ServiceAccount token (read from
-// /var/run/secrets/kubernetes.io/serviceaccount/token) and the
-// configured kubeRole. Returns the resulting Vault token.
+// /var/run/secrets/kubernetes.io/serviceaccount/token) and the given
+// kubeRole. When kubeRole is empty it falls back to cfg.KubeRole.
 //
 // Used in projected-SA mode where the connector's main token is the
 // per-pod token (which intentionally has no KV-write capability), so
 // we need a distinct injector identity for credential bookkeeping
 // writes via StoreDataAsync.
-func LoginAsInjectorSA(ctx context.Context, cfg *config.Config, k8sSaToken string) (string, error) {
+//
+// The kubeRole parameter allows callers to use a role with elevated
+// bookkeeping-write privileges (e.g. cfg.KubeRoleNri for the NRI
+// DaemonSet) while the webhook uses the base cfg.KubeRole.
+func LoginAsInjectorSA(ctx context.Context, cfg *config.Config, k8sSaToken, kubeRole string) (string, error) {
 	if k8sSaToken == "" {
 		return "", errors.New("LoginAsInjectorSA: empty k8s SA token")
 	}
-	conn := NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, "", "", k8sSaToken, cfg.VaultRateLimit)
+	if kubeRole == "" {
+		kubeRole = cfg.KubeRole
+	}
+	conn := NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, kubeRole, "", "", k8sSaToken, cfg.VaultRateLimit)
 	if err := conn.Login(ctx); err != nil {
 		return "", errors.Wrap(err, "vault login as injector SA")
 	}

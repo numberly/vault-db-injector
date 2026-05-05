@@ -148,7 +148,7 @@ func TestLoginAsInjectorSA_EmptyToken(t *testing.T) {
 		VaultAuthPath: "kubernetes",
 		KubeRole:      "vault-db-injector",
 	}
-	_, err := LoginAsInjectorSA(context.Background(), cfg, "")
+	_, err := LoginAsInjectorSA(context.Background(), cfg, "", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty k8s SA token")
 }
@@ -167,7 +167,7 @@ func TestLoginAsInjectorSA_LoginFailure(t *testing.T) {
 		VaultAuthPath: "kubernetes",
 		KubeRole:      "vault-db-injector",
 	}
-	_, err := LoginAsInjectorSA(context.Background(), cfg, "sa-jwt-token")
+	_, err := LoginAsInjectorSA(context.Background(), cfg, "sa-jwt-token", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "vault login as injector SA")
 }
@@ -181,7 +181,7 @@ func TestLoginAsInjectorSA_Success(t *testing.T) {
 		VaultAuthPath: "kubernetes",
 		KubeRole:      "vault-db-injector",
 	}
-	got, err := LoginAsInjectorSA(context.Background(), cfg, "sa-jwt-token")
+	got, err := LoginAsInjectorSA(context.Background(), cfg, "sa-jwt-token", "")
 	require.NoError(t, err)
 	assert.Equal(t, wantToken, got)
 }

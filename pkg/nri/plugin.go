@@ -14,6 +14,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/logger"
 	"github.com/numberly/vault-db-injector/pkg/metrics"
 	"github.com/numberly/vault-db-injector/pkg/placeholder"
+	"github.com/numberly/vault-db-injector/pkg/vault"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -28,13 +29,18 @@ type plugin struct {
 	// singleflight both calls would issue separate Vault credentials — only the
 	// second cache write survives, leaving the first token+lease unmanageable.
 	sf singleflight.Group
+
+	// bookkeepingCache caches the injector-SA Vault token used for KV bookkeeping
+	// writes across CreateContainer calls, bounding Vault auth load (I4).
+	bookkeepingCache *vault.BookkeepingTokenCache
 }
 
 func newPlugin(cfg *config.Config, log logger.Logger) *plugin {
 	return &plugin{
-		cfg:   cfg,
-		log:   log,
-		cache: make(map[string]map[string]string),
+		cfg:              cfg,
+		log:              log,
+		cache:            make(map[string]map[string]string),
+		bookkeepingCache: vault.NewBookkeepingTokenCache(),
 	}
 }
 
@@ -191,7 +197,7 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podNa
 		}
 		p.mu.Unlock()
 
-		mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, podUID, podNamespace, podName)
+		mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, podUID, podNamespace, podName, p.bookkeepingCache)
 		if err != nil {
 			return nil, err
 		}
