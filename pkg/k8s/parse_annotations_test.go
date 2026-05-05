@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetPodDbConfigWithoutAnnotations(t *testing.T) {
@@ -97,6 +98,62 @@ func TestGetPodDbConfigWithAnnotationsModeClassic(t *testing.T) {
 	assert.Equal(t, "TESTDB_PASSWORD", dbConfigs[0].DbPasswordEnvKey)
 	assert.Equal(t, "classic", dbConfigs[0].Mode)
 	assert.Equal(t, "testdb", dbConfigs[0].DbName)
+}
+
+// TestGetPodDbConfig_DeterministicOrder verifies that GetPodDbConfig always
+// returns dbConfigurations sorted by DbName regardless of Go's map iteration
+// order. This is a regression guard for I1: the webhook and NRI plugin run in
+// separate processes and must agree on the slice index → UUID mapping encoded
+// in the pod annotation.
+func TestGetPodDbConfig_DeterministicOrder(t *testing.T) {
+	initTestLogger()
+	cfg := config.Config{}
+
+	// Five dbConfigs in a map that Go will iterate in random order.
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				k8s.ANNOTATION_ROLE: "db-role",
+				// zebra, alpha, mango, beta, kiwi — intentionally unsorted
+				"db-creds-injector.numberly.io/zebra.env-key-dbuser":      "ZEBRA_USER",
+				"db-creds-injector.numberly.io/zebra.env-key-dbpassword":  "ZEBRA_PASS",
+				"db-creds-injector.numberly.io/alpha.env-key-dbuser":     "ALPHA_USER",
+				"db-creds-injector.numberly.io/alpha.env-key-dbpassword": "ALPHA_PASS",
+				"db-creds-injector.numberly.io/mango.env-key-dbuser":     "MANGO_USER",
+				"db-creds-injector.numberly.io/mango.env-key-dbpassword": "MANGO_PASS",
+				"db-creds-injector.numberly.io/beta.env-key-dbuser":      "BETA_USER",
+				"db-creds-injector.numberly.io/beta.env-key-dbpassword":  "BETA_PASS",
+				"db-creds-injector.numberly.io/kiwi.env-key-dbuser":      "KIWI_USER",
+				"db-creds-injector.numberly.io/kiwi.env-key-dbpassword":  "KIWI_PASS",
+			},
+		},
+	}
+
+	wantOrder := []string{"alpha", "beta", "kiwi", "mango", "zebra"}
+
+	// Call 50 times: Go randomises map iteration, so a non-sorted
+	// implementation will produce different orders across calls.
+	var first []string
+	service := k8s.NewParserService(cfg, pod)
+	for iter := 0; iter < 50; iter++ {
+		pdc, err := service.GetPodDbConfig("det-order-test")
+		require.NoError(t, err)
+		require.NotNil(t, pdc.DbConfigurations)
+		got := *pdc.DbConfigurations
+		require.Len(t, got, 5)
+
+		names := make([]string, len(got))
+		for i, dc := range got {
+			names[i] = dc.DbName
+		}
+
+		if iter == 0 {
+			first = names
+			assert.Equal(t, wantOrder, names, "iteration 0: not sorted by DbName")
+		} else {
+			assert.Equal(t, first, names, "iteration %d: order changed across calls", iter)
+		}
+	}
 }
 
 func TestGetPodDbConfigWithAnnotationsModeClassicWithoutDbPath(t *testing.T) {

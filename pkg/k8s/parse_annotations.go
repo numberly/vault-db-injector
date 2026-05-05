@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -121,6 +122,14 @@ func (s *ParserService) GetPodDbConfig(contextID string) (*PodDbConfig, error) {
 
 		}
 	}
+
+	// Sort deterministically so that callers across processes (webhook +
+	// NRI plugin) always see the same slice order regardless of Go's map
+	// iteration randomisation. The UUID annotation is written in this
+	// order at admission and read in this order at CreateContainer time.
+	sort.Slice(dbConfigurations, func(i, j int) bool {
+		return dbConfigurations[i].DbName < dbConfigurations[j].DbName
+	})
 
 	PodDbConfig := PodDbConfig{
 		VaultDbPath:      vaultDbPath,
