@@ -323,18 +323,23 @@ func (c *Connector) ListKeyInfo(ctx context.Context, path, prefix string) ([]*Ke
 }
 
 func (c *Connector) HandlePodDeletionToken(ctx context.Context, keysInformation *KeyInfo, secretName, prefix string) error {
-	err := c.RevokeOrphanToken(ctx, keysInformation.TokenID, keysInformation.PodNameUID, keysInformation.Namespace)
-	if err != nil {
-		c.Log.Errorf("Can't revok Token with UUID : %s", keysInformation.PodNameUID)
-		if revokeErr := c.RevokeSelfToken(ctx, c.client.Token()); revokeErr != nil {
-			c.Log.Errorf("RevokeSelfToken failed: %v", revokeErr)
-		}
-		c.SetToken(c.K8sSaVaultToken)
+	if err := c.RevokeOrphanToken(ctx, keysInformation.TokenID, keysInformation.PodNameUID, keysInformation.Namespace); err != nil {
+		c.Log.Errorf("Can't revoke Token with UUID %s: %v", keysInformation.PodNameUID, err)
 		return err
 	}
+
+	// Token revocation succeeded — purge the KV bookkeeping entry too,
+	// otherwise the renewer would re-discover it next cycle and
+	// re-purge via the isLeaseUnrecoverable fast-path. The revoker
+	// owns the full lifecycle of this entry; do the cleanup here.
+	if err := c.DeleteData(ctx, secretName, keysInformation.PodNameUID, keysInformation.Namespace, prefix); err != nil {
+		c.Log.Errorf("KV delete after revoke failed for uuid %s: %v", keysInformation.PodNameUID, err)
+		return err
+	}
+
 	metrics.LeaseExpirationInTime.DeleteLabelValues(keysInformation.PodNameUID, keysInformation.Namespace)
 	metrics.TokenExpirationInTime.DeleteLabelValues(keysInformation.PodNameUID, keysInformation.Namespace)
-	c.Log.Infof("Token with uuid %s has been revoked : Success !", keysInformation.PodNameUID)
+	c.Log.Infof("Token with uuid %s revoked and KV entry deleted", keysInformation.PodNameUID)
 	return nil
 }
 
