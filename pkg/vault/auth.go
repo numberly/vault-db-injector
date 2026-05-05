@@ -12,6 +12,26 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
+// LoginAsInjectorSA performs a fresh Vault login using the injector
+// binary's own ServiceAccount token (read from
+// /var/run/secrets/kubernetes.io/serviceaccount/token) and the
+// configured kubeRole. Returns the resulting Vault token.
+//
+// Used in projected-SA mode where the connector's main token is the
+// per-pod token (which intentionally has no KV-write capability), so
+// we need a distinct injector identity for credential bookkeeping
+// writes via StoreDataAsync.
+func LoginAsInjectorSA(ctx context.Context, cfg *config.Config, k8sSaToken string) (string, error) {
+	if k8sSaToken == "" {
+		return "", errors.New("LoginAsInjectorSA: empty k8s SA token")
+	}
+	conn := NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, "", "", k8sSaToken, cfg.VaultRateLimit)
+	if err := conn.Login(ctx); err != nil {
+		return "", errors.Wrap(err, "vault login as injector SA")
+	}
+	return conn.GetToken(), nil
+}
+
 // ConnectAndRenew authenticates to Vault and starts background token renewal.
 // It is the canonical bootstrap used by renewer and revoker job entry points.
 func ConnectAndRenew(ctx context.Context, cfg *config.Config, saToken string) (*Connector, error) {

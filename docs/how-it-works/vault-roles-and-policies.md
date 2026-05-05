@@ -141,6 +141,26 @@ Every pod authenticates as itself via Kubernetes TokenRequest, so:
 You need **four Vault policies** and **three Vault roles** for the
 injector tier, plus the per-app roles (section 3).
 
+### How the injector keeps two Vault identities in projected mode
+
+The webhook and NRI plugin perform **two Vault logins per admission**
+in projected mode:
+
+1. **Pod login** — using a Kubernetes TokenRequest JWT for the
+   admitted pod's SA, against `auth/<authPath>/role/<dbConf.Role>`.
+   The resulting pod-token is the only identity that issues
+   `database/creds/<role>` (Goal B: least-privilege).
+
+2. **Injector bookkeeping login** — using the injector binary's own
+   SA token, against `auth/<authPath>/role/<kubeRole>`. The resulting
+   token is used exclusively to write per-pod metadata to the KV
+   bookkeeping mount. The pod-token has no KV access (and shouldn't —
+   that would let any pod read/overwrite other pods' lease metadata).
+
+Both tokens are short-lived (`token_ttl: 1h`) and freshly issued for
+each admission. The injector pod-side identity is not pinned in
+memory between admissions.
+
 ### 2a. Injector policy — `vault-db-injector` (projected mode, minimal)
 
 The injector itself only needs to:

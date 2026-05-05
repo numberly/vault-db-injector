@@ -60,7 +60,18 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 		}
 		logger.WithValues(log.Kv{"contextID": contextID}).Debugf("got token from serviceAccount Successfully")
 
-		mutatedPod, role, podUuids, err := injectCredentialsIntoPod(ctx, contextID, cfg, podDbConfig.DbConfigurations, logger, podDbConfig.VaultDbPath, tok, pod)
+		// In projected-SA mode the pod-token (tok) has no KV-write capability.
+		// Pre-fetch the injector's own SA token so authorizeDbAccess can do a
+		// separate injector-identity login used exclusively by StoreDataAsync.
+		var injectorSaToken string
+		if cfg.UseProjectedSA {
+			injectorSaToken, err = k8sClient.GetServiceAccountToken()
+			if err != nil {
+				return defaultResult, errors.Wrap(err, "read injector SA token for bookkeeping login")
+			}
+		}
+
+		mutatedPod, role, podUuids, err := injectCredentialsIntoPod(ctx, contextID, cfg, podDbConfig.DbConfigurations, logger, podDbConfig.VaultDbPath, tok, injectorSaToken, pod)
 		if err != nil || mutatedPod == nil {
 			metrics.MutatedPodWithErrorCount.WithLabelValues().Inc()
 			return defaultResult, errors.Wrapf(err, "cannot get database credentials from role %s", role)
@@ -89,8 +100,12 @@ func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) k
 // In NRI mode this is the only Vault interaction at admission time — the actual
 // credential is fetched by the plugin at CreateContainer.
 //
+// injectorSaToken is the injector binary's own SA token, used in projected-SA mode
+// to perform a separate bookkeeping login (the pod-token has no KV-write capability).
+// Pass an empty string in legacy mode where it is not used.
+//
 // The caller is responsible for revoking vaultConn.K8sSaVaultToken on error or after use.
-func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config, dbConf k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*vault.Connector, string, error) {
+func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config, dbConf k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok, injectorSaToken string, pod *corev1.Pod) (*vault.Connector, string, error) {
 	authRole := cfg.KubeRole
 	if cfg.UseProjectedSA {
 		authRole = dbConf.Role
@@ -120,6 +135,16 @@ func authorizeDbAccess(ctx context.Context, contextID string, cfg *config.Config
 			metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
 			logger.WithValues(log.Kv{"role": dbConf.Role}).Warningf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
 		}
+
+		// The pod-token has no KV-write capability. Pre-fetch a separate
+		// injector-SA Vault token used by StoreDataAsync for bookkeeping writes.
+		// See docs/how-it-works/vault-roles-and-policies.md §2a.
+		bookToken, err := vault.LoginAsInjectorSA(ctx, cfg, injectorSaToken)
+		if err != nil {
+			metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), "projected_bookkeeping").Inc()
+			return vaultConn, dbConf.Role, errors.Wrap(err, "vault login as injector SA for bookkeeping")
+		}
+		vaultConn.K8sSaVaultToken = bookToken
 		return vaultConn, dbConf.Role, nil
 	}
 
@@ -250,7 +275,7 @@ func generatePlaceholders() (userPH, passPH string) {
 	return placeholder.Generate(), placeholder.Generate()
 }
 
-func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
+func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok, injectorSaToken string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
 	if len(*dbConfs) == 0 {
 		return nil, "", nil, errors.Newf("No dbConfiguration has been provided %v", dbConfs)
 	}
@@ -265,7 +290,7 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 		// Authorize the pod's SA against the requested Vault role. Always
 		// runs — gives admission-time RBAC feedback in both legacy and NRI
 		// modes.
-		vaultConn, role, err := authorizeDbAccess(ctx, contextID, cfg, dbConf, logger, vaultDbPath, tok, pod)
+		vaultConn, role, err := authorizeDbAccess(ctx, contextID, cfg, dbConf, logger, vaultDbPath, tok, injectorSaToken, pod)
 		if err != nil {
 			if vaultConn != nil && vaultConn.K8sSaVaultToken != "" {
 				if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	vault "github.com/hashicorp/vault/api"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/metrics"
@@ -85,6 +86,14 @@ func (c *Connector) StoreData(ctx context.Context, contextID string, vaultInform
 // This keeps the hot path latency low. The trade-off is that if the async write fails,
 // the renewer/revoker will be unable to manage the credential on the next cycle.
 //
+// The goroutine uses c.K8sSaVaultToken directly — the injector-SA Vault token that
+// the caller must populate before calling GetDbCredentials. In projected-SA mode this
+// token comes from LoginAsInjectorSA (the pod-token has no KV-write capability). In
+// legacy mode it is the injector's own login token, already set by ConnectToVault.
+//
+// A fresh Vault client is constructed per call so the goroutine does not race with
+// concurrent admissions that mutate the shared connector's token.
+//
 // Callers that require guaranteed persistence (e.g. integration tests, migration tools)
 // MUST use StoreData (synchronous) instead of this function.
 func (c *Connector) StoreDataAsync(ctx context.Context, contextID string, vaultInformation *KeyInfo, secretName, uuid, namespace, prefix string) {
@@ -93,30 +102,40 @@ func (c *Connector) StoreDataAsync(ctx context.Context, contextID string, vaultI
 		asyncCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
-		asyncConn := c.Clone()
-
-		if err := asyncConn.Login(asyncCtx); err != nil {
-			c.Log.WithFields(logrus.Fields{"contextID": contextID, "uuid": uuid, "namespace": namespace}).Errorf("StoreDataAsync: login failed: %v", err)
+		if c.K8sSaVaultToken == "" {
+			c.Log.WithFields(logrus.Fields{
+				"contextID": contextID,
+				"uuid":      uuid,
+				"namespace": namespace,
+			}).Errorf("StoreDataAsync: K8sSaVaultToken is empty — caller must populate it before GetDbCredentials")
 			metrics.DataErrorStoredCount.WithLabelValues(uuid, namespace).Inc()
 			return
 		}
 
-		policies := []string{c.authRole}
-		orphanToken, err := asyncConn.CreateOrphanToken(asyncCtx, "5m", policies)
+		// Build a fresh Vault client so we do not race with concurrent
+		// admissions that may call SetToken on the shared connector.
+		asyncCfg := vault.DefaultConfig()
+		asyncCfg.Address = c.address
+		asyncClient, err := vault.NewClient(asyncCfg)
 		if err != nil {
-			c.Log.WithFields(logrus.Fields{"contextID": contextID, "uuid": uuid, "namespace": namespace}).Errorf("StoreDataAsync: token creation failed: %v", err)
+			c.Log.WithFields(logrus.Fields{"contextID": contextID}).Errorf("StoreDataAsync: client init failed: %v", err)
 			metrics.DataErrorStoredCount.WithLabelValues(uuid, namespace).Inc()
 			return
 		}
-		asyncConn.SetToken(orphanToken)
+		asyncClient.SetToken(c.K8sSaVaultToken)
+
+		asyncConn := &Connector{
+			address:    c.address,
+			client:     asyncClient,
+			vaultToken: c.K8sSaVaultToken,
+			Log:        c.Log,
+		}
 
 		if err := asyncConn.StoreData(asyncCtx, contextID, vaultInformation, secretName, uuid, namespace, prefix); err != nil {
 			c.Log.WithFields(logrus.Fields{"contextID": contextID}).Errorf("Async store operation failed: %v", err)
-			asyncConn.RevokeOrphanToken(asyncCtx, asyncConn.vaultToken, uuid, namespace)
 			return
 		}
 
-		asyncConn.RevokeOrphanToken(asyncCtx, asyncConn.vaultToken, uuid, namespace)
 		duration := time.Since(start)
 		durationMs := float64(duration.Microseconds()) / 1000.0
 		c.Log.WithFields(
@@ -125,7 +144,6 @@ func (c *Connector) StoreDataAsync(ctx context.Context, contextID string, vaultI
 				"contextID":      contextID,
 			},
 		).Infof("Async store operation completed")
-
 	}()
 }
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	vaultapi "github.com/hashicorp/vault/api"
+	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -100,6 +101,89 @@ func TestCheckVaultConnectivity_5xx(t *testing.T) {
 
 	err := CheckVaultConnectivity(context.Background(), srv.URL)
 	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// LoginAsInjectorSA
+// ---------------------------------------------------------------------------
+
+// stubVaultK8sLoginServer creates an httptest.Server that responds to
+// PUT /v1/auth/kubernetes/login with a fake Vault token (statusCode 200).
+// The Vault SDK's Logical().WriteWithContext sends a PUT, not POST.
+// All other paths return 404 so tests fail loudly if unexpected calls are made.
+func stubVaultK8sLoginServer(t *testing.T, token string) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut && r.URL.Path == "/v1/auth/kubernetes/login" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			// The vault SDK's ParseSecret uses json.Decoder with UseNumber().
+			// Auth.LeaseDuration is int so int literal is fine here.
+			resp := map[string]any{
+				"request_id":   "test-req-id",
+				"lease_id":     "",
+				"renewable":    false,
+				"lease_duration": 0,
+				"auth": map[string]any{
+					"client_token":   token,
+					"accessor":       "test-accessor",
+					"policies":       []string{"vault-db-injector"},
+					"metadata":       map[string]any{},
+					"lease_duration": 3600,
+					"renewable":      true,
+				},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestLoginAsInjectorSA_EmptyToken(t *testing.T) {
+	cfg := &config.Config{
+		VaultAddress:  "http://localhost:8200",
+		VaultAuthPath: "kubernetes",
+		KubeRole:      "vault-db-injector",
+	}
+	_, err := LoginAsInjectorSA(context.Background(), cfg, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty k8s SA token")
+}
+
+func TestLoginAsInjectorSA_LoginFailure(t *testing.T) {
+	// Server that always returns 403 for login.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"errors":["permission denied"]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	cfg := &config.Config{
+		VaultAddress:  srv.URL,
+		VaultAuthPath: "kubernetes",
+		KubeRole:      "vault-db-injector",
+	}
+	_, err := LoginAsInjectorSA(context.Background(), cfg, "sa-jwt-token")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "vault login as injector SA")
+}
+
+func TestLoginAsInjectorSA_Success(t *testing.T) {
+	const wantToken = "s.injectorBookkeepingToken"
+	srv := stubVaultK8sLoginServer(t, wantToken)
+
+	cfg := &config.Config{
+		VaultAddress:  srv.URL,
+		VaultAuthPath: "kubernetes",
+		KubeRole:      "vault-db-injector",
+	}
+	got, err := LoginAsInjectorSA(context.Background(), cfg, "sa-jwt-token")
+	require.NoError(t, err)
+	assert.Equal(t, wantToken, got)
 }
 
 // ---------------------------------------------------------------------------

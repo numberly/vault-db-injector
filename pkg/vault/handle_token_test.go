@@ -3,8 +3,13 @@ package vault
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/sirupsen/logrus"
@@ -220,6 +225,110 @@ func TestSyncAndCleanupTokens_PodServiceError(t *testing.T) {
 	svc := &fakePodService{err: errors.New("k8s unavailable")}
 	result := c.SyncAndCleanupTokens(context.Background(), cfg, nil, "secret", "prefix", svc, 3600)
 	assert.False(t, result, "expected false when pod service returns error")
+}
+
+// ---------------------------------------------------------------------------
+// StoreDataAsync
+// ---------------------------------------------------------------------------
+
+// TestStoreDataAsync_EmptyK8sSaVaultToken verifies that StoreDataAsync logs an
+// error and increments the prometheus counter when K8sSaVaultToken is empty,
+// without calling auth/token/create-orphan or auth/kubernetes/login.
+func TestStoreDataAsync_EmptyK8sSaVaultToken(t *testing.T) {
+	var loginCalled atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			loginCalled.Store(true)
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel) // suppress expected error logs
+
+	c := &Connector{
+		address:         srv.URL,
+		K8sSaVaultToken: "", // intentionally empty — triggers early-exit path
+		Log:             log,
+	}
+
+	ki := NewKeyInfo("pod-uid", "lease-1", "tok-1", "default", "sa", "pod", "node")
+	c.StoreDataAsync(context.Background(), "ctx-id", ki, "vault-injector", "pod-uid", "default", "prefix")
+
+	// Give the goroutine time to run.
+	time.Sleep(100 * time.Millisecond)
+
+	assert.False(t, loginCalled.Load(), "login should NOT be called when K8sSaVaultToken is empty")
+}
+
+// TestStoreDataAsync_UsesK8sSaVaultTokenDirectly verifies that StoreDataAsync
+// uses K8sSaVaultToken for the KV write and does NOT call
+// auth/token/create-orphan or auth/kubernetes/login.
+func TestStoreDataAsync_UsesK8sSaVaultTokenDirectly(t *testing.T) {
+	const bookkeepingToken = "s.bookkeeping-token"
+
+	var (
+		orphanCalled atomic.Bool
+		loginCalled  atomic.Bool
+		kvPutCalled  atomic.Bool
+		seenToken    atomic.Value
+	)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Record which token the client presented.
+		if tok := r.Header.Get("X-Vault-Token"); tok != "" {
+			seenToken.Store(tok)
+		}
+		switch {
+		case r.URL.Path == "/v1/auth/token/create-orphan":
+			orphanCalled.Store(true)
+			http.Error(w, `{"errors":["should not be called"]}`, http.StatusForbidden)
+		case r.URL.Path == "/v1/auth/kubernetes/login":
+			loginCalled.Store(true)
+			http.Error(w, `{"errors":["should not be called"]}`, http.StatusForbidden)
+		case r.Method == http.MethodPut && len(r.URL.Path) > 4:
+			// KV v2 put — PUT /v1/<mount>/data/<prefix>/<uuid>
+			// The vault SDK's KVv2.Put sends a PUT request.
+			kvPutCalled.Store(true)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"data":{"version":1}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel)
+
+	// Build a minimal connector that satisfies the new StoreDataAsync path.
+	vaultCfg := vaultapi.DefaultConfig()
+	vaultCfg.Address = srv.URL
+	client, err := vaultapi.NewClient(vaultCfg)
+	require.NoError(t, err)
+	client.SetToken(bookkeepingToken)
+
+	c := &Connector{
+		address:         srv.URL,
+		client:          client,
+		vaultToken:      bookkeepingToken,
+		K8sSaVaultToken: bookkeepingToken,
+		Log:             log,
+	}
+
+	ki := NewKeyInfo("pod-uid", "lease-1", "tok-1", "default", "sa", "pod", "node")
+	c.StoreDataAsync(context.Background(), "ctx-id", ki, "vault-injector", "pod-uid", "default", "prefix")
+
+	time.Sleep(200 * time.Millisecond)
+
+	assert.False(t, orphanCalled.Load(), "auth/token/create-orphan must NOT be called")
+	assert.False(t, loginCalled.Load(), "auth/kubernetes/login must NOT be called")
+	assert.True(t, kvPutCalled.Load(), "KV put should have been called")
+	if tok, ok := seenToken.Load().(string); ok {
+		assert.Equal(t, bookkeepingToken, tok, "KV request must carry the bookkeeping token")
+	}
 }
 
 // TestSyncAndCleanupTokens_EmptyKeys verifies that an empty keysInformations slice

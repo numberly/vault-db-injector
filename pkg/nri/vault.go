@@ -109,6 +109,17 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		return nil, nil, errors.Wrap(err, "vault login token")
 	}
 
+	// In projected-SA mode we also need the injector's own SA token for the
+	// bookkeeping login. GetServiceAccountToken reads the binary's mounted SA,
+	// which is always available regardless of mode.
+	var injectorSaToken string
+	if cfg.UseProjectedSA {
+		injectorSaToken, err = k8sClient.GetServiceAccountToken()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "read injector SA token for bookkeeping login")
+		}
+	}
+
 	authRole := cfg.KubeRole
 	if cfg.UseProjectedSA {
 		authRole = dbConf.Role
@@ -146,6 +157,16 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 			metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
 			logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Warnf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
 		}
+
+		// The pod-token has no KV-write capability. Perform a separate
+		// injector-SA login to get a token used exclusively by StoreDataAsync
+		// for bookkeeping writes. See vault-roles-and-policies.md §2a.
+		bookToken, err := vault.LoginAsInjectorSA(ctx, cfg, injectorSaToken)
+		if err != nil {
+			metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), "projected_bookkeeping").Inc()
+			return nil, nil, errors.Wrap(err, "vault login as injector SA for bookkeeping")
+		}
+		conn.K8sSaVaultToken = bookToken
 	}
 
 	creds, err = conn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
