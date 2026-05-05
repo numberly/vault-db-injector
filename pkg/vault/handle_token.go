@@ -208,6 +208,27 @@ func (c *Connector) GetKeyInfo(ctx context.Context, podName, uuid, path, prefix 
 	return keyInfoFromMap(uuid, dataMap), nil
 }
 
+// isLeaseUnrecoverable reports whether a Vault renew/lookup error
+// indicates the lease can never be renewed again, so the only sane
+// follow-up is to revoke the token + delete the KV bookkeeping entry.
+//
+// Two distinct upstream conditions land here:
+//
+//   - "invalid lease": Vault has no record of the lease at all (already
+//     expired or revoked).
+//   - "could not find role": the lease is still tracked by Vault, but
+//     the database role it was issued under has since been deleted, so
+//     Vault cannot regenerate or extend the credential. From the
+//     renewer's perspective, the lease is just as dead.
+func isLeaseUnrecoverable(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "invalid lease") ||
+		strings.Contains(msg, "could not find role")
+}
+
 // ListKeyInfo lists all KeyInfo entries under the given path/prefix.
 // Partial results: on per-key fetch failures, the function returns both a non-nil partial
 // slice (successfully fetched entries) and a non-nil error (joined errors from failed keys).
@@ -367,6 +388,27 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 				}
 				err = c.RenewLease(ctx, ki.LeaseID, 86400*5, ki.PodNameUID, ki.Namespace) // Renew for 1 week
 				if err != nil {
+					if isLeaseUnrecoverable(err) {
+						// Pod is still scheduled but its DB role no longer
+						// exists in Vault — keeping the KV entry would
+						// log-spam every cycle. Revoke (best-effort) and
+						// purge so the operator's next sync run is clean.
+						c.Log.Infof("Lease %s unrecoverable for uuid %s (%v), purging KV entry", ki.LeaseID, ki.PodNameUID, err)
+						if revErr := c.RevokeOrphanToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace); revErr != nil {
+							c.Log.Warnf("Token revoke for unrecoverable lease %s failed (continuing): %v", ki.LeaseID, revErr)
+						}
+						if delErr := c.DeleteData(ctx, secretName, ki.PodNameUID, ki.Namespace, prefix); delErr != nil {
+							c.Log.Errorf("Data for %s can't be deleted: %v", ki.PodNameUID, delErr)
+							isOk.Store(false)
+							return
+						}
+						metrics.LeaseExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.TokenExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.DataDeletedCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						return
+					}
 					c.Log.Errorf("Can't renew Lease with pod UUID: %s", ki.PodNameUID)
 					isOk.Store(false)
 					return
@@ -386,8 +428,8 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 					// unmanageable and would log-spam every cycle, so finish
 					// the cleanup: revoke the orphan token (no-ops if gone)
 					// and delete the KV entry.
-					if strings.Contains(err.Error(), "invalid lease") {
-						c.Log.Infof("Lease %s already gone for uuid %s, purging KV entry", ki.LeaseID, ki.PodNameUID)
+					if isLeaseUnrecoverable(err) {
+						c.Log.Infof("Lease %s already gone for uuid %s (%v), purging KV entry", ki.LeaseID, ki.PodNameUID, err)
 						if revErr := c.RevokeOrphanToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace); revErr != nil {
 							c.Log.Errorf("Can't revoke Token with UUID: %s: %v", ki.PodNameUID, revErr)
 							isOk.Store(false)
