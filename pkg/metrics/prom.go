@@ -5,108 +5,112 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 )
 
+// Metric naming convention: all metrics emitted by this binary use
+// the `vdbi_` prefix. The legacy `vdbi_` prefix was
+// retired in v3.0.0 (see docs/how-it-works/migration-v2-to-v3.md
+// for dashboards/alerts migration).
 var (
 	RenewTokenCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_renew_token_count_success",
+			Name: "vdbi_renew_token_count_success",
 			Help: "Vault injector token renewed with success count",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	RenewTokenErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_renew_token_count_error",
+			Name: "vdbi_renew_token_count_error",
 			Help: "Vault injector token renewed with error count",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	RenewLeaseCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_renew_lease_count_success",
+			Name: "vdbi_renew_lease_count_success",
 			Help: "Vault injector lease renewed with success count",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	RenewLeaseErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_renew_lease_count_error",
+			Name: "vdbi_renew_lease_count_error",
 			Help: "Vault injector lease renewed with error count",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	RevokeTokenCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_revoke_token_count_success",
+			Name: "vdbi_revoke_token_count_success",
 			Help: "Vault injector token revoked with success count",
 		},
 		[]string{"namespace"},
 	)
 	RevokeTokenErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_revoke_token_count_error",
+			Name: "vdbi_revoke_token_count_error",
 			Help: "Vault injector token revoked with error count",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	TokenExpirationInTime = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "vault_injector_token_expiration",
+			Name: "vdbi_token_expiration",
 			Help: "Vault injector expiration time",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	LeaseExpirationInTime = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "vault_injector_lease_expiration",
+			Name: "vdbi_lease_expiration",
 			Help: "Vault injector expiration time",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	SynchronizationCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_synchronization_count_success",
+			Name: "vdbi_synchronization_count_success",
 			Help: "Vault injector synchronization with success",
 		},
 		[]string{},
 	)
 	SynchronizationErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_synchronization_count_error",
+			Name: "vdbi_synchronization_count_error",
 			Help: "Vault injector synchronization with error",
 		},
 		[]string{},
 	)
 	PodCleanupSuccessCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_pod_cleanup_count_success",
+			Name: "vdbi_pod_cleanup_count_success",
 			Help: "Vault injector PodCleanup with success",
 		},
 		[]string{},
 	)
 	PodCleanupErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_pod_cleanup_count_error",
+			Name: "vdbi_pod_cleanup_count_error",
 			Help: "Vault injector PodCleanup with error",
 		},
 		[]string{},
 	)
 	LastTokenSynchronizationSuccess = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "vault_injector_last_synchronization_success",
+			Name: "vdbi_last_synchronization_success",
 			Help: "Last vault token successful renewal",
 		},
 		[]string{},
 	)
 	OrphanTicketCreatedCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_orphan_ticket_created_count_success",
+			Name: "vdbi_orphan_ticket_created_count_success",
 			Help: "Vault injector orphan ticket created with success",
 		},
 		[]string{},
 	)
 	OrphanErrorTicketCreatedCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_orphan_ticket_created_count_error",
+			Name: "vdbi_orphan_ticket_created_count_error",
 			Help: "Vault injector orphan ticket created with error",
 		},
 		[]string{},
@@ -114,107 +118,107 @@ var (
 
 	DataStoredCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_store_data_count_success",
+			Name: "vdbi_store_data_count_success",
 			Help: "Vault injector data stored with success",
 		},
 		[]string{},
 	)
 	DataErrorStoredCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_store_data_count_error",
+			Name: "vdbi_store_data_count_error",
 			Help: "Vault injector data stored with error",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	DataDeletedCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_delete_data_count_success",
+			Name: "vdbi_delete_data_count_success",
 			Help: "Vault injector data delete with success",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	DataErrorDeletedCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_delete_data_count_error",
+			Name: "vdbi_delete_data_count_error",
 			Help: "Vault injector data deleted with error",
 		},
 		[]string{"uuid", "namespace"},
 	)
 	ConnectVault = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_connect_vault_count_success",
+			Name: "vdbi_connect_vault_count_success",
 			Help: "Vault injector connect to vault with success",
 		},
 		[]string{},
 	)
 	ConnectVaultError = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_connect_vault_count_error",
+			Name: "vdbi_connect_vault_count_error",
 			Help: "Vault injector connect to vault with error",
 		},
 		[]string{},
 	)
 	ServiceAccountAuthorized = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_service_account_authorized_count",
+			Name: "vdbi_service_account_authorized_count",
 			Help: "Vault injector service account is authorized to assume dbRole",
 		},
 		[]string{},
 	)
 	ServiceAccountDenied = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_service_account_denied_count",
+			Name: "vdbi_service_account_denied_count",
 			Help: "Vault injector service account is no authorized to assume dbRole",
 		},
 		[]string{"service_account_name", "namespace", "db_role", "cause"},
 	)
 	LastSynchronizationDuration = prometheus.NewSummary(
 		prometheus.SummaryOpts{
-			Name: "vault_injector_last_synchronization_duration",
+			Name: "vdbi_last_synchronization_duration",
 			Help: "Vault injector last duration of synchronization",
 		},
 	)
 	IsLeader = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "vault_injector_is_leader",
+			Name: "vdbi_is_leader",
 			Help: "Return 1 if the vault injector is leader, else 0",
 		},
 		[]string{"lease_name"},
 	)
 	LeaseElectionAttempts = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_leader_election_attempts_total",
+			Name: "vdbi_leader_election_attempts_total",
 			Help: "Total number of attempts to acquire leadership.",
 		},
 		[]string{"lease_name"},
 	)
 	LeaseDuration = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "vault_injector_leader_election_duration_seconds",
+			Name: "vdbi_leader_election_duration_seconds",
 			Help: "Duration in seconds that this instance has been the leader.",
 		}, []string{"lease_name", "leader_name", "mode"},
 	)
 	GetAllPodSuccessCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_fetch_pods_success_count",
+			Name: "vdbi_fetch_pods_success_count",
 			Help: "Count that increase when their is no error retrieving pods",
 		}, []string{},
 	)
 	GetAllPodErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_fetch_pods_error_count",
+			Name: "vdbi_fetch_pods_error_count",
 			Help: "Count that increase when their is an error retrieving pods",
 		}, []string{},
 	)
 	MutatedPodWithSuccessCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_mutated_pods_success_count",
+			Name: "vdbi_mutated_pods_success_count",
 			Help: "Count that increase when their is an error mutating pods",
 		}, []string{},
 	)
 	MutatedPodWithErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "vault_injector_mutated_pods_error_count",
+			Name: "vdbi_mutated_pods_error_count",
 			Help: "Count that increase when their is an error mutating pods",
 		}, []string{},
 	)

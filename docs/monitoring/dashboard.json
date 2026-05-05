@@ -75,7 +75,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "sum(vault_injector_last_synchronization_duration_sum{k8s_cluster=~\"$cluster\"}) / sum(vault_injector_last_synchronization_duration_count{k8s_cluster=~\"$cluster\"})",
+            "expr": "sum(vdbi_last_synchronization_duration_sum{k8s_cluster=~\"$cluster\"}) / sum(vdbi_last_synchronization_duration_count{k8s_cluster=~\"$cluster\"})",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -142,7 +142,7 @@
             },
             "editorMode": "code",
             "exemplar": false,
-            "expr": "vault_injector_last_synchronization_success{k8s_cluster=~\"$cluster\"} * 1000",
+            "expr": "vdbi_last_synchronization_success{k8s_cluster=~\"$cluster\"} * 1000",
             "format": "table",
             "instant": true,
             "legendFormat": "__auto",
@@ -227,7 +227,7 @@
             },
             "editorMode": "code",
             "exemplar": false,
-            "expr": "sum(round(increase(vault_injector_service_account_denied_count{k8s_cluster=~\"$cluster\"}[$__range])))",
+            "expr": "sum(round(increase(vdbi_service_account_denied_count{k8s_cluster=~\"$cluster\"}[$__range])))",
             "format": "table",
             "instant": true,
             "legendFormat": "__auto",
@@ -324,7 +324,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_store_data_count_success[$__rate_interval])))",
+            "expr": "round(sum(increase(vdbi_store_data_count_success[$__rate_interval])))",
             "legendFormat": "Store Success",
             "range": true,
             "refId": "A"
@@ -335,7 +335,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_store_data_count_error[$__rate_interval])))",
+            "expr": "round(sum(increase(vdbi_store_data_count_error[$__rate_interval])))",
             "legendFormat": "Store Error",
             "range": true,
             "refId": "B"
@@ -346,7 +346,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_delete_data_count_success[$__range])))",
+            "expr": "round(sum(increase(vdbi_delete_data_count_success[$__range])))",
             "legendFormat": "Delete Success",
             "range": true,
             "refId": "C"
@@ -357,7 +357,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_delete_data_count_error[$__range])))",
+            "expr": "round(sum(increase(vdbi_delete_data_count_error[$__range])))",
             "legendFormat": "Delete Error",
             "range": true,
             "refId": "D"
@@ -424,7 +424,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "sum(increase(vault_injector_revoke_token_count_error{k8s_cluster=~\"$cluster\"}[$__range]))",
+            "expr": "sum(increase(vdbi_revoke_token_count_error{k8s_cluster=~\"$cluster\"}[$__range]))",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -491,7 +491,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "sum(increase(vault_injector_renew_token_count_error{k8s_cluster=~\"$cluster\"}[$__range]))",
+            "expr": "sum(increase(vdbi_renew_token_count_error{k8s_cluster=~\"$cluster\"}[$__range]))",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -558,7 +558,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "sum(increase(vault_injector_store_data_count_error{k8s_cluster=~\"$cluster\"}[$__range]))",
+            "expr": "sum(increase(vdbi_store_data_count_error{k8s_cluster=~\"$cluster\"}[$__range]))",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -625,7 +625,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "sum(increase(vault_injector_delete_data_count_error{k8s_cluster=~\"$cluster\"}[$__range]))",
+            "expr": "sum(increase(vdbi_delete_data_count_error{k8s_cluster=~\"$cluster\"}[$__range]))",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -721,7 +721,7 @@
             },
             "editorMode": "code",
             "exemplar": false,
-            "expr": "round(sum(increase(vault_injector_renew_token_count_success[$__rate_interval])))",
+            "expr": "round(sum(increase(vdbi_renew_token_count_success[$__rate_interval])))",
             "format": "time_series",
             "instant": false,
             "legendFormat": "Renew Success",
@@ -734,7 +734,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_renew_token_count_error[$__rate_interval])))",
+            "expr": "round(sum(increase(vdbi_renew_token_count_error[$__rate_interval])))",
             "legendFormat": "Renew Error",
             "range": true,
             "refId": "B"
@@ -745,7 +745,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_revoke_token_count_success[$__rate_interval])))",
+            "expr": "round(sum(increase(vdbi_revoke_token_count_success[$__rate_interval])))",
             "legendFormat": "Revoke Success",
             "range": true,
             "refId": "C"
@@ -756,7 +756,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_revoke_token_count_error[$__rate_interval])))",
+            "expr": "round(sum(increase(vdbi_revoke_token_count_error[$__rate_interval])))",
             "legendFormat": "Revoke Error",
             "range": true,
             "refId": "D"
@@ -982,7 +982,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_service_account_authorized_count[$__rate_interval])))",
+            "expr": "round(sum(increase(vdbi_service_account_authorized_count[$__rate_interval])))",
             "legendFormat": "Authorized",
             "range": true,
             "refId": "A"
@@ -993,7 +993,7 @@
               "uid": "000000020"
             },
             "editorMode": "code",
-            "expr": "round(sum(increase(vault_injector_service_account_denied_count[$__rate_interval])))",
+            "expr": "round(sum(increase(vdbi_service_account_denied_count[$__rate_interval])))",
             "legendFormat": "Denied",
             "range": true,
             "refId": "B"
@@ -1076,7 +1076,7 @@
             },
             "editorMode": "code",
             "exemplar": false,
-            "expr": "vault_injector_lease_expiration{k8s_cluster=~\"$cluster\"}",
+            "expr": "vdbi_lease_expiration{k8s_cluster=~\"$cluster\"}",
             "format": "table",
             "instant": true,
             "legendFormat": "__auto",
@@ -1236,7 +1236,7 @@
             },
             "editorMode": "code",
             "exemplar": false,
-            "expr": "vault_injector_token_expiration{k8s_cluster=~\"$cluster\"}",
+            "expr": "vdbi_token_expiration{k8s_cluster=~\"$cluster\"}",
             "format": "table",
             "instant": true,
             "legendFormat": "__auto",

@@ -11,7 +11,7 @@ This configuration defines a set of alerts for monitoring the VaultDb Injector w
   annotations:
     description: "Service Account (SA) `{{ $labels.service_account_name }}` in namespace `{{ $labels.exported_namespace }}` was denied access to db_role `{{ $labels.db_role }}` due to `{{ $labels.cause }}` on cluster `{{ $labels.k8s_cluster }}`. Immediate investigation is recommended to ensure proper access controls and service configurations."
     summary: "Service Account `{{ $labels.service_account_name }}` in namespace `{{ $labels.exported_namespace }}` was denied by the injector."
-  expr: increase(vault_injector_service_account_denied_count{}[2m]) > 0
+  expr: increase(vdbi_service_account_denied_count{}[2m]) > 0
   for: 1m
   labels:
     severity: critical
@@ -29,7 +29,7 @@ This configuration defines a set of alerts for monitoring the VaultDb Injector w
   annotations:
     description: "VaultDbInjector encountered an error while attempting to renew a token. This might affect the continuous operation of dependent services. Check for errors and ensure the token renewal process is configured correctly."
     summary: "VaultDbInjector token renewal failure for namespace `{{ $labels.exported_namespace }}` on cluster `{{ $labels.k8s_cluster }}`."
-  expr: increase(vault_injector_renew_token_count_error{}[2m]) > 0
+  expr: increase(vdbi_renew_token_count_error{}[2m]) > 0
   for: 1m
   labels:
     severity: warning
@@ -47,7 +47,7 @@ This configuration defines a set of alerts for monitoring the VaultDb Injector w
   annotations:
     description: "VaultDbInjector encountered an error while attempting to renew a lease. Similar to token renewal failures, this can disrupt service operations if not addressed."
     summary: "VaultDbInjector lease renewal failure for namespace `{{ $labels.exported_namespace }}` on cluster `{{ $labels.k8s_cluster }}`."
-  expr: increase(vault_injector_renew_lease_count_error{}[2m]) > 0
+  expr: increase(vdbi_renew_lease_count_error{}[2m]) > 0
   for: 1m
   labels:
     severity: warning
@@ -65,7 +65,7 @@ This configuration defines a set of alerts for monitoring the VaultDb Injector w
   annotations:
     description: "A token is nearing expiration (less than 2 weeks). Renewing or rotating the token promptly ensures continuous service operation without interruption."
     summary: "Token nearing expiration in namespace `{{ $labels.exported_namespace }}` on cluster `{{ $labels.k8s_cluster }}`."
-  expr: vault_injector_token_expiration - time() < 1209600
+  expr: vdbi_token_expiration - time() < 1209600
   for: 90m
   labels:
     severity: warning
@@ -74,7 +74,7 @@ This configuration defines a set of alerts for monitoring the VaultDb Injector w
   annotations:
     description: "A token will expire in less than 7 days. Immediate action is required to renew or rotate the token to avoid service disruption."
     summary: "Urgent: Token expiration warning for namespace `{{ $labels.exported_namespace }}`."
-  expr: vault_injector_token_expiration - time() < 604800
+  expr: vdbi_token_expiration - time() < 604800
   for: 5m
   labels:
     severity: critical
@@ -92,7 +92,7 @@ This configuration defines a set of alerts for monitoring the VaultDb Injector w
   annotations:
     description: "A lease is nearing expiration (less than 4 days). Addressing this promptly can prevent potential access issues for services relying on leased credentials or secrets."
     summary: "Lease nearing expiration for namespace `{{ $labels.namespace }}` on cluster `{{ $labels.k8s_cluster }}`."
-  expr: vault_injector_lease_expiration - time() < 345600
+  expr: vdbi_lease_expiration - time() < 345600
   for: 3m
   labels:
     severity: warning
@@ -101,7 +101,7 @@ This configuration defines a set of alerts for monitoring the VaultDb Injector w
   annotations:
     description: "A lease will expire in less than 1 day. Immediate renewal is critical to maintaining access for the dependent services."
     summary: "Critical: Lease expiration imminent for namespace `{{ $labels.namespace }}`."
-  expr: vault_injector_lease_expiration - time() < 86400
+  expr: vdbi_lease_expiration - time() < 86400
   for: 3m
   labels:
     severity: critical
