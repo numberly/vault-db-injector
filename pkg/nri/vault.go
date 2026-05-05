@@ -35,7 +35,22 @@ import (
 //   (bound_service_account_names) during Login above and CanIGetRoles
 //   is skipped. The Vault role MUST be configured with token_period > 0
 //   so the pod-token (and its lease) survives until explicit revocation.
-func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, podNamespace, podName string) (map[string]string, *vault.DbCreds, error) {
+func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, podNamespace, podName string) (mapping map[string]string, creds *vault.DbCreds, retErr error) {
+	var (
+		conn    *vault.Connector
+		loginOK bool
+	)
+	defer func() {
+		// In projected mode the pod-token is live in Vault after Login.
+		// If we're returning an error we did not hand the token off to
+		// the renewer, so revoke it now to avoid leaking until max_ttl.
+		if loginOK && retErr != nil && cfg.UseProjectedSA {
+			if revErr := conn.RevokeSelfToken(context.Background(), conn.GetToken()); revErr != nil {
+				logger.GetLogger().Errorf("failed to revoke pod token on error path: %v", revErr)
+			}
+		}
+	}()
+
 	k8sClient := k8s.NewClient()
 	clientset, err := k8sClient.GetKubernetesClient()
 	if err != nil {
@@ -92,7 +107,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	if cfg.UseProjectedSA {
 		authRole = dbConf.Role
 	}
-	conn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
+	conn = vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
 	if err := conn.Login(ctx); err != nil {
 		mode := "legacy"
 		if cfg.UseProjectedSA {
@@ -101,6 +116,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		metrics.VaultLoginErrors.WithLabelValues("other", mode).Inc()
 		return nil, nil, errors.Wrap(err, "vault login")
 	}
+	loginOK = true
 	if cfg.UseProjectedSA {
 		conn.PodVaultToken = conn.GetToken()
 	} else {
@@ -124,7 +140,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		}
 	}
 
-	creds, err := conn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
+	creds, err = conn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
 		ContextID:          contextID,
 		TTL:                cfg.TokenTTL,
 		PodNameUID:         contextID,
@@ -143,7 +159,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	// placeholders that correspond to dbConf.DbUserEnvKey /
 	// DbPasswordEnvKey / DbURIEnvKey, and map them to the correct
 	// credential field.
-	mapping := buildMappingFromPodEnv(pod, dbConf, creds)
+	mapping = buildMappingFromPodEnv(pod, dbConf, creds)
 	if len(mapping) == 0 {
 		return nil, nil, errors.New("no placeholders matched the dbConfiguration env keys")
 	}
