@@ -18,6 +18,7 @@ vaultDbInjector:
     sentryDsn: https://your-sentry@sentry/660
     webhookFqdn: vault-db-injector.numberly.io
     webhookMatchLabels: vault-db-injector
+    injectorLabel: vault-db-injector
     # When true, the injector authenticates to Vault per-pod by issuing
     # a Kubernetes TokenRequest for the admitted pod's ServiceAccount,
     # rather than using the injector's own SA. Requires:
