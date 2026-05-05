@@ -2,10 +2,21 @@
 {{- $renewerSA  := .Values.vaultDbInjector.renewer.serviceAccountName  | default (printf "%s%s" (include "vault-db-injector.fullname" .) (ternary "-renewer" "" .Values.vaultDbInjector.configuration.useProjectedSA)) -}}
 {{- $revokerSA  := .Values.vaultDbInjector.revoker.serviceAccountName  | default (printf "%s%s" (include "vault-db-injector.fullname" .) (ternary "-revoker" "" .Values.vaultDbInjector.configuration.useProjectedSA)) -}}
 {{- $nriSA      := .Values.nri.serviceAccountName                       | default (include "vault-db-injector.fullname" .) -}}
-{{- $podsSubjects := list $injectorSA $renewerSA $revokerSA -}}
-{{- if .Values.nri.enabled -}}{{- $podsSubjects = append $podsSubjects $nriSA -}}{{- end -}}
-{{- $podsSubjects = uniq $podsSubjects -}}
+
+{{/* All SAs the chart manages. Deduped: in legacy mode without overrides,
+     renewer/revoker default to the injector's SA, so only one SA is rendered.
+     In projected mode or with overrides, distinct values produce distinct SAs. */}}
+{{- $allSAs := list $injectorSA $renewerSA $revokerSA -}}
+{{- if .Values.nri.enabled -}}{{- $allSAs = append $allSAs $nriSA -}}{{- end -}}
+{{- $allSAs = uniq $allSAs -}}
+
+{{/* Subject lists for the various bindings — built from the same effective names. */}}
+{{- $podsSubjects   := uniq $allSAs -}}
 {{- $leasesSubjects := uniq (list $renewerSA $revokerSA) -}}
+{{- $tokenSubjects  := list $injectorSA -}}
+{{- if .Values.nri.enabled -}}{{- $tokenSubjects = append $tokenSubjects $nriSA -}}{{- end -}}
+{{- $tokenSubjects  = uniq $tokenSubjects -}}
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -70,52 +81,25 @@ subjects:
   name: {{ . }}
   namespace: '{{ $.Release.Namespace }}'
 {{- end }}
-{{- if not .Values.vaultDbInjector.injector.serviceAccountName }}
+
+{{/* ServiceAccount objects: one per unique effective name. Annotations from
+     vaultDbInjector.injector.serviceAccount.annotations are only applied to the
+     SA matching $injectorSA — they are scoped to the injector by design. */}}
+{{- range $sa := $allSAs }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ $injectorSA }}
+  name: {{ $sa }}
   labels:
-  {{- include "vault-db-injector.labels" . | nindent 4 }}
-{{- if .Values.vaultDbInjector.injector.serviceAccount.annotations }}
+  {{- include "vault-db-injector.labels" $ | nindent 4 }}
+  {{- if and (eq $sa $injectorSA) $.Values.vaultDbInjector.injector.serviceAccount.annotations }}
   annotations:
-    {{- toYaml .Values.vaultDbInjector.injector.serviceAccount.annotations | nindent 4 }}
+    {{- toYaml $.Values.vaultDbInjector.injector.serviceAccount.annotations | nindent 4 }}
+  {{- end }}
 {{- end }}
-{{- end }}
+
 {{- if .Values.vaultDbInjector.configuration.useProjectedSA }}
-{{- if not .Values.vaultDbInjector.renewer.serviceAccountName }}
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ $renewerSA }}
-  labels:
-  {{- include "vault-db-injector.labels" . | nindent 4 }}
-{{- end }}
-{{- if not .Values.vaultDbInjector.revoker.serviceAccountName }}
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ $revokerSA }}
-  labels:
-  {{- include "vault-db-injector.labels" . | nindent 4 }}
-{{- end }}
-{{- end }}
-{{- if and .Values.nri.enabled (not .Values.nri.serviceAccountName) (ne $nriSA $injectorSA) }}
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ $nriSA }}
-  labels:
-  {{- include "vault-db-injector.labels" . | nindent 4 }}
-{{- end }}
-{{- if .Values.vaultDbInjector.configuration.useProjectedSA }}
-{{- $tokenSubjects := list $injectorSA -}}
-{{- if .Values.nri.enabled -}}{{- $tokenSubjects = append $tokenSubjects $nriSA -}}{{- end -}}
-{{- $tokenSubjects = uniq $tokenSubjects }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
