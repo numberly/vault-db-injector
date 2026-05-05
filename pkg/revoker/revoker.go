@@ -143,6 +143,7 @@ func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
 					}
 					if uuidsString, exists := pod.GetAnnotations()[k8s.ANNOTATION_VAULT_POD_UUID]; exists {
 						uuids := strings.Split(uuidsString, ",")
+						allOK := true
 						for _, uuid := range uuids {
 							keyInformation, err := vaultConn.GetKeyInfo(ctx, pod.Name, uuid, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
 							if err != nil {
@@ -151,22 +152,27 @@ func (r *tokenRevokerImpl) RevokeTokenJob(ctx context.Context) {
 								} else {
 									r.log.Errorf("Error while retrieving key information for uuid %s: %v", uuid, err)
 									metrics.PodCleanupErrorCount.WithLabelValues().Inc()
+									allOK = false
 								}
 								continue
 							}
 							if keyInformation == nil {
 								r.log.Errorf("keyInformation unexpectedly nil for uuid %s", uuid)
 								metrics.PodCleanupErrorCount.WithLabelValues().Inc()
+								allOK = false
 								continue
 							}
 							err = vaultConn.HandlePodDeletionToken(ctx, keyInformation, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
 							if err != nil {
 								r.log.Errorf("Error in HandlePodDeletionToken: %v", err)
 								metrics.PodCleanupErrorCount.WithLabelValues().Inc()
+								allOK = false
 								continue
 							}
 						}
-						metrics.PodCleanupSuccessCount.WithLabelValues().Inc()
+						if allOK {
+							metrics.PodCleanupSuccessCount.WithLabelValues().Inc()
+						}
 					}
 				}
 			}
