@@ -37,17 +37,26 @@ import (
 //   is skipped. The Vault role MUST be configured with token_period > 0
 //   so the pod-token (and its lease) survives until explicit revocation.
 func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, podNamespace, podName string) (mapping map[string]string, creds *vault.DbCreds, retErr error) {
-	var (
-		conn    *vault.Connector
-		loginOK bool
-	)
+	// liveConns accumulates every connector whose Login succeeded.
+	// On partial failure (iteration K fails after 0..K-1 succeeded) the
+	// deferred cleanup revokes all pod-tokens and bookkeeping tokens that
+	// were already issued, preventing silent leaks until token_max_ttl.
+	var liveConns []*vault.Connector
 	defer func() {
-		// In projected mode the pod-token is live in Vault after Login.
-		// If we're returning an error we did not hand the token off to
-		// the renewer, so revoke it now to avoid leaking until max_ttl.
-		if loginOK && retErr != nil && cfg.UseProjectedSA {
-			if revErr := conn.RevokeSelfToken(context.Background(), conn.GetToken()); revErr != nil {
-				logger.GetLogger().Errorf("failed to revoke pod token on error path: %v", revErr)
+		if retErr != nil && cfg.UseProjectedSA {
+			for _, c := range liveConns {
+				// Revoke the pod-token (current token after Login).
+				if podTok := c.GetToken(); podTok != "" {
+					if revErr := c.RevokeSelfToken(context.Background(), podTok); revErr != nil {
+						logger.GetLogger().Warnf("RevokeSelfToken (pod-token) failed during multi-dbConfig cleanup: %v", revErr)
+					}
+				}
+				// Revoke the bookkeeping injector-SA token separately.
+				if c.K8sSaVaultToken != "" {
+					if revErr := c.RevokeSelfToken(context.Background(), c.K8sSaVaultToken); revErr != nil {
+						logger.GetLogger().Warnf("RevokeSelfToken (bookkeeping) failed during multi-dbConfig cleanup: %v", revErr)
+					}
+				}
 			}
 		}
 	}()
@@ -148,7 +157,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		if cfg.UseProjectedSA {
 			authRole = dbConf.Role
 		}
-		conn = vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
+		conn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
 		if err := conn.Login(ctx); err != nil {
 			mode := "legacy"
 			if cfg.UseProjectedSA {
@@ -157,10 +166,10 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 			metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), mode).Inc()
 			return nil, nil, errors.Wrapf(err, "vault login for dbConfig %d (role %s)", i, dbConf.Role)
 		}
-		loginOK = true
-		if cfg.UseProjectedSA {
-			conn.PodVaultToken = conn.GetToken()
-		} else {
+		// Track this connector so the deferred cleanup can revoke its tokens
+		// if a subsequent iteration fails.
+		liveConns = append(liveConns, conn)
+		if !cfg.UseProjectedSA {
 			conn.K8sSaVaultToken = conn.GetToken()
 		}
 

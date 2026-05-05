@@ -276,10 +276,33 @@ func generatePlaceholders() (userPH, passPH string) {
 	return placeholder.Generate(), placeholder.Generate()
 }
 
-func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok, injectorSaToken string, pod *corev1.Pod) (*corev1.Pod, string, []string, error) {
+func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config.Config, dbConfs *[]k8s.DbConfiguration, logger log.Logger, vaultDbPath, tok, injectorSaToken string, pod *corev1.Pod) (retPod *corev1.Pod, retRole string, retUUIDs []string, retErr error) {
 	if len(*dbConfs) == 0 {
 		return nil, "", nil, errors.Newf("No dbConfiguration has been provided %v", dbConfs)
 	}
+
+	// liveConns tracks every connector whose Login succeeded this call.
+	// On partial failure the deferred block revokes all previously issued
+	// tokens so they don't leak until token_max_ttl.
+	var liveConns []*vault.Connector
+	defer func() {
+		if retErr != nil {
+			for _, c := range liveConns {
+				if c.K8sSaVaultToken != "" {
+					if revokeErr := c.RevokeSelfToken(ctx, c.K8sSaVaultToken); revokeErr != nil {
+						logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken (bookkeeping) failed during cleanup: %v", revokeErr)
+					}
+				}
+				if cfg.UseProjectedSA {
+					if podTok := c.GetToken(); podTok != "" {
+						if revokeErr := c.RevokeSelfToken(ctx, podTok); revokeErr != nil {
+							logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken (pod-token) failed during cleanup: %v", revokeErr)
+						}
+					}
+				}
+			}
+		}
+	}()
 
 	podUuids := make([]string, 0, len(*dbConfs))
 	for _, dbConf := range *dbConfs {
@@ -293,13 +316,10 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 		// modes.
 		vaultConn, role, err := authorizeDbAccess(ctx, contextID, cfg, dbConf, logger, vaultDbPath, tok, injectorSaToken, pod)
 		if err != nil {
-			if vaultConn != nil && vaultConn.K8sSaVaultToken != "" {
-				if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
-					logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
-				}
-			}
 			return nil, role, nil, err
 		}
+		// Track so deferred cleanup covers this connector on any later error.
+		liveConns = append(liveConns, vaultConn)
 
 		logger.WithValues(log.Kv{"contextID": contextID}).Infof("DbConfMode is equal to : %s", dbConf.Mode)
 
@@ -312,30 +332,24 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 		if !cfg.NRI.Enabled {
 			creds, err = fetchDbCredentials(ctx, contextID, cfg, dbConf, logger, vaultConn, pod)
 			if err != nil {
-				if vaultConn.K8sSaVaultToken != "" {
-					if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
-						logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
-					}
-				}
 				return nil, role, nil, err
 			}
 		}
 
 		if err := applyEnvToContainers(ctx, pod, dbConf, creds, vaultDbPath, cfg); err != nil {
-			if vaultConn.K8sSaVaultToken != "" {
-				if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
-					logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken failed: %v", revokeErr)
-				}
-			}
 			return nil, role, nil, err
 		}
 
-		// Best-effort: revoke webhook's own vault SA token. Plugin will
-		// authenticate independently when it fetches creds.
+		// Best-effort: revoke webhook's own vault SA token now that it's no
+		// longer needed. The NRI plugin authenticates independently at
+		// CreateContainer time. Remove from liveConns so the deferred block
+		// doesn't double-revoke on success.
 		if cfg.NRI.Enabled && vaultConn.K8sSaVaultToken != "" {
 			if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
 				logger.WithValues(log.Kv{"contextID": contextID}).Infof("RevokeSelfToken (NRI mode webhook) warning: %v", revokeErr)
 			}
+			// Clear token so deferred cleanup skips it (already revoked).
+			vaultConn.K8sSaVaultToken = ""
 		}
 
 		if creds != nil {
