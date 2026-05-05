@@ -2,7 +2,6 @@ package nri
 
 import (
 	"context"
-	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
@@ -87,7 +86,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	if cfg.UseProjectedSA {
 		tok, err = k8sClient.RequestSAToken(ctx, podNamespace, actualSA, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
 		if err != nil {
-			metrics.TokenRequestErrors.WithLabelValues(classifyTokenRequestError(err)).Inc()
+			metrics.TokenRequestErrors.WithLabelValues(k8s.ClassifyTokenRequestError(err)).Inc()
 			return nil, nil, errors.Wrap(err, "TokenRequest for pod SA")
 		}
 	} else {
@@ -191,14 +190,3 @@ func checkConfigurationLite(dbConf k8s.DbConfiguration) error {
 	return nil
 }
 
-func classifyTokenRequestError(err error) string {
-	msg := err.Error()
-	switch {
-	case strings.Contains(msg, "forbidden"):
-		return "rbac_denied"
-	case strings.Contains(msg, "not found"):
-		return "sa_not_found"
-	default:
-		return "other"
-	}
-}

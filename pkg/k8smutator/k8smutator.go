@@ -36,7 +36,7 @@ func vaultLoginToken(ctx context.Context, cfg *config.Config, k8sClient k8s.Clie
 	}
 	tok, err := k8sClient.RequestSAToken(ctx, pod.Namespace, saName, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
 	if err != nil {
-		metrics.TokenRequestErrors.WithLabelValues(classifyTokenRequestError(err)).Inc()
+		metrics.TokenRequestErrors.WithLabelValues(k8s.ClassifyTokenRequestError(err)).Inc()
 		return "", err
 	}
 	return tok, nil
@@ -48,18 +48,6 @@ func generateUUID(logger log.Logger) string {
 		logger.Infof("Error while generating UUID : %v", err)
 	}
 	return newUUID.String()
-}
-
-func classifyTokenRequestError(err error) string {
-	msg := err.Error()
-	switch {
-	case strings.Contains(msg, "forbidden"):
-		return "rbac_denied"
-	case strings.Contains(msg, "not found"):
-		return "sa_not_found"
-	default:
-		return "other"
-	}
 }
 
 func CreateMutator(ctx context.Context, logger log.Logger, cfg *config.Config) kwhmutating.MutatorFunc {
