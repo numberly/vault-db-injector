@@ -18,6 +18,24 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
+// warnLegacyMode emits a startup warning when neither projected-SA mode nor
+// NRI mode is enabled (credentials injected as cleartext in PodSpec).
+//
+// Only meaningful for the webhook injector (RunInjector) — the renewer,
+// revoker and NRI plugin operate on stored KV bookkeeping regardless of
+// which mode the webhook used to admit pods, and their configmaps do not
+// even include useProjectedSA / nri.enabled by design. Calling it from
+// those modes would always log "LEGACY" regardless of cluster state and
+// confuse operators.
+func warnLegacyMode(cfg *config.Config, log logger.Logger) {
+	if !cfg.UseProjectedSA && !cfg.NRI.Enabled {
+		log.Warnf("vault-db-injector running in LEGACY mode: credentials are injected as cleartext env vars in the PodSpec. " +
+			"Consider enabling NRI mode (nri.enabled=true) to remove plaintext credentials, " +
+			"and/or projected-SA mode (useProjectedSA=true) for least-privilege Vault auth. " +
+			"See docs/how-it-works/migration-v2-to-v3.md.")
+	}
+}
+
 type Controller struct {
 	Cfg       *config.Config
 	Clientset k8s.KubernetesClient
@@ -37,6 +55,7 @@ func NewController(cfg *config.Config, Clientset k8s.KubernetesClient, sentrySvc
 // RunInjector starts the webhook injector and blocks until ctx is cancelled or a fatal error occurs.
 func (c *Controller) RunInjector(ctx context.Context) error {
 	c.log.Info("Starting server in mode injector")
+	warnLegacyMode(c.Cfg, c.log)
 
 	stopChan := make(chan struct{})
 	// Bridge ctx cancellation to stopChan for components that still use it.
@@ -147,6 +166,47 @@ func (c *Controller) RunRevoker(ctx context.Context) error {
 	})
 
 	return g.Wait()
+}
+
+// RunNRI runs the binary as a node-local DaemonSet that registers an NRI
+// plugin with containerd to substitute placeholders in container envs at
+// CreateContainer time.
+func (c *Controller) RunNRI(ctx context.Context) error {
+	c.log.Info("Starting server in mode nri")
+	if !c.Cfg.NRI.Enabled {
+		c.log.Warn("RunNRI called but cfg.NRI.Enabled is false; idle until shutdown")
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
+	hcService := healthcheck.NewService(c.Cfg)
+	hcService.RegisterHandlers()
+	metricsService := metrics.NewMetricsService()
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		hcService.Start(gCtx, make(chan struct{}))
+		return nil
+	})
+
+	g.Go(func() error {
+		metricsService.RunMetrics()
+		return nil
+	})
+
+	g.Go(func() error {
+		err := runNRIAgent(gCtx, c.Cfg, c.log)
+		if err != nil {
+			c.log.Errorf("NRI agent terminated: %v", err)
+		}
+		return err
+	})
+
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		return err
+	}
+	return nil
 }
 
 // buildLock resolves HA environment variables and constructs the leader-election lock.

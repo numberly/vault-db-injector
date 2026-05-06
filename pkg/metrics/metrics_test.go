@@ -34,7 +34,7 @@ func TestRunMetrics(t *testing.T) {
 
 	// Retry until the server is up (up to 5 seconds).
 	for range 10 {
-		resp, err = http.Get(serverURL)
+		resp, err = http.Get(serverURL) //nolint:noctx // retry loop in test; context overhead unnecessary
 		if err == nil {
 			break
 		}

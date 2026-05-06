@@ -1,0 +1,31 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gosec
+    - bodyclose
+    - noctx
+    - exhaustive
+  settings:
+    govet:
+      enable-all: false
+    exhaustive:
+      default-signifies-exhaustive: true
+    gosec:
+      excludes:
+        - G115
+  exclusions:
+    presets:
+      - std-error-handling
+      - common-false-positives
+    rules:
+      - linters: [staticcheck]
+        text: "SA1019"
+      - linters: [gosec]
+        path: "_test\\.go"

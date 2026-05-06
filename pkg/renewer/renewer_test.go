@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -29,6 +30,12 @@ func (f *fakeKubernetesClient) GetServiceAccountToken() (string, error) {
 	return "fake-token", nil
 }
 
+func (f *fakeKubernetesClient) RawClientset() kubernetes.Interface { return nil }
+
+func (f *fakeKubernetesClient) RequestSAToken(_ context.Context, _, _ string, _ []string, _ int64) (string, error) {
+	return "fake-jwt", nil
+}
+
 func TestNewTokenRenewer_NotNil(t *testing.T) {
 	cfg := &config.Config{SyncTTLSecond: 3600}
 	stopChan := make(chan struct{})
@@ -39,7 +46,7 @@ func TestNewTokenRenewer_NotNil(t *testing.T) {
 func TestTokenRenewerImpl_ImplementsInterface(t *testing.T) {
 	cfg := &config.Config{}
 	stopChan := make(chan struct{})
-	var _ TokenRenewer = NewTokenRenewer(cfg, &fakeKubernetesClient{}, stopChan)
+	var _ TokenRenewer = NewTokenRenewer(cfg, &fakeKubernetesClient{}, stopChan) //nolint:staticcheck // QF1011: explicit type is intentional interface assertion
 }
 
 // TestRenewTokenJob_ContextCancellation verifies that RenewTokenJob exits when

@@ -2,6 +2,7 @@ package vault
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -77,6 +78,10 @@ func (c *Connector) Clone() *Connector {
 
 // CreateOrphanToken creates a Vault orphan token and returns it without mutating connector state.
 // Callers that need to use the orphan token must call c.SetToken(orphanToken) explicitly.
+//
+// Used exclusively by the legacy GetDbCredentials flow (SkipOrphanCreation=false).
+// In projected-SA mode this is never called; the per-pod token issued by
+// auth/kubernetes/login is used directly without an orphan step.
 func (c *Connector) CreateOrphanToken(ctx context.Context, ttl string, policies []string) (string, error) {
 	secret, err := c.client.Auth().Token().CreateOrphanWithContext(ctx, &vault.TokenCreateRequest{
 		Period:      ttl,
@@ -85,7 +90,7 @@ func (c *Connector) CreateOrphanToken(ctx context.Context, ttl string, policies 
 	})
 	if err != nil {
 		metrics.OrphanErrorTicketCreatedCount.WithLabelValues().Inc()
-		return "", errors.Newf("failed to create orphan token: %v", err)
+		return "", errors.Wrapf(err, "failed to create orphan token")
 	}
 
 	metrics.OrphanTicketCreatedCount.WithLabelValues().Inc()
@@ -115,7 +120,7 @@ func (c *Connector) CanIGetRoles(ctx context.Context, contextID, serviceAccountN
 	}
 	boundServiceAccountNames, err := sliceToStrings(rawNames)
 	if err != nil {
-		return false, errors.Newf("invalid bound_service_account_names in role %s: %v", dbRole, err)
+		return false, errors.Wrapf(err, "invalid bound_service_account_names in role %s", dbRole)
 	}
 
 	rawNamespaces, ok := role.Data["bound_service_account_namespaces"].([]any)
@@ -124,7 +129,7 @@ func (c *Connector) CanIGetRoles(ctx context.Context, contextID, serviceAccountN
 	}
 	boundServiceAccountNamespaces, err := sliceToStrings(rawNamespaces)
 	if err != nil {
-		return false, errors.Newf("invalid bound_service_account_namespaces in role %s: %v", dbRole, err)
+		return false, errors.Wrapf(err, "invalid bound_service_account_namespaces in role %s", dbRole)
 	}
 
 	rawPolicies, ok := role.Data["token_policies"].([]any)
@@ -133,7 +138,7 @@ func (c *Connector) CanIGetRoles(ctx context.Context, contextID, serviceAccountN
 	}
 	tokenPolicies, err := sliceToStrings(rawPolicies)
 	if err != nil {
-		return false, errors.Newf("invalid token_policies in role %s: %v", dbRole, err)
+		return false, errors.Wrapf(err, "invalid token_policies in role %s", dbRole)
 	}
 
 	if !stringInSlice(dbRole, tokenPolicies) {
@@ -168,18 +173,33 @@ type DbCredentialsRequest struct {
 	SecretName     string
 	Prefix         string
 	ServiceAccount string
+	// SkipOrphanCreation, when true, makes GetDbCredentials use the
+	// connector's current token (assumed to be a pod-token from a
+	// projected-SA Vault login) directly to issue database creds, with
+	// no auth/token/create-orphan step. The stored DbTokenID is then
+	// the pod-token itself, which the renewer/revoker treat identically
+	// to legacy orphan tokens.
+	SkipOrphanCreation bool
 }
 
 func (c *Connector) GetDbCredentials(ctx context.Context, req DbCredentialsRequest) (*DbCreds, error) {
-	policies := []string{c.dbRole}
-	orphanToken, err := c.CreateOrphanToken(ctx, req.TTL, policies)
-	if err != nil {
-		return nil, err
-	}
-	c.SetToken(orphanToken)
-
 	creds := &DbCreds{}
-	creds.DbTokenID = orphanToken
+
+	if req.SkipOrphanCreation {
+		// Projected-SA path: the connector's current token is the
+		// pod-token from auth/kubernetes/login. Use it directly; the
+		// stored DbTokenID is this pod-token.
+		creds.DbTokenID = c.vaultToken
+	} else {
+		policies := []string{c.dbRole}
+		orphanToken, err := c.CreateOrphanToken(ctx, req.TTL, policies)
+		if err != nil {
+			return nil, err
+		}
+		c.SetToken(orphanToken)
+		creds.DbTokenID = orphanToken
+	}
+
 	path := fmt.Sprintf("/%s/creds/%s", c.dbMountPath, c.dbRole)
 	c.Log.WithFields(logrus.Fields{"contextID": req.ContextID}).Infof("Get credentials from Vault database engine")
 	start := time.Now()
@@ -243,3 +263,31 @@ func sliceToStrings(slice []any) ([]string, error) {
 	}
 	return stringSlice, nil
 }
+
+// VerifyTokenPeriod returns the period (in seconds) of the connector's
+// current token. Returns 0 if the token is not periodic.
+func (c *Connector) VerifyTokenPeriod(ctx context.Context) (int64, error) {
+	secret, err := c.client.Auth().Token().LookupSelfWithContext(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if secret == nil || secret.Data == nil {
+		return 0, nil
+	}
+	p, ok := secret.Data["period"]
+	if !ok {
+		return 0, nil
+	}
+	switch v := p.(type) {
+	case json.Number:
+		n, _ := v.Int64()
+		return n, nil
+	case float64:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	default:
+		return 0, nil
+	}
+}
+

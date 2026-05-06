@@ -9,6 +9,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	corev1iface "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -31,6 +32,14 @@ func (f *fakeKubernetesClientAdapter) CoordinationV1() coordinationv1.Coordinati
 
 func (f *fakeKubernetesClientAdapter) GetServiceAccountToken() (string, error) {
 	return "fake-token", nil
+}
+
+func (f *fakeKubernetesClientAdapter) RawClientset() kubernetes.Interface {
+	return f.inner
+}
+
+func (f *fakeKubernetesClientAdapter) RequestSAToken(_ context.Context, _, _ string, _ []string, _ int64) (string, error) {
+	return "fake-jwt", nil
 }
 
 var _ k8s.KubernetesClient = (*fakeKubernetesClientAdapter)(nil)
@@ -57,6 +66,7 @@ func TestGetAllPodAndNamespace_PodsFound(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod",
 			Namespace: "default",
+			UID:       "pod-uid-1",
 			Annotations: map[string]string{
 				k8s.ANNOTATION_VAULT_POD_UUID: "uuid1234",
 			},
@@ -74,7 +84,7 @@ func TestGetAllPodAndNamespace_PodsFound(t *testing.T) {
 	result, err := podService.GetAllPodAndNamespace(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, result, 1)
-	assert.Equal(t, []string{"uuid1234"}, result[0].PodNameUUIDs)
+	assert.Equal(t, []string{"pod-uid-1", "uuid1234"}, result[0].PodNameUUIDs)
 	assert.Equal(t, "default", result[0].Namespace)
 }
 
@@ -88,6 +98,7 @@ func TestGetAllPodAndNamespace_PodsWithAnnotations(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        "test-pod-1",
 				Namespace:   "default",
+				UID:         "pod-uid-1",
 				Annotations: map[string]string{k8s.ANNOTATION_VAULT_POD_UUID: "uuid1234,uuid1235"},
 				Labels: map[string]string{
 					cfg.InjectorLabel: "true",
@@ -98,6 +109,7 @@ func TestGetAllPodAndNamespace_PodsWithAnnotations(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        "test-pod-2",
 				Namespace:   "production",
+				UID:         "pod-uid-2",
 				Annotations: map[string]string{k8s.ANNOTATION_VAULT_POD_UUID: "uuid5678"},
 				Labels: map[string]string{
 					cfg.InjectorLabel: "true",
@@ -118,11 +130,11 @@ func TestGetAllPodAndNamespace_PodsWithAnnotations(t *testing.T) {
 	result, err := podService.GetAllPodAndNamespace(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, result, len(pods))
-	// Check for presence of pod names and annotations in the result
+	// Each result must contain pod.UID first, then the annotation UUIDs.
 
 	for i, res := range result {
-		uuids := strings.Join(res.PodNameUUIDs, ",")
-		assert.Equal(t, pods[i].ObjectMeta.Annotations[k8s.ANNOTATION_VAULT_POD_UUID], uuids)
+		expected := append([]string{string(pods[i].UID)}, strings.Split(pods[i].Annotations[k8s.ANNOTATION_VAULT_POD_UUID], ",")...)
+		assert.Equal(t, expected, res.PodNameUUIDs)
 		assert.Equal(t, pods[i].Namespace, res.Namespace)
 	}
 }
@@ -131,24 +143,55 @@ func TestGetAllPodAndNamespace_PodsWithoutAnnotations(t *testing.T) {
 	ctx := context.TODO()
 	cfg := &config.Config{}
 	cfg.InjectorLabel = "vault-db-injector"
-	// Pod without the required annotation
+	// Pod without the uuid annotation — represents the NRI transparent
+	// mode case. The renewer must still be able to match KV entries by
+	// pod.UID.
 	nonAnnotatedPod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod-no-annotation",
 			Namespace: "default",
+			UID:       "pod-uid-nri",
 			Labels: map[string]string{
 				cfg.InjectorLabel: "true",
 			},
 		},
 	}
 
-	// Create a fake clientset with the non-annotated pod
 	clientset := &fakeKubernetesClientAdapter{inner: fake.NewSimpleClientset(&nonAnnotatedPod)}
 
 	podService := k8s.NewPodService(clientset, cfg)
 
 	result, err := podService.GetAllPodAndNamespace(ctx)
 	assert.NoError(t, err)
-	// We expect an empty list if the pod does not have the required annotation
-	assert.Empty(t, result)
+	assert.Len(t, result, 1)
+	assert.Equal(t, []string{"pod-uid-nri"}, result[0].PodNameUUIDs)
+}
+
+func TestGetAllPodAndNamespace_EmptyAnnotationFallsBackToPodUID(t *testing.T) {
+	ctx := context.TODO()
+	cfg := &config.Config{}
+	cfg.InjectorLabel = "vault-db-injector"
+	// Reproduces the bug: webhook in NRI mode wrote an empty uuid
+	// annotation. Must not collapse all NRI pods onto the "" key.
+	pod := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod-empty-uuid",
+			Namespace: "default",
+			UID:       "pod-uid-empty",
+			Annotations: map[string]string{
+				k8s.ANNOTATION_VAULT_POD_UUID: "",
+			},
+			Labels: map[string]string{
+				cfg.InjectorLabel: "true",
+			},
+		},
+	}
+
+	clientset := &fakeKubernetesClientAdapter{inner: fake.NewSimpleClientset(&pod)}
+	podService := k8s.NewPodService(clientset, cfg)
+
+	result, err := podService.GetAllPodAndNamespace(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, []string{"pod-uid-empty"}, result[0].PodNameUUIDs)
 }

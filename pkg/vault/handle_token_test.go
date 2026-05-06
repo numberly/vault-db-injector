@@ -3,8 +3,14 @@ package vault
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/sirupsen/logrus"
@@ -222,14 +228,249 @@ func TestSyncAndCleanupTokens_PodServiceError(t *testing.T) {
 	assert.False(t, result, "expected false when pod service returns error")
 }
 
+// ---------------------------------------------------------------------------
+// StoreDataAsync
+// ---------------------------------------------------------------------------
+
+// TestStoreDataAsync_EmptyK8sSaVaultToken verifies that StoreDataAsync logs an
+// error and increments the prometheus counter when K8sSaVaultToken is empty,
+// without calling auth/token/create-orphan or auth/kubernetes/login.
+func TestStoreDataAsync_EmptyK8sSaVaultToken(t *testing.T) {
+	var loginCalled atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			loginCalled.Store(true)
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel) // suppress expected error logs
+
+	c := &Connector{
+		address:         srv.URL,
+		K8sSaVaultToken: "", // intentionally empty — triggers early-exit path
+		Log:             log,
+	}
+
+	ki := NewKeyInfo("pod-uid", "lease-1", "tok-1", "default", "sa", "pod", "node")
+	c.StoreDataAsync(context.Background(), "ctx-id", ki, "vault-injector", "pod-uid", "default", "prefix")
+
+	// Give the goroutine time to run.
+	time.Sleep(100 * time.Millisecond)
+
+	assert.False(t, loginCalled.Load(), "login should NOT be called when K8sSaVaultToken is empty")
+}
+
+// TestStoreDataAsync_UsesK8sSaVaultTokenDirectly verifies that StoreDataAsync
+// uses K8sSaVaultToken for the KV write and does NOT call
+// auth/token/create-orphan or auth/kubernetes/login.
+func TestStoreDataAsync_UsesK8sSaVaultTokenDirectly(t *testing.T) {
+	const bookkeepingToken = "s.bookkeeping-token"
+
+	var (
+		orphanCalled atomic.Bool
+		loginCalled  atomic.Bool
+		kvPutCalled  atomic.Bool
+		seenToken    atomic.Value
+	)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Record which token the client presented.
+		if tok := r.Header.Get("X-Vault-Token"); tok != "" {
+			seenToken.Store(tok)
+		}
+		switch {
+		case r.URL.Path == "/v1/auth/token/create-orphan":
+			orphanCalled.Store(true)
+			http.Error(w, `{"errors":["should not be called"]}`, http.StatusForbidden)
+		case r.URL.Path == "/v1/auth/kubernetes/login":
+			loginCalled.Store(true)
+			http.Error(w, `{"errors":["should not be called"]}`, http.StatusForbidden)
+		case r.Method == http.MethodPut && len(r.URL.Path) > 4:
+			// KV v2 put — PUT /v1/<mount>/data/<prefix>/<uuid>
+			// The vault SDK's KVv2.Put sends a PUT request.
+			kvPutCalled.Store(true)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"data":{"version":1}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel)
+
+	// Build a minimal connector that satisfies the new StoreDataAsync path.
+	vaultCfg := vaultapi.DefaultConfig()
+	vaultCfg.Address = srv.URL
+	client, err := vaultapi.NewClient(vaultCfg)
+	require.NoError(t, err)
+	client.SetToken(bookkeepingToken)
+
+	c := &Connector{
+		address:         srv.URL,
+		client:          client,
+		vaultToken:      bookkeepingToken,
+		K8sSaVaultToken: bookkeepingToken,
+		Log:             log,
+	}
+
+	ki := NewKeyInfo("pod-uid", "lease-1", "tok-1", "default", "sa", "pod", "node")
+	c.StoreDataAsync(context.Background(), "ctx-id", ki, "vault-injector", "pod-uid", "default", "prefix")
+
+	time.Sleep(200 * time.Millisecond)
+
+	assert.False(t, orphanCalled.Load(), "auth/token/create-orphan must NOT be called")
+	assert.False(t, loginCalled.Load(), "auth/kubernetes/login must NOT be called")
+	assert.True(t, kvPutCalled.Load(), "KV put should have been called")
+	if tok, ok := seenToken.Load().(string); ok {
+		assert.Equal(t, bookkeepingToken, tok, "KV request must carry the bookkeeping token")
+	}
+}
+
 // TestSyncAndCleanupTokens_EmptyKeys verifies that an empty keysInformations slice
-// returns true (no-op success). Requires a Vault client for CreateOrphanToken;
-// the actual goroutine loop is skipped when the slice is empty.
-// This variant is tested more thoroughly in handle_token_integration_test.go
-// where a real Vault cluster is available.
+// returns true (no-op success). No Vault client is required: the orphan-token
+// dance was removed; SyncAndCleanupTokens now uses the renewer's own login token
+// throughout. The goroutine loop is also a no-op when the slice is empty.
+// Covered more thoroughly in handle_token_integration_test.go.
 func TestSyncAndCleanupTokens_EmptyKeysUnit(t *testing.T) {
-	// Without a vault client, CreateOrphanToken will panic/nil-deref.
-	// We validate only the pod-service-error branch here; empty-keys with
-	// a live vault is covered in the integration test.
+	// The pod-service-error branch is the only unit-testable early exit here;
+	// empty-keys success with a live Vault cluster is covered in the integration test.
 	t.Skip("empty-keys success path requires live Vault cluster — see integration test")
+}
+
+// ---------------------------------------------------------------------------
+// isLeaseUnrecoverable (I8)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// isNotFound / DeleteData 404 idempotency (I9)
+// ---------------------------------------------------------------------------
+
+// TestIsNotFound verifies the helper correctly identifies Vault 404 errors.
+func TestIsNotFound(t *testing.T) {
+	makeVaultErr := func(code int) *vaultapi.ResponseError {
+		return &vaultapi.ResponseError{StatusCode: code, Errors: []string{"not found"}}
+	}
+	assert.True(t, isNotFound(makeVaultErr(404)))
+	assert.False(t, isNotFound(makeVaultErr(400)))
+	assert.False(t, isNotFound(makeVaultErr(403)))
+	assert.False(t, isNotFound(errors.New("not found")))
+	assert.False(t, isNotFound(nil))
+}
+
+// TestDeleteData_404IsIdempotent verifies that when Vault returns 404 for
+// both kv.Delete and kv.DeleteMetadata, DeleteData returns nil (success)
+// and does NOT increment DataErrorDeletedCount. This covers the renewer ↔
+// revoker race where both fire on the same gone pod (I9).
+func TestDeleteData_404IsIdempotent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// KVv2 Delete  → DELETE /v1/<mount>/data/<path>
+		// KVv2 DeleteMetadata → DELETE /v1/<mount>/metadata/<path>
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"errors":["not found"]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel)
+
+	vaultCfg := vaultapi.DefaultConfig()
+	vaultCfg.Address = srv.URL
+	client, err := vaultapi.NewClient(vaultCfg)
+	require.NoError(t, err)
+	client.SetToken("s.testtoken")
+
+	c := &Connector{
+		address: srv.URL,
+		client:  client,
+		Log:     log,
+	}
+
+	err = c.DeleteData(context.Background(), "vault-injector", "pod-uuid-123", "default", "prefix")
+	assert.NoError(t, err, "404 from Vault KV delete must be treated as idempotent success")
+}
+
+// TestIsLeaseUnrecoverable covers the tightened implementation that requires
+// a Vault *ResponseError with HTTP 400 and a matching message substring.
+func TestIsLeaseUnrecoverable(t *testing.T) {
+	makeVaultErr := func(code int, msgs ...string) *vaultapi.ResponseError {
+		return &vaultapi.ResponseError{StatusCode: code, Errors: msgs}
+	}
+
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil error", nil, false},
+		{"plain stdlib error", errors.New("invalid lease"), false},
+		{"vault 403 permission denied", makeVaultErr(403, "permission denied"), false},
+		{"vault 429 rate limit", makeVaultErr(429, "rate limit quota exceeded"), false},
+		{"vault 400 invalid lease", makeVaultErr(400, "invalid lease ID"), true},
+		{"vault 400 could not find role", makeVaultErr(400, "could not find role my-role"), true},
+		{"vault 400 unrelated message", makeVaultErr(400, "something else entirely"), false},
+		{"vault 500 invalid lease substring", makeVaultErr(500, "invalid lease"), false},
+		{"wrapped vault 400 invalid lease", fmt.Errorf("outer: %w", makeVaultErr(400, "invalid lease")), true},
+		{"wrapped vault 403", fmt.Errorf("outer: %w", makeVaultErr(403, "invalid lease")), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isLeaseUnrecoverable(tt.err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestRevokeSelfToken_RevokesGivenTokenNotClientToken verifies the C1 fix:
+// RevokeSelfToken(tokenA) actually revokes tokenA, not the connector's
+// current token (which may be tokenB). It does this by recording the
+// X-Vault-Token header sent to the fake /v1/auth/token/revoke-self endpoint
+// and asserting it equals tokenA, not tokenB.
+func TestRevokeSelfToken_RevokesGivenTokenNotClientToken(t *testing.T) {
+	const tokenA = "token-to-revoke-aaaaaaaaa"
+	const tokenB = "connector-current-bbbbbbb"
+
+	var capturedToken string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/auth/token/revoke-self" {
+			capturedToken = r.Header.Get("X-Vault-Token")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		// Vault sys/health needed by client init
+		if r.URL.Path == "/v1/sys/health" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"initialized":true,"sealed":false,"standby":false}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	// Build a connector whose client is currently authenticated as tokenB.
+	cfg := vaultapi.DefaultConfig()
+	cfg.Address = srv.URL
+	client, err := vaultapi.NewClient(cfg)
+	require.NoError(t, err)
+	client.SetToken(tokenB)
+
+	conn := &Connector{
+		address: srv.URL,
+		client:  client,
+		Log:     logrus.New(),
+	}
+
+	// RevokeSelfToken must send tokenA in the X-Vault-Token header,
+	// not tokenB (which is what the broken pre-C1 code would send).
+	err = conn.RevokeSelfToken(context.Background(), tokenA)
+	require.NoError(t, err)
+	assert.Equal(t, tokenA, capturedToken,
+		"RevokeSelfToken must authenticate as the given tokenID, not the connector's current token")
 }

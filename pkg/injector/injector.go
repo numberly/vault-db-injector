@@ -3,6 +3,7 @@ package injector
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -113,6 +114,7 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
 		ClientCAs:    caCertPool,
+		MinVersion:   tls.VersionTLS12,
 	}
 
 	httpServer := &http.Server{
@@ -137,18 +139,26 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	}()
 
 	// Serve metrics
+	metricsServer := &http.Server{
+		Addr:              ":8080",
+		Handler:           promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+	}
 	go func() {
 		whLogger.Infof("Listening metrics on :8080")
-		err = http.ListenAndServe(":8080", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-		if err != nil {
+		err = metricsServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
 			s.sentry.CaptureError(err)
 			errCh <- errors.Newf("error serving webhook metrics: %w", err)
 			close(stopChan)
+			return
 		}
 		errCh <- nil
 	}()
 
-	go func() {
+	go func() { //nolint:gosec // G118: shutdown ctx intentionally uses context.Background — parent ctx is already cancelled at this point
 		select {
 		case err := <-errCh:
 			if err != nil {
@@ -160,7 +170,11 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 			shutdownMess := "Shutting down servers due to context cancellation"
 			s.sentry.CaptureMessage(shutdownMess)
 			s.log.Info(shutdownMess)
-			httpServer.Shutdown(ctx) //nolint:errcheck
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := httpServer.Shutdown(shutdownCtx); err != nil {
+				s.log.Errorf("webhook server shutdown error: %v", err)
+			}
 			close(stopChan)
 			// Shutdown metrics server as well
 		}
@@ -173,7 +187,7 @@ func SentryRecoveryMiddleware(sentrySvc sentry.SentryService) func(http.Handler)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := recover(); err != nil {
-					sentrySvc.CaptureError(errors.Newf("panic in webhook handler: %v", err))
+					sentrySvc.CaptureError(errors.Wrapf(errors.New(fmt.Sprintf("%v", err)), "panic in webhook handler"))
 					w.WriteHeader(http.StatusInternalServerError)
 				}
 			}()

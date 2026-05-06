@@ -1,0 +1,57 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.badgesSection" . }}
+
+## TL;DR — minimal values for the canonical NRI + projected-SA install
+
+```yaml
+vaultDbInjector:
+  configuration:
+    vaultAddress: "https://vault.example.com:8200"
+    vaultAuthPath: "kubernetes"
+    kubeRole: "vault-db-injector"
+    useProjectedSA: true
+    tokenRequestAudiences:
+      - vault
+
+nri:
+  enabled: true
+  pluginIndex: "10"
+```
+
+All other keys fall back to the defaults documented below. See
+[getting-started/install-injector](https://numberly.github.io/vault-db-injector/getting-started/install-injector/)
+for a full walkthrough including Vault prerequisites.
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesHeader" . }}
+
+{{ template "chart.valuesTable" . }}
+
+## Vault auth roles the operator must create when `useProjectedSA: true`
+
+When projected-SA mode is enabled, the chart provisions dedicated
+ServiceAccounts for the renewer and the revoker. The Vault operator must
+create matching `auth/kubernetes/role` entries:
+
+```
+auth/kubernetes/role/<release>-renewer:
+  bound_service_account_names = <release>-renewer
+  bound_service_account_namespaces = <release-namespace>
+  token_policies = <release>-renewer
+
+auth/kubernetes/role/<release>-revoker:
+  bound_service_account_names = <release>-revoker
+  bound_service_account_namespaces = <release-namespace>
+  token_policies = <release>-revoker
+```
+
+See [Vault policies and roles](https://numberly.github.io/vault-db-injector/getting-started/vault-policies/)
+for the full policy HCL and `vault write` commands.
+
+{{ template "helm-docs.versionFooter" . }}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	vault "github.com/hashicorp/vault/api"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
 	"github.com/numberly/vault-db-injector/pkg/metrics"
@@ -85,38 +86,56 @@ func (c *Connector) StoreData(ctx context.Context, contextID string, vaultInform
 // This keeps the hot path latency low. The trade-off is that if the async write fails,
 // the renewer/revoker will be unable to manage the credential on the next cycle.
 //
+// The goroutine uses c.K8sSaVaultToken directly — the injector-SA Vault token that
+// the caller must populate before calling GetDbCredentials. In projected-SA mode this
+// token comes from LoginAsInjectorSA (the pod-token has no KV-write capability). In
+// legacy mode it is the injector's own login token, already set by ConnectToVault.
+//
+// A fresh Vault client is constructed per call so the goroutine does not race with
+// concurrent admissions that mutate the shared connector's token.
+//
 // Callers that require guaranteed persistence (e.g. integration tests, migration tools)
 // MUST use StoreData (synchronous) instead of this function.
 func (c *Connector) StoreDataAsync(ctx context.Context, contextID string, vaultInformation *KeyInfo, secretName, uuid, namespace, prefix string) {
 	go func() {
 		start := time.Now()
-		asyncCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		asyncCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 		defer cancel()
 
-		asyncConn := c.Clone()
-
-		if err := asyncConn.Login(asyncCtx); err != nil {
-			c.Log.WithFields(logrus.Fields{"contextID": contextID, "uuid": uuid, "namespace": namespace}).Errorf("StoreDataAsync: login failed: %v", err)
+		if c.K8sSaVaultToken == "" {
+			c.Log.WithFields(logrus.Fields{
+				"contextID": contextID,
+				"uuid":      uuid,
+				"namespace": namespace,
+			}).Errorf("StoreDataAsync: K8sSaVaultToken is empty — caller must populate it before GetDbCredentials")
 			metrics.DataErrorStoredCount.WithLabelValues(uuid, namespace).Inc()
 			return
 		}
 
-		policies := []string{c.authRole}
-		orphanToken, err := asyncConn.CreateOrphanToken(asyncCtx, "5m", policies)
+		// Build a fresh Vault client so we do not race with concurrent
+		// admissions that may call SetToken on the shared connector.
+		asyncCfg := vault.DefaultConfig()
+		asyncCfg.Address = c.address
+		asyncClient, err := vault.NewClient(asyncCfg)
 		if err != nil {
-			c.Log.WithFields(logrus.Fields{"contextID": contextID, "uuid": uuid, "namespace": namespace}).Errorf("StoreDataAsync: token creation failed: %v", err)
+			c.Log.WithFields(logrus.Fields{"contextID": contextID}).Errorf("StoreDataAsync: client init failed: %v", err)
 			metrics.DataErrorStoredCount.WithLabelValues(uuid, namespace).Inc()
 			return
 		}
-		asyncConn.SetToken(orphanToken)
+		asyncClient.SetToken(c.K8sSaVaultToken)
+
+		asyncConn := &Connector{
+			address:    c.address,
+			client:     asyncClient,
+			vaultToken: c.K8sSaVaultToken,
+			Log:        c.Log,
+		}
 
 		if err := asyncConn.StoreData(asyncCtx, contextID, vaultInformation, secretName, uuid, namespace, prefix); err != nil {
 			c.Log.WithFields(logrus.Fields{"contextID": contextID}).Errorf("Async store operation failed: %v", err)
-			asyncConn.RevokeOrphanToken(asyncCtx, asyncConn.vaultToken, uuid, namespace)
 			return
 		}
 
-		asyncConn.RevokeOrphanToken(asyncCtx, asyncConn.vaultToken, uuid, namespace)
 		duration := time.Since(start)
 		durationMs := float64(duration.Microseconds()) / 1000.0
 		c.Log.WithFields(
@@ -125,7 +144,6 @@ func (c *Connector) StoreDataAsync(ctx context.Context, contextID string, vaultI
 				"contextID":      contextID,
 			},
 		).Infof("Async store operation completed")
-
 	}()
 }
 
@@ -134,20 +152,32 @@ func (c *Connector) DeleteData(ctx context.Context, secretName, uuid, namespace,
 	fullPath := fmt.Sprintf("%s/%s", prefix, uuid)
 	c.Log.Debugf("Full path for deleting data is : %s", fullPath)
 
-	err := kv.Delete(ctx, fullPath)
-	if err != nil {
-		metrics.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
-		return errors.Wrapf(err, "kv.Delete failed for path %s", fullPath)
+	if err := kv.Delete(ctx, fullPath); err != nil {
+		if !isNotFound(err) {
+			metrics.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
+			return errors.Wrapf(err, "kv.Delete failed for path %s", fullPath)
+		}
+		c.Log.Debugf("kv.Delete: path %s already gone (idempotent success)", fullPath)
 	}
 
-	err = kv.DeleteMetadata(ctx, fullPath)
-	if err != nil {
-		metrics.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
-		return errors.Wrapf(err, "kv.DeleteMetadata failed for path %s", fullPath)
+	if err := kv.DeleteMetadata(ctx, fullPath); err != nil {
+		if !isNotFound(err) {
+			metrics.DataErrorDeletedCount.WithLabelValues(uuid, namespace).Inc()
+			return errors.Wrapf(err, "kv.DeleteMetadata failed for path %s", fullPath)
+		}
+		c.Log.Debugf("kv.DeleteMetadata: path %s already gone (idempotent success)", fullPath)
 	}
 
 	metrics.DataDeletedCount.WithLabelValues(uuid, namespace).Inc()
 	return nil
+}
+
+// isNotFound reports whether a Vault SDK error represents a 404 Not Found.
+// Used to treat concurrent double-delete (renewer + revoker racing on the
+// same gone pod's KV entry) as idempotent success (I9).
+func isNotFound(err error) bool {
+	var ve *vault.ResponseError
+	return errors.As(err, &ve) && ve.StatusCode == 404
 }
 
 func safeString(v any) string {
@@ -190,6 +220,38 @@ func (c *Connector) GetKeyInfo(ctx context.Context, podName, uuid, path, prefix 
 	return keyInfoFromMap(uuid, dataMap), nil
 }
 
+// isLeaseUnrecoverable reports whether a Vault renew/lookup error
+// indicates the lease can never be renewed again, so the only sane
+// follow-up is to revoke the token + delete the KV bookkeeping entry.
+//
+// Two distinct upstream conditions land here, both as HTTP 400 from Vault:
+//
+//   - "invalid lease": Vault has no record of the lease at all (already
+//     expired or revoked).
+//   - "could not find role": the lease is still tracked by Vault, but
+//     the database role it was issued under has since been deleted, so
+//     Vault cannot regenerate or extend the credential. From the
+//     renewer's perspective, the lease is just as dead.
+//
+// The status-code guard (HTTP 400 only) reduces the risk of a proxy- or
+// WAF-injected error string triggering spurious KV cleanup. Errors from
+// other status codes (403, 429, 5xx) propagate to the caller unmodified.
+func isLeaseUnrecoverable(err error) bool {
+	if err == nil {
+		return false
+	}
+	var ve *vault.ResponseError
+	if !errors.As(err, &ve) {
+		return false
+	}
+	if ve.StatusCode != 400 {
+		return false
+	}
+	body := strings.Join(ve.Errors, "\n")
+	return strings.Contains(body, "invalid lease") ||
+		strings.Contains(body, "could not find role")
+}
+
 // ListKeyInfo lists all KeyInfo entries under the given path/prefix.
 // Partial results: on per-key fetch failures, the function returns both a non-nil partial
 // slice (successfully fetched entries) and a non-nil error (joined errors from failed keys).
@@ -226,7 +288,7 @@ func (c *Connector) ListKeyInfo(ctx context.Context, path, prefix string) ([]*Ke
 			// Wait for the rate limiter
 			if err := limiter.Wait(ctx); err != nil {
 				c.Log.Errorf("Rate limiter error: %v", err)
-				errChan <- errors.Newf("rate limiter error: %v", err)
+				errChan <- errors.Wrapf(err, "rate limiter error")
 				return
 			}
 
@@ -243,7 +305,7 @@ func (c *Connector) ListKeyInfo(ctx context.Context, path, prefix string) ([]*Ke
 			podSecret, err := c.client.Logical().ReadWithContext(ctx, dataPath)
 			if err != nil {
 				c.Log.Errorf("Error while trying to recover data informations for: %s: %v", podName, err)
-				errChan <- errors.Newf("failed to read data for %s: %v", podName, err)
+				errChan <- errors.Wrapf(err, "failed to read data for %s", podName)
 				return
 			}
 
@@ -284,18 +346,23 @@ func (c *Connector) ListKeyInfo(ctx context.Context, path, prefix string) ([]*Ke
 }
 
 func (c *Connector) HandlePodDeletionToken(ctx context.Context, keysInformation *KeyInfo, secretName, prefix string) error {
-	err := c.RevokeOrphanToken(ctx, keysInformation.TokenID, keysInformation.PodNameUID, keysInformation.Namespace)
-	if err != nil {
-		c.Log.Errorf("Can't revok Token with UUID : %s", keysInformation.PodNameUID)
-		if revokeErr := c.RevokeSelfToken(ctx, c.client.Token()); revokeErr != nil {
-			c.Log.Errorf("RevokeSelfToken failed: %v", revokeErr)
-		}
-		c.SetToken(c.K8sSaVaultToken)
+	if err := c.RevokeOrphanToken(ctx, keysInformation.TokenID, keysInformation.PodNameUID, keysInformation.Namespace); err != nil {
+		c.Log.Errorf("Can't revoke Token with UUID %s: %v", keysInformation.PodNameUID, err)
 		return err
 	}
+
+	// Token revocation succeeded — purge the KV bookkeeping entry too,
+	// otherwise the renewer would re-discover it next cycle and
+	// re-purge via the isLeaseUnrecoverable fast-path. The revoker
+	// owns the full lifecycle of this entry; do the cleanup here.
+	if err := c.DeleteData(ctx, secretName, keysInformation.PodNameUID, keysInformation.Namespace, prefix); err != nil {
+		c.Log.Errorf("KV delete after revoke failed for uuid %s: %v", keysInformation.PodNameUID, err)
+		return err
+	}
+
 	metrics.LeaseExpirationInTime.DeleteLabelValues(keysInformation.PodNameUID, keysInformation.Namespace)
 	metrics.TokenExpirationInTime.DeleteLabelValues(keysInformation.PodNameUID, keysInformation.Namespace)
-	c.Log.Infof("Token with uuid %s has been revoked : Success !", keysInformation.PodNameUID)
+	c.Log.Infof("Token with uuid %s revoked and KV entry deleted", keysInformation.PodNameUID)
 	return nil
 }
 
@@ -314,14 +381,11 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 		}
 	}
 
-	kubePolicies := []string{c.authRole}
-	orphanToken, err := c.CreateOrphanToken(ctx, "1h", kubePolicies)
-	if err != nil {
-		c.Log.Errorf("Can't create orphan ticket: %v", err)
-		c.Log.Error("Token renew has been cancelled")
-		return false
-	}
-	c.SetToken(orphanToken)
+	// Use the renewer's own login token (set by ConnectAndRenew) for all
+	// renew/revoke/KV operations. The previous version created an orphan
+	// token here purely as a side-effect of the legacy broad-policy era;
+	// in projected-SA mode the renewer's policy is dedicated and minimal,
+	// and create-orphan is intentionally NOT granted to it.
 
 	// Create a rate limiter
 	rateLimit := rate.Limit(cfg.VaultRateLimit) // requests per second
@@ -352,6 +416,27 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 				}
 				err = c.RenewLease(ctx, ki.LeaseID, 86400*5, ki.PodNameUID, ki.Namespace) // Renew for 1 week
 				if err != nil {
+					if isLeaseUnrecoverable(err) {
+						// Pod is still scheduled but its DB role no longer
+						// exists in Vault — keeping the KV entry would
+						// log-spam every cycle. Revoke (best-effort) and
+						// purge so the operator's next sync run is clean.
+						c.Log.Infof("Lease %s unrecoverable for uuid %s (%v), purging KV entry", ki.LeaseID, ki.PodNameUID, err)
+						if revErr := c.RevokeOrphanToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace); revErr != nil {
+							c.Log.Warnf("Token revoke for unrecoverable lease %s failed (continuing): %v", ki.LeaseID, revErr)
+						}
+						if delErr := c.DeleteData(ctx, secretName, ki.PodNameUID, ki.Namespace, prefix); delErr != nil {
+							c.Log.Errorf("Data for %s can't be deleted: %v", ki.PodNameUID, delErr)
+							isOk.Store(false)
+							return
+						}
+						metrics.LeaseExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.TokenExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						metrics.DataDeletedCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+						return
+					}
 					c.Log.Errorf("Can't renew Lease with pod UUID: %s", ki.PodNameUID)
 					isOk.Store(false)
 					return
@@ -364,41 +449,21 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 					}
 				}
 			} else {
-				leaseTooYoung, err := c.isLeaseTooYoung(ctx, ki.LeaseID)
-				if err != nil {
-					c.Log.Warnf("Cannot determine lease age for %s, skipping cleanup: %v", ki.LeaseID, err)
-					return
-				}
-				if leaseTooYoung {
-					c.Log.Infof("This lease: %s is too young to be cleaned up.", ki.LeaseID)
-					return
-				}
-				err = c.RevokeOrphanToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace)
-				if err != nil {
-					c.Log.Errorf("Can't revoke Token with UUID: %s", ki.PodNameUID)
-					isOk.Store(false)
-					return
-				}
-				if err := c.DeleteData(ctx, secretName, ki.PodNameUID, ki.Namespace, prefix); err != nil {
-					c.Log.Errorf("Data for %s can't be deleted: %v", ki.PodNameUID, err)
-					isOk.Store(false)
-					return
-				}
-				metrics.LeaseExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				metrics.TokenExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				metrics.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				metrics.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				metrics.DataDeletedCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
-				c.Log.Infof("Token has been revoked and data deleted")
+				// Pod no longer exists in the Kubernetes API — skip silently.
+				// The revoker owns safety-net cleanup (periodic safetyNetSync)
+				// so the renewer does not need revoke-orphan or KV-delete caps.
+				c.Log.Debugf("Pod for uuid %s not found in k8s, skipping (revoker handles cleanup)", ki.PodNameUID)
 			}
 		}(ki)
 	}
 
 	wg.Wait()
-	if err := c.RevokeSelfToken(ctx, c.client.Token()); err != nil {
-		c.Log.Errorf("RevokeSelfToken failed: %v", err)
-	}
-	c.SetToken(c.K8sSaVaultToken)
+	// The legacy code revoked the per-cycle orphan token here and
+	// reset c.vaultToken to K8sSaVaultToken. With the orphan dance
+	// removed, c.vaultToken IS the renewer's own login token —
+	// revoking it would 403 every subsequent operation (and force a
+	// reconnect every cycle). The login token's lifetime is managed
+	// by StartTokenRenewal (RenewSelfToken), so leave it intact.
 	return isOk.Load()
 }
 
@@ -419,12 +484,27 @@ func (c *Connector) RevokeOrphanToken(ctx context.Context, tokenID, uuid, namesp
 	return nil
 }
 
+// RevokeSelfToken revokes the given tokenID by building a fresh Vault client
+// authenticated as that token and calling auth/token/revoke-self.
+// This avoids the SDK footgun where RevokeSelfWithContext ignores the tokenID
+// argument and always revokes whatever token the caller's client currently holds.
 func (c *Connector) RevokeSelfToken(ctx context.Context, tokenID string) error {
-	err := c.client.Auth().Token().RevokeSelfWithContext(ctx, tokenID)
+	if tokenID == "" {
+		return nil
+	}
+	cli, err := vault.NewClient(&vault.Config{Address: c.address})
 	if err != nil {
+		return errors.Wrap(err, "RevokeSelfToken: build client")
+	}
+	cli.SetToken(tokenID)
+	abbrev := tokenID
+	if len(tokenID) > 8 {
+		abbrev = tokenID[:8]
+	}
+	if err := cli.Auth().Token().RevokeSelfWithContext(ctx, ""); err != nil {
 		metrics.RevokeTokenErrorCount.WithLabelValues("", "").Inc()
 		c.Log.Errorf("error while revoking token: %v", err)
-		return err
+		return errors.Wrapf(err, "RevokeSelfToken: revoke %s", abbrev)
 	}
 	metrics.RevokeTokenCount.WithLabelValues("").Inc()
 	return nil
@@ -463,36 +543,21 @@ func (c *Connector) RenewSelfToken(ctx context.Context) error {
 	return nil
 }
 
-// When you create a pod, sometime, it is not scheduled directly due to some cluster issue such has limit range / ...
-// To avoid the token / leaseID to be deleted, we decide that YoungToken should not be deleted by the Renewer
-// This doesnt change how the revoker work.
-// The value is totally arbitrary, this is to avoid corner case where pod are not scheduled direcly and their creds are deleted before the scheduler schedule them.
-func (c *Connector) isLeaseTooYoung(ctx context.Context, leaseID string) (bool, error) {
-	leaseInformations, err := c.client.Sys().LookupWithContext(ctx, leaseID)
-	if err != nil {
-		// Conservative: treat lookup failure as "too young" to avoid premature revocation.
-		return true, errors.Wrapf(err, "sys.Lookup failed for lease %s", leaseID)
-	}
-	issueTime, ok := leaseInformations.Data["issue_time"].(string)
-	if !ok {
-		return false, errors.Newf("unexpected type for issue_time in lease %s", leaseID)
-	}
-	issueTimeParsed, err := time.Parse(time.RFC3339, issueTime)
-	if err != nil {
-		return false, errors.Wrap(err, "error parsing issue time")
-	}
-	timeSinceIssue := time.Since(issueTimeParsed)
-	isYoungerThanTenMinutes := timeSinceIssue < 10*time.Minute
-
-	return isYoungerThanTenMinutes, nil
-}
-
 func (c *Connector) RenewLease(ctx context.Context, leaseID string, leaseTTL int, uuid, namespace string) error {
 	secret, err := c.client.Sys().RenewWithContext(ctx, leaseID, leaseTTL)
 	if err != nil {
 		if strings.Contains(err.Error(), "lease not found") {
 			c.Log.Debugf("Lease for uuid %s has been revoked by the revoker", uuid)
 			return nil
+		}
+		// Unrecoverable errors (lease gone, role deleted) are handled by
+		// the caller via isLeaseUnrecoverable + KV purge. Log them at
+		// debug level here so Sentry doesn't fire on the way up the
+		// stack — the caller's purge log line covers operator visibility.
+		if isLeaseUnrecoverable(err) {
+			c.Log.Debugf("RenewLease unrecoverable for uuid %s (caller will purge): %v", uuid, err)
+			metrics.RenewLeaseErrorCount.WithLabelValues(uuid, namespace).Inc()
+			return err
 		}
 		c.Log.Errorf("error while renewing lease: %v", err)
 		metrics.RenewLeaseErrorCount.WithLabelValues(uuid, namespace).Inc()

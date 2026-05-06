@@ -345,3 +345,207 @@ func TestGetHAEnvs_BothMissing(t *testing.T) {
 	_, _, err := GetHAEnvs()
 	require.Error(t, err)
 }
+
+// ---------------------------------------------------------------------------
+// ProjectedSA + TokenRequest config
+// ---------------------------------------------------------------------------
+
+func TestConfig_ProjectedSADefaults(t *testing.T) {
+	t.Setenv("INJECTOR_VAULT_ADDRESS", "http://vault:8200")
+	t.Setenv("INJECTOR_VAULT_AUTH_PATH", "kubernetes")
+	t.Setenv("INJECTOR_KUBE_ROLE", "test")
+	t.Setenv("INJECTOR_VAULT_SECRET_NAME", "n")
+	t.Setenv("INJECTOR_VAULT_SECRET_PREFIX", "p")
+	t.Setenv("INJECTOR_CERT_FILE", "c")
+	t.Setenv("INJECTOR_KEY_FILE", "k")
+
+	cfg, err := NewConfig("")
+	require.NoError(t, err)
+	assert.False(t, cfg.UseProjectedSA)
+	assert.EqualValues(t, 600, cfg.TokenRequestExpirationSeconds)
+	assert.Empty(t, cfg.TokenRequestAudiences)
+}
+
+func TestConfig_ProjectedSAEnvOverrides(t *testing.T) {
+	t.Setenv("INJECTOR_VAULT_ADDRESS", "http://vault:8200")
+	t.Setenv("INJECTOR_VAULT_AUTH_PATH", "kubernetes")
+	t.Setenv("INJECTOR_KUBE_ROLE", "test")
+	t.Setenv("INJECTOR_VAULT_SECRET_NAME", "n")
+	t.Setenv("INJECTOR_VAULT_SECRET_PREFIX", "p")
+	t.Setenv("INJECTOR_CERT_FILE", "c")
+	t.Setenv("INJECTOR_KEY_FILE", "k")
+	t.Setenv("INJECTOR_USE_PROJECTED_SA", "true")
+	t.Setenv("INJECTOR_TOKEN_REQUEST_AUDIENCES", "vault,extra")
+	t.Setenv("INJECTOR_TOKEN_REQUEST_EXPIRATION_SECONDS", "120")
+
+	cfg, err := NewConfig("")
+	require.NoError(t, err)
+	assert.True(t, cfg.UseProjectedSA)
+	assert.EqualValues(t, 120, cfg.TokenRequestExpirationSeconds)
+	assert.Equal(t, []string{"vault", "extra"}, cfg.TokenRequestAudiences)
+}
+
+// TestValidate_ProjectedSARequiresAudiences verifies that useProjectedSA=true
+// without tokenRequestAudiences is rejected at config validation time.
+func TestValidate_ProjectedSARequiresAudiences(t *testing.T) {
+	c := baseValidConfig()
+	c.UseProjectedSA = true
+	c.TokenRequestAudiences = []string{}
+
+	err := c.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tokenRequestAudiences")
+}
+
+// TestValidate_ProjectedSAWithAudiences verifies that useProjectedSA=true
+// with audiences passes validation.
+func TestValidate_ProjectedSAWithAudiences(t *testing.T) {
+	c := baseValidConfig()
+	c.UseProjectedSA = true
+	c.TokenRequestAudiences = []string{"vault"}
+	c.TokenRequestExpirationSeconds = 600
+
+	err := c.Validate()
+	assert.NoError(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// ModeNRI + NRIConfig
+// ---------------------------------------------------------------------------
+
+func TestModeNRI_Validates(t *testing.T) {
+	cfg := &Config{
+		Mode:              ModeNRI,
+		VaultAddress:      "https://vault",
+		VaultAuthPath:     "kubernetes",
+		KubeRole:          "x",
+		DefaultEngine:     "db",
+		VaultSecretName:   "vault-secret",
+		VaultSecretPrefix: "prefix/",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("ModeNRI should validate, got %v", err)
+	}
+}
+
+func newConfigForNRITest(t *testing.T) *Config {
+	t.Helper()
+	// Use a minimal YAML that satisfies Validate (renewer doesn't need cert/key).
+	y := `
+mode: renewer
+vaultAddress: https://vault
+vaultAuthPath: kubernetes
+kubeRole: x
+vaultSecretName: secret
+vaultSecretPrefix: prefix
+`
+	f, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
+	require.NoError(t, err)
+	_, err = f.WriteString(y)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	for _, k := range []string{
+		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
+		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
+		"INJECTOR_NRI_WRAP_TOKEN_TTL", "INJECTOR_NRI_SOCKET_PATH",
+	} {
+		t.Setenv(k, "")
+		os.Unsetenv(k)
+	}
+	cfg, err := NewConfig(f.Name())
+	require.NoError(t, err)
+	return cfg
+}
+
+func TestNRIConfig_Defaults(t *testing.T) {
+	cfg := newConfigForNRITest(t)
+	assert.Equal(t, "/var/run/nri/nri.sock", cfg.NRI.SocketPath)
+	assert.Equal(t, "/run/vault-db-injector/nri/cache.json", cfg.NRI.CachePath)
+}
+
+func TestNRIConfig_LoadsExplicitValues(t *testing.T) {
+	tmpfile, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
+	require.NoError(t, err)
+	y := `
+mode: renewer
+vaultAddress: https://vault
+vaultAuthPath: kubernetes
+kubeRole: x
+vaultSecretName: secret
+vaultSecretPrefix: prefix
+nri:
+  enabled: true
+  socketPath: /custom/nri.sock
+`
+	_, err = tmpfile.WriteString(y)
+	require.NoError(t, err)
+	require.NoError(t, tmpfile.Close())
+
+	for _, k := range []string{
+		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
+		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
+		"INJECTOR_NRI_ENABLED", "INJECTOR_NRI_SOCKET_PATH",
+	} {
+		t.Setenv(k, "")
+		os.Unsetenv(k)
+	}
+
+	cfg, err := NewConfig(tmpfile.Name())
+	require.NoError(t, err)
+	assert.True(t, cfg.NRI.Enabled)
+	assert.Equal(t, "/custom/nri.sock", cfg.NRI.SocketPath)
+}
+
+// Regression: envconfig tags inside NRIConfig must NOT repeat the
+// "nri_" prefix — the parent tag adds it. Helm posts
+// INJECTOR_NRI_ENABLED=true on the injector deployment; if our tag
+// resolves to INJECTOR_NRI_NRI_ENABLED, the env var is silently
+// ignored and the webhook stays in legacy mode.
+func TestNRIConfig_EnvVarOverride(t *testing.T) {
+	tmpfile, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
+	require.NoError(t, err)
+	y := `
+mode: injector
+certFile: /tmp/cert
+keyFile: /tmp/key
+vaultAddress: https://vault
+vaultAuthPath: kubernetes
+kubeRole: x
+vaultSecretName: secret
+vaultSecretPrefix: prefix
+nri:
+  enabled: false
+  socketPath: /var/run/nri/nri.sock
+`
+	_, err = tmpfile.WriteString(y)
+	require.NoError(t, err)
+	require.NoError(t, tmpfile.Close())
+
+	for _, k := range []string{
+		"INJECTOR_MODE", "INJECTOR_VAULT_ADDRESS", "INJECTOR_VAULT_AUTH_PATH",
+		"INJECTOR_KUBE_ROLE", "INJECTOR_VAULT_SECRET_NAME", "INJECTOR_VAULT_SECRET_PREFIX",
+		"INJECTOR_CERT_FILE", "INJECTOR_KEY_FILE",
+	} {
+		t.Setenv(k, "")
+		os.Unsetenv(k)
+	}
+
+	// helm sets INJECTOR_NRI_ENABLED=true on the injector deployment
+	// when nri.enabled: true. The env var must override the YAML's
+	// nri.enabled: false.
+	t.Setenv("INJECTOR_NRI_ENABLED", "true")
+	t.Setenv("INJECTOR_NRI_SOCKET_PATH", "/env/nri.sock")
+	t.Setenv("INJECTOR_NRI_POD_LABEL", "my-release")
+	t.Setenv("INJECTOR_NRI_PLUGIN_NAME", "my-release-plugin")
+	t.Setenv("INJECTOR_NRI_PLUGIN_INDEX", "11")
+	t.Setenv("INJECTOR_NRI_CACHE_PATH", "/run/my-release/cache.json")
+
+	cfg, err := NewConfig(tmpfile.Name())
+	require.NoError(t, err)
+	assert.True(t, cfg.NRI.Enabled, "INJECTOR_NRI_ENABLED env var must override yaml")
+	assert.Equal(t, "/env/nri.sock", cfg.NRI.SocketPath)
+	assert.Equal(t, "my-release", cfg.NRI.PodLabel)
+	assert.Equal(t, "my-release-plugin", cfg.NRI.PluginName)
+	assert.Equal(t, "11", cfg.NRI.PluginIndex)
+	assert.Equal(t, "/run/my-release/cache.json", cfg.NRI.CachePath)
+}

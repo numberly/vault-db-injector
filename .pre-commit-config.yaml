@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: helm-docs
+        name: Regenerate helm/README.md from helm/values.yml
+        entry: bash -c 'helm-docs --chart-search-root=helm --template-files=README.md.gotmpl --output-file=README.md'
+        language: system
+        files: ^helm/(values\.ya?ml|Chart\.ya?ml|README\.md\.gotmpl)$
+        pass_filenames: false

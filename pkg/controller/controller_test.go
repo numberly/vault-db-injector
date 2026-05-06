@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"testing"
 
 	"github.com/numberly/vault-db-injector/pkg/config"
@@ -8,6 +9,7 @@ import (
 	"github.com/numberly/vault-db-injector/pkg/sentry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -27,6 +29,10 @@ type fakeKubernetesClient struct{}
 func (f *fakeKubernetesClient) CoreV1() corev1.CoreV1Interface                          { return nil }
 func (f *fakeKubernetesClient) CoordinationV1() coordinationv1.CoordinationV1Interface  { return nil }
 func (f *fakeKubernetesClient) GetServiceAccountToken() (string, error)                 { return "fake-token", nil }
+func (f *fakeKubernetesClient) RawClientset() kubernetes.Interface                      { return nil }
+func (f *fakeKubernetesClient) RequestSAToken(_ context.Context, _, _ string, _ []string, _ int64) (string, error) {
+	return "fake-jwt", nil
+}
 
 var _ k8s.KubernetesClient = (*fakeKubernetesClient)(nil)
 
@@ -52,6 +58,20 @@ func TestNewController_Fields(t *testing.T) {
 	assert.NotNil(t, c.log)
 }
 
+
+func TestRunNRI_ReturnsOnContextCancel(t *testing.T) {
+	cfg := &config.Config{Mode: config.ModeNRI}
+	c := NewController(cfg, fakeClientset(), &fakeSentryService{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// With NRI disabled (default), RunNRI is a no-op that blocks until the
+	// context is cancelled, then returns nil. Matches the shape of the
+	// other Run* methods.
+	err := c.RunNRI(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+}
 
 func TestController_BuildLock_MissingEnv(t *testing.T) {
 	// buildLock → config.GetHAEnvs() requires env vars; without them it returns an error.

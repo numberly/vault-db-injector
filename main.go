@@ -66,16 +66,24 @@ func run() error {
 		runErr = c.RunRenewer(ctx)
 	case config.ModeRevoker:
 		runErr = c.RunRevoker(ctx)
+	case config.ModeNRI:
+		runErr = c.RunNRI(ctx)
 	case config.ModeAll:
 		g, gCtx := errgroup.WithContext(ctx)
 		g.Go(func() error { return c.RunInjector(gCtx) })
 		g.Go(func() error { return c.RunRenewer(gCtx) })
 		g.Go(func() error { return c.RunRevoker(gCtx) })
+		if cfg.NRI.Enabled {
+			g.Go(func() error { return c.RunNRI(gCtx) })
+		}
 		runErr = g.Wait()
 	default:
 		return errors.Newf("unknown mode %q", cfg.Mode)
 	}
 
+	if runErr != nil && !errors.Is(runErr, context.Canceled) {
+		log.Errorf("vault-db-injector exiting with error: %v", runErr)
+	}
 	log.Info("vault-db-injector stopped")
 
 	if errors.Is(runErr, context.Canceled) {

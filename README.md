@@ -1,5 +1,11 @@
 # Vault Database Injector
 
+[![CI](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml/badge.svg)](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/SoulKyu/d8f343bb35420cc7e3273f3a032d400f/raw/vault-db-injector-coverage.json)](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/numberly/vault-db-injector?logo=github)](https://github.com/numberly/vault-db-injector/releases)
+[![Image](https://img.shields.io/badge/image-ghcr.io-blue?logo=docker)](https://github.com/numberly/vault-db-injector/pkgs/container/vault-db-injector)
+[![License](https://img.shields.io/github/license/numberly/vault-db-injector)](LICENSE)
+
 The Vault DB Injector relies on the database engine from Vault to generate credentials, distribute them to Kubernetes applications and handle their lifecycle.
 
 ##  1. <a name='Feature'></a>Feature
@@ -7,6 +13,7 @@ The Vault DB Injector relies on the database engine from Vault to generate crede
 - Distribute credentials to workload using annotations and Kubernetes mutating webhook
 - Renew credentials when necessary
 - Revoke credentials when application pod is deleted
+- Optionally protect credentials at the Kubernetes API layer using an NRI plugin substitution layer
 
 ##  2. <a name='Documentation'></a>Documentation
 
@@ -30,6 +37,70 @@ The demo environment is based on:
 
 🧪 **Demo code used during the talk:**
 https://github.com/SoulKyu/vault-db-injector-cnd
+
+## 3.5. <a name='SecurityNRI'></a>Security: NRI mode hardening
+
+NRI mode requires the plugin DaemonSet to mount `/var/run/nri/nri.sock` —
+the same socket containerd uses for plugin registration. Any pod that
+mounts this hostPath can register as an NRI plugin and mutate every
+container created on the node (env, mounts, capabilities, args).
+
+This is **inherent to NRI**, not specific to this project. The cluster
+admin must restrict who can mount these paths.
+
+**Required mitigations** (in order of strength):
+
+1. **PodSecurityAdmission `restricted` or `baseline`** on user namespaces:
+   both forbid hostPath volumes. The plugin DS must run in a namespace
+   labeled `pod-security.kubernetes.io/enforce=privileged`.
+2. **Kyverno ClusterPolicy** that blocks `/var/run/nri` and `/opt/nri`
+   hostPath mounts outside the trusted namespace. A reference policy is
+   provided at [helm/policies/kyverno-restrict-nri-socket.yaml](helm/policies/kyverno-restrict-nri-socket.yaml).
+3. **SELinux/AppArmor**: on RHEL/CoreOS, leave SELinux enforcing;
+   do not run the plugin pod with `seLinuxOptions.type: spc_t`. The
+   default `container_runtime_t` socket label prevents user pods from
+   connecting even if they bypass the hostPath check.
+
+See [docs/operators/security.md](docs/operators/security.md) for
+the complete threat model.
+
+## Installation
+
+### Helm chart (Helm Pages)
+
+```bash
+helm repo add numberly https://numberly.github.io/vault-db-injector
+helm repo update
+helm install vault-db-injector numberly/vault-db-injector \
+  --namespace vault-db-injector --create-namespace \
+  -f my-values.yaml
+```
+
+### Helm chart (OCI)
+
+```bash
+helm install vault-db-injector \
+  oci://ghcr.io/numberly/charts/vault-db-injector \
+  --version 3.0.0 \
+  --namespace vault-db-injector --create-namespace \
+  -f my-values.yaml
+```
+
+### Container image
+
+```bash
+docker pull ghcr.io/numberly/vault-db-injector:v3.0.0
+```
+
+The image is signed with Cosign keyless. Verify before deployment:
+
+```bash
+cosign verify ghcr.io/numberly/vault-db-injector:v3.0.0 \
+  --certificate-identity-regexp="^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*$" \
+  --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+```
+
+> **Docker Hub deprecation**: as of v3.0.0, releases publish to `ghcr.io` only. The `numberly/vault-db-injector` Docker Hub image is frozen at v2.x and will not receive further updates. Migrate by replacing `numberly/vault-db-injector:<tag>` with `ghcr.io/numberly/vault-db-injector:<tag>` in your values file.
 
 ##  4. <a name='Contribution'></a>Contribution
 

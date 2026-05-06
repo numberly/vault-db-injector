@@ -1,6 +1,7 @@
 package sentry
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -125,7 +126,7 @@ func TestSentryRecoveryMiddleware_NoPanic(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -138,7 +139,7 @@ func TestSentryRecoveryMiddleware_Panic(t *testing.T) {
 		panic("test panic")
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
 	assert.NotPanics(t, func() {
@@ -153,7 +154,7 @@ func TestSentryRecoveryMiddleware_PanicError(t *testing.T) {
 		panic(errors.New("explicit error panic"))
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	assert.NotPanics(t, func() {
 		handler.ServeHTTP(rec, req)

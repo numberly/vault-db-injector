@@ -41,6 +41,10 @@ func (m *MockK8sClient) GetKubernetesClient() (*kubernetes.Clientset, error) {
 	return &kubernetes.Clientset{}, nil
 }
 
+func (m *MockK8sClient) RequestSAToken(_ context.Context, _, _ string, _ []string, _ int64) (string, error) {
+	return "fake-jwt", nil
+}
+
 func setupTestService(k8sShouldFail bool) (*Service, *mpatch.Patch) {
 	cfg := &config.Config{
 		LogLevel:      "info",
@@ -106,7 +110,7 @@ func TestHealthzHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to patch vault.ConnectToVault: %v", err)
 			}
-			defer connectPatch.Unpatch()
+			defer connectPatch.Unpatch() //nolint:errcheck // test patch teardown; error non-actionable
 
 			// Patch the CheckHealth method
 			checkHealthPatch, err := mpatch.PatchInstanceMethodByName(reflect.TypeOf(&vault.Connector{}), "CheckHealth", func(c *vault.Connector, ctx context.Context) error {
@@ -118,11 +122,11 @@ func TestHealthzHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to patch Connector.CheckHealth: %v", err)
 			}
-			defer checkHealthPatch.Unpatch()
+			defer checkHealthPatch.Unpatch() //nolint:errcheck // test patch teardown; error non-actionable
 
 			service, _ := setupTestService(tt.k8sShouldFail)
 
-			req := httptest.NewRequest("GET", "/healthz", nil)
+			req := httptest.NewRequestWithContext(context.Background(), "GET", "/healthz", nil)
 			w := httptest.NewRecorder()
 
 			service.healthHandler(w, req)
@@ -177,7 +181,7 @@ func TestReadyzHandler(t *testing.T) {
 			service, _ := setupTestService(false)
 			service.isReady.Store(tt.isReady)
 
-			req := httptest.NewRequest("GET", "/readyz", nil)
+			req := httptest.NewRequestWithContext(context.Background(), "GET", "/readyz", nil)
 			w := httptest.NewRecorder()
 
 			handler := service.readyzHandler()
@@ -236,7 +240,7 @@ func TestServiceShutdown(t *testing.T) {
 	// Wait until server is accepting connections before cancelling context.
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		resp, err := http.Get("http://" + service.server.Addr + "/healthz")
+		resp, err := http.Get("http://" + service.server.Addr + "/healthz") //nolint:noctx // poll loop in test; context not relevant
 		if err == nil {
 			resp.Body.Close()
 			break
@@ -253,7 +257,7 @@ func TestServiceShutdown(t *testing.T) {
 		t.Fatal("server did not shut down within 5 seconds")
 	}
 
-	_, err := http.Get("http://" + service.server.Addr + "/healthz")
+	_, err := http.Get("http://" + service.server.Addr + "/healthz") //nolint:noctx,bodyclose // expects connection refused; no body to close
 
 	if err == nil || !isConnectionRefusedError(err) {
 		t.Errorf("Expected server to be shutdown, but request succeeded or failed with unexpected error: %v", err)

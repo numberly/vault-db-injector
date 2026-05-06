@@ -1,3 +1,22 @@
+{{- $injectorSA := .Values.vaultDbInjector.injector.serviceAccountName | default (include "vault-db-injector.fullname" .) -}}
+{{- $renewerSA  := .Values.vaultDbInjector.renewer.serviceAccountName  | default (printf "%s%s" (include "vault-db-injector.fullname" .) (ternary "-renewer" "" .Values.vaultDbInjector.configuration.useProjectedSA)) -}}
+{{- $revokerSA  := .Values.vaultDbInjector.revoker.serviceAccountName  | default (printf "%s%s" (include "vault-db-injector.fullname" .) (ternary "-revoker" "" .Values.vaultDbInjector.configuration.useProjectedSA)) -}}
+{{- $nriSA      := .Values.nri.serviceAccountName                       | default (include "vault-db-injector.fullname" .) -}}
+
+{{/* All SAs the chart manages. Deduped: in legacy mode without overrides,
+     renewer/revoker default to the injector's SA, so only one SA is rendered.
+     In projected mode or with overrides, distinct values produce distinct SAs. */}}
+{{- $allSAs := list $injectorSA $renewerSA $revokerSA -}}
+{{- if .Values.nri.enabled -}}{{- $allSAs = append $allSAs $nriSA -}}{{- end -}}
+{{- $allSAs = uniq $allSAs -}}
+
+{{/* Subject lists for the various bindings — built from the same effective names. */}}
+{{- $podsSubjects   := uniq $allSAs -}}
+{{- $leasesSubjects := uniq (list $renewerSA $revokerSA) -}}
+{{- $tokenSubjects  := list $injectorSA -}}
+{{- if .Values.nri.enabled -}}{{- $tokenSubjects = append $tokenSubjects $nriSA -}}{{- end -}}
+{{- $tokenSubjects  = uniq $tokenSubjects -}}
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -20,9 +39,11 @@ roleRef:
   kind: ClusterRole
   name: '{{ include "vault-db-injector.fullname" . }}'
 subjects:
+{{- range $podsSubjects }}
 - kind: ServiceAccount
-  name: '{{ include "vault-db-injector.fullname" . }}'
-  namespace: '{{ .Release.Namespace }}'
+  name: {{ . }}
+  namespace: '{{ $.Release.Namespace }}'
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -55,13 +76,56 @@ roleRef:
   kind: Role
   name: '{{ include "vault-db-injector.fullname" . }}'
 subjects:
+{{- range $leasesSubjects }}
 - kind: ServiceAccount
-  name: '{{ include "vault-db-injector.fullname" . }}'
-  namespace: '{{ .Release.Namespace }}'
+  name: {{ . }}
+  namespace: '{{ $.Release.Namespace }}'
+{{- end }}
+
+{{/* ServiceAccount objects: one per unique effective name. Annotations from
+     vaultDbInjector.injector.serviceAccount.annotations are only applied to the
+     SA matching $injectorSA — they are scoped to the injector by design. */}}
+{{- range $sa := $allSAs }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "vault-db-injector.fullname" . }}
+  name: {{ $sa }}
+  labels:
+  {{- include "vault-db-injector.labels" $ | nindent 4 }}
+  {{- if and (eq $sa $injectorSA) $.Values.vaultDbInjector.injector.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml $.Values.vaultDbInjector.injector.serviceAccount.annotations | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.vaultDbInjector.configuration.useProjectedSA }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-token-requester
   labels:
   {{- include "vault-db-injector.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["serviceaccounts/token"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-token-requester
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "vault-db-injector.fullname" . }}-token-requester
+subjects:
+{{- range $tokenSubjects }}
+- kind: ServiceAccount
+  name: {{ . }}
+  namespace: {{ $.Release.Namespace }}
+{{- end }}
+{{- end }}

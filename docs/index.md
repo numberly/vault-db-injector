@@ -1,64 +1,33 @@
 # Vault DB Injector
 
-## Overview
+**Audience:** Anyone
 
-The Vault DB Injector is a Kubernetes-based application designed to dynamically generate database credentials using HashiCorp Vault and provide them as environment variables to Kubernetes Pods. The application leverages a Mutating Webhook to achieve this functionality, ensuring secure and automated management of database credentials.
+vault-db-injector issues short-lived database credentials from HashiCorp Vault (or OpenBao) and delivers them to Kubernetes workloads at runtime. It handles the full lifecycle: issuance, renewal, and revocation when the pod dies.
 
-![Diagram](how-it-works/images/vault-injector-schema.png)
+## Why it exists
 
-## Key Features
+Static database credentials in Kubernetes Secrets are a known weak point: they live forever, leak through GitOps, and are readable by anyone who can `kubectl get secret` in the namespace. vault-db-injector replaces them with credentials that exist only for the lifetime of the pod, are rotated by Vault rather than by the application, and appear in the Vault audit log tied to the pod's identity.
 
-### 1. **Dynamic Database Credential Injection**
-- **Description:** Automatically generates and injects database credentials into Kubernetes Pods at runtime using HashiCorp Vault.
-- **Benefit:** Enhances security by avoiding static credentials and ensuring credentials are rotated and managed dynamically.
+## Two delivery modes
 
-### 2. **Mutating Webhook**
-- **Description:** Uses Kubernetes Mutating Admission Webhook to modify pod specifications on-the-fly and inject the necessary environment variables.
-- **Benefit:** Seamlessly integrates with Kubernetes, providing a transparent and automated way to manage secrets.
+| Mode | Where credentials live in Kubernetes | Recommended for |
+|---|---|---|
+| **NRI + Projected-SA** (canonical) | Nowhere — substituted at container start by a node-local NRI plugin. PodSpec, etcd, and audit logs only see opaque placeholders | New deployments |
+| **Webhook + injector-SA** (legacy) | Plaintext environment variables in the PodSpec | Existing v2.x clusters that have not migrated yet |
 
-### 3. **Configuration Management**
-- **Description:** Supports configuration through YAML files and environment variables.
-- **Benefit:** Offers flexibility and ease of configuration for different deployment environments.
+The legacy mode is preserved for backward compatibility. New deployments should follow [Getting Started](getting-started/overview.md), which walks through the canonical NRI + Projected-SA path end to end.
 
-### 4. **Error Monitoring with Sentry**
-- **Description:** Integrates with Sentry to capture and report errors.
-- **Benefit:** Provides robust error tracking and monitoring, helping maintain application reliability and performance.
+## Pick your entry point
 
-### 5. **Logging**
-- **Description:** Utilizes `logrus` for structured logging, supporting various log levels and JSON formatting.
-- **Benefit:** Ensures clear and consistent logging, aiding in debugging and monitoring.
+- [**Getting Started**](getting-started/overview.md) — install from zero, in order
+- [**For application developers**](developers/annotations.md) — annotate your pods to consume injected credentials
+- [**For platform operators**](operators/architecture.md) — operate, secure, monitor, and migrate the injector
+- [**For contributors**](contributors/build-from-source.md) — build, test, and contribute code
 
-### 6. **Kubernetes Integration**
-- **Description:** Provides utilities for interacting with the Kubernetes API, including service account token retrieval and client initialization.
-- **Benefit:** Facilitates seamless integration with Kubernetes clusters, enhancing the application's capabilities and ease of use.
+## OpenBao compatibility
 
-### 7. **Leader Election**
-- **Description:** Implements leader election using Kubernetes resource locks to ensure high availability and fault tolerance.
-- **Benefit:** Ensures that critical tasks are performed by a single instance in a distributed system, enhancing reliability.
-
-### 8. **Health Checks**
-- **Description:** Implements health check endpoints to monitor the application's status and readiness.
-- **Benefit:** Ensures the application is running correctly and is ready to handle requests, improving overall system stability.
-
-### 9. **Prometheus Metrics**
-- **Description:** Integrates with Prometheus to expose metrics for monitoring.
-- **Benefit:** Provides insights into application performance and resource usage, aiding in proactive management and optimization.
-
-## Getting Started
-
-To get started with Vault DB Injector, refer to the [Installation Guide](getting-started/getting-started.md) and [Configuration Guide](how-it-works/configuration.md) for detailed instructions on setting up and configuring the application.
-
-For a deeper understanding of how the application works, visit the [How It Works](how-it-works/how-it-work.md) section.
-
-## Contributing
-
-We welcome contributions from the community! Please see our [Contribution Guidelines](getting-started/contributing.md) for more information on how to get involved.
+Every Vault API used by this project works against OpenBao without changes. Point `vaultAddress` at your OpenBao instance and follow the same setup steps. See the OpenBao note in [setup-vault](getting-started/setup-vault.md).
 
 ## License
 
-This project is licensed under the terms of the Apache-2.0 license. See the [LICENSE](https://github.com/numberly/vault-db-injector/blob/main/LICENSE) file for details.
-
-## Contact
-
-For any questions or support, please reach out to our team at directly by creating an issue on the project.
-
+Apache-2.0. See [`LICENSE`](https://github.com/numberly/vault-db-injector/blob/main/LICENSE).

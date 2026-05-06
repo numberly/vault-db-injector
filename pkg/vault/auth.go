@@ -12,6 +12,33 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
+// LoginAsInjectorSA performs a fresh Vault login using the injector
+// binary's own ServiceAccount token (read from
+// /var/run/secrets/kubernetes.io/serviceaccount/token) and the given
+// kubeRole. When kubeRole is empty it falls back to cfg.KubeRole.
+//
+// Used in projected-SA mode where the connector's main token is the
+// per-pod token (which intentionally has no KV-write capability), so
+// we need a distinct injector identity for credential bookkeeping
+// writes via StoreDataAsync.
+//
+// The kubeRole parameter allows callers to use a role with elevated
+// bookkeeping-write privileges (e.g. cfg.KubeRoleNri for the NRI
+// DaemonSet) while the webhook uses the base cfg.KubeRole.
+func LoginAsInjectorSA(ctx context.Context, cfg *config.Config, k8sSaToken, kubeRole string) (string, error) {
+	if k8sSaToken == "" {
+		return "", errors.New("LoginAsInjectorSA: empty k8s SA token")
+	}
+	if kubeRole == "" {
+		kubeRole = cfg.KubeRole
+	}
+	conn := NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, kubeRole, "", "", k8sSaToken, cfg.VaultRateLimit)
+	if err := conn.Login(ctx); err != nil {
+		return "", errors.Wrap(err, "vault login as injector SA")
+	}
+	return conn.GetToken(), nil
+}
+
 // ConnectAndRenew authenticates to Vault and starts background token renewal.
 // It is the canonical bootstrap used by renewer and revoker job entry points.
 func ConnectAndRenew(ctx context.Context, cfg *config.Config, saToken string) (*Connector, error) {
@@ -30,7 +57,8 @@ func ConnectToVault(ctx context.Context, cfg *config.Config, saToken string) (*C
 	vaultConn := NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, cfg.KubeRole, "random", "random", saToken, cfg.VaultRateLimit)
 	if err := vaultConn.Login(ctx); err != nil {
 		metrics.ConnectVaultError.WithLabelValues().Inc()
-		return nil, errors.Newf("cannot authenticate vault role: %s", err.Error())
+		metrics.VaultLoginErrors.WithLabelValues(ClassifyLoginError(err), "legacy").Inc()
+		return nil, errors.Wrapf(err, "cannot authenticate vault role")
 	}
 	vaultConn.K8sSaVaultToken = vaultConn.client.Token()
 	metrics.ConnectVault.WithLabelValues().Inc()

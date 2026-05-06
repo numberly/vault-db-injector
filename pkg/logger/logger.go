@@ -67,7 +67,10 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	event := sentry.NewEvent()
 	event.Message = entry.Message
 	event.Level = sentryLevel(entry.Level)
-	event.Extra = entry.Data
+	event.Tags = make(map[string]string, len(entry.Data))
+	for k, v := range entry.Data {
+		event.Tags[k] = fmt.Sprintf("%v", v)
+	}
 
 	// Add error if present
 	if err, ok := entry.Data[logrus.ErrorKey].(error); ok {

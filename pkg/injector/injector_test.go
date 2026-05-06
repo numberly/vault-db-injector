@@ -33,7 +33,7 @@ func TestNewWebhookStarter_NotNil(t *testing.T) {
 func TestNewWebhookStarter_ImplementsInterface(t *testing.T) {
 	cfg := &config.Config{}
 
-	var _ Starter = NewWebhookStarter(cfg, &noopSentry{})
+	var _ Starter = NewWebhookStarter(cfg, &noopSentry{}) //nolint:staticcheck // QF1011: explicit type is intentional interface assertion
 }
 
 // TestNewWebhookStarter_ConfigIsStored verifies that the config passed to the constructor

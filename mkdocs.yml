@@ -33,6 +33,10 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path:
+        - "."
+      check_paths: true
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tabbed:
@@ -44,22 +48,37 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started:
-    - getting-started/getting-started.md
-    - getting-started/comparison.md
-    - getting-started/build.md
-  - How it Works:
-    - how-it-works/how-it-work.md
-    - how-it-works/configuration.md
-    - how-it-works/injector.md
-    - how-it-works/renewer.md
-    - how-it-works/revoker.md
-    - how-it-works/vault.md
-    - how-it-works/kubernetes.md
-    - how-it-works/leaderelection.md
-    - how-it-works/healthcheck.md
-  - Monitoring:
-    - monitoring/grafana.md
-    - monitoring/alertmanager.md
+    - getting-started/overview.md
+    - getting-started/prerequisites.md
+    - getting-started/setup-kubernetes.md
+    - getting-started/setup-vault.md
+    - getting-started/setup-database.md
+    - getting-started/vault-policies.md
+    - getting-started/install-injector.md
+    - getting-started/first-injected-pod.md
+  - For Application Developers:
+    - developers/annotations.md
+    - developers/injection-modes.md
+    - developers/examples.md
+    - developers/troubleshooting.md
+  - For Platform Operators:
+    - operators/architecture.md
+    - operators/components.md
+    - operators/security.md
+    - operators/monitoring.md
+    - operators/operations.md
+    - operators/legacy-webhook-mode.md
+    - operators/migration-v2-to-v3.md
+  - For Contributors:
+    - contributors/build-from-source.md
+    - contributors/contributing.md
+    - contributors/comparison.md
+    - contributors/architecture-deep-dive.md
+  - Reference:
+    - reference/glossary.md
+    - reference/configuration.md
+    - reference/helm-values.md
+    - reference/metrics.md
 plugins:
   - search
   - i18n:
@@ -77,5 +96,8 @@ plugins:
               primary: red
           nav_translations:
             Home: Accueil
-            Getting Started: Démarrage Rapide
-            How it Works: Comment ça marche
+            Getting Started: Démarrage rapide
+            For Application Developers: Pour les développeurs
+            For Platform Operators: Pour les opérateurs
+            For Contributors: Pour les contributeurs
+            Reference: Référence

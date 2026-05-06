@@ -1,0 +1,114 @@
+{{- if .Values.nri.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}-nri
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nri
+spec:
+  selector:
+    matchLabels:
+      app: vault-db-nri
+    {{- include "vault-db-injector.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nri
+  template:
+    metadata:
+      labels:
+        app: vault-db-nri
+      {{- include "vault-db-injector.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: nri
+      annotations:
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+      - name: vault-db-nri
+        image: "{{ .Values.nri.image.repository | default .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.nri.image.tag | default .Values.vaultDbInjector.injector.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.nri.imagePullPolicy | default "IfNotPresent" }}
+        args:
+        - "--config=/nri/config.yaml"
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        - containerPort: 8888
+          name: healthcheck
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.nri.resources | nindent 10 }}
+        securityContext:
+          # NRI socket /var/run/nri/nri.sock is created by containerd as
+          # 0755 root:root. Connect(2) on a unix socket requires write
+          # permission on the inode, so a non-root user cannot connect.
+          # We run as root but drop ALL capabilities and forbid privilege
+          # escalation — same effective surface as UID 65534, plus the
+          # ability to talk to the NRI socket.
+          runAsNonRoot: false
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - name: config-nri
+          mountPath: /nri
+        - name: nri-socket
+          mountPath: /var/run/nri
+        - name: cache
+          mountPath: /run/{{ include "vault-db-injector.fullname" . }}/nri
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthcheck
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthcheck
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+      imagePullSecrets:
+      - name: registry-token
+      serviceAccountName: {{ .Values.nri.serviceAccountName | default (include "vault-db-injector.fullname" .) }}
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: {{ include "vault-db-injector.fullname" . }}-nri
+        name: config-nri
+      - name: nri-socket
+        hostPath:
+          path: /var/run/nri
+          type: Directory
+      # Cache persistence: hostPath at /run/vault-db-injector/nri.
+      # /run is tmpfs on every modern Linux distribution (mounted by
+      # systemd-tmpfiles), so files survive a DaemonSet pod restart but
+      # disappear on node reboot — exactly the credential lifecycle we
+      # want. Without this, a plugin restart between a container crash and
+      # its retry leaks the placeholder string into the running app.
+      - name: cache
+        hostPath:
+          path: /run/{{ include "vault-db-injector.fullname" . }}/nri
+          type: DirectoryOrCreate
+      {{- if .Values.nri.tolerations }}
+      tolerations:
+        {{- toYaml .Values.nri.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nri.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nri.nodeSelector | nindent 8 }}
+      {{- end }}
+{{- end }}
