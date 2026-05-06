@@ -193,6 +193,33 @@ a periodic ticker (5-minute interval). Two consequences:
 See [Vault policies](../getting-started/vault-policies.md) §2b (renewer) and §2c (revoker) for
 the exact policy blocks.
 
+### B8. Chart default `vaultSecretName` renamed to `vault-db-injector`
+
+The Helm chart default for `vaultDbInjector.configuration.vaultSecretName` has
+been changed from `vault-injector` to `vault-db-injector` to match the tool's
+own name. **This is breaking** for any deployment that did not override the
+value: the KV mount path the injector reads and writes changes from
+`vault-injector/data/<cluster>/<uuid>` to `vault-db-injector/data/<cluster>/<uuid>`,
+and existing bookkeeping entries become invisible to the new release.
+
+Two ways to handle it:
+
+1. **Pin the old value (zero-downtime, no Vault changes)** — set
+   `vaultDbInjector.configuration.vaultSecretName: vault-injector` in your
+   values file before upgrading. Existing data stays where it is, no policy
+   path changes needed.
+
+2. **Migrate to the new default (one-shot Vault operation)** — drain pending
+   work, then move the KV mount with `vault secrets move vault-injector
+   vault-db-injector` and update every Vault policy that references
+   `vault-injector/{data,metadata}/...` to point at the new path. Plan a brief
+   maintenance window — pods admitted during the move will fail to write
+   bookkeeping.
+
+Option 1 is the recommended path for an in-place upgrade. Option 2 is for
+operators who explicitly want naming consistency between the tool, the chart
+release, and the KV mount.
+
 ---
 
 ## What does NOT change

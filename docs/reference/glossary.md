@@ -4,7 +4,7 @@
 
 | Term | Definition |
 |---|---|
-| KV mount | Vault KV-v2 mount that holds per-pod bookkeeping: lease ID, token ID, namespace, UUID. Helm key: `vaultSecretName` (default: `vault-injector`). |
+| KV mount | Vault KV-v2 mount that holds per-pod bookkeeping: lease ID, token ID, namespace, UUID. Helm key: `vaultSecretName` (default: `vault-db-injector`). |
 | Vault auth path | Mount path of the Kubernetes auth method on Vault. Helm key: `vaultAuthPath` (default: `kubernetes`). |
 | Injector role | Vault role used by the injector binary to log in. Helm key: `kubeRole`. |
 | Database backend | Vault `database` secrets engine that issues dynamic credentials for configured DB connections. |

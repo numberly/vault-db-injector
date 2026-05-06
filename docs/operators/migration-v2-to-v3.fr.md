@@ -197,6 +197,35 @@ conséquences :
 Voir [Vault policies](../getting-started/vault-policies.md) §2b (renewer) et §2c (revoker)
 pour les blocs de politique exacts.
 
+### B8. Le défaut du chart `vaultSecretName` passe à `vault-db-injector`
+
+Le défaut Helm pour `vaultDbInjector.configuration.vaultSecretName` est passé
+de `vault-injector` à `vault-db-injector` pour s'aligner sur le nom de l'outil
+lui-même. **Ceci est breaking** pour tout déploiement qui n'overridait pas la
+valeur : le chemin du mount KV que l'injector lit et écrit change de
+`vault-injector/data/<cluster>/<uuid>` à `vault-db-injector/data/<cluster>/<uuid>`,
+et les entrées de bookkeeping existantes deviennent invisibles pour la nouvelle
+release.
+
+Deux façons de gérer :
+
+1. **Figer l'ancienne valeur (sans interruption, sans changement Vault)** —
+   définissez `vaultDbInjector.configuration.vaultSecretName: vault-injector`
+   dans votre fichier de values avant la mise à niveau. Les données existantes
+   restent là où elles sont, aucun changement de chemin de policy nécessaire.
+
+2. **Migrer vers le nouveau défaut (opération Vault unique)** — drainez le
+   travail en cours, puis déplacez le mount KV avec
+   `vault secrets move vault-injector vault-db-injector` et mettez à jour
+   chaque politique Vault qui référence `vault-injector/{data,metadata}/...`
+   pour pointer vers le nouveau chemin. Prévoyez une brève fenêtre de
+   maintenance — les pods admis pendant le move échoueront à écrire le
+   bookkeeping.
+
+L'option 1 est le chemin recommandé pour une mise à niveau in-place. L'option 2
+s'adresse aux opérateurs qui veulent explicitement la cohérence de nommage
+entre l'outil, la release du chart, et le mount KV.
+
 ---
 
 ## Ce qui ne change PAS

@@ -45,7 +45,7 @@ vaultAuthPath: kubernetes
 logLevel: info
 kubeRole: vault-db-injector
 tokenTTL: 768h
-vaultSecretName: vault-injector
+vaultSecretName: vault-db-injector
 vaultSecretPrefix: kubernetes
 mode: injector
 sentry: false
@@ -61,7 +61,7 @@ vaultAuthPath: kubernetes
 logLevel: info
 kubeRole: vault-db-injector
 tokenTTL: 768h
-vaultSecretName: vault-injector
+vaultSecretName: vault-db-injector
 vaultSecretPrefix: kubernetes
 mode: renewer
 SyncTTLSecond: 300
@@ -77,7 +77,7 @@ vaultAuthPath: kubernetes
 logLevel: info
 kubeRole: vault-db-injector
 tokenTTL: 768h
-vaultSecretName: vault-injector
+vaultSecretName: vault-db-injector
 vaultSecretPrefix: kubernetes
 mode: revoker
 injectorLabel: vault-db-injector
@@ -94,10 +94,10 @@ renewer and revoker share the same policy and role.
 
 ```hcl
 # --- KV-v2 bookkeeping ---
-path "vault-injector/data/+/+" {
+path "vault-db-injector/data/+/+" {
   capabilities = ["create", "read", "update", "delete"]
 }
-path "vault-injector/metadata/+/+" {
+path "vault-db-injector/metadata/+/+" {
   capabilities = ["read", "delete", "list"]
 }
 

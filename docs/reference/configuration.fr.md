@@ -30,7 +30,7 @@ de clés ; les clés non pertinentes pour un mode donné sont silencieusement ig
 | `kubeRoleRenewer` | string | repli sur `kubeRole` | renewer | Rôle Vault de substitution pour la connexion du renewer à Vault |
 | `kubeRoleRevoker` | string | repli sur `kubeRole` | revoker | Rôle Vault de substitution pour la connexion du revoker à Vault |
 | `tokenTTL` | duration | `8766h` | injector | TTL du token périodique demandé à la connexion |
-| `vaultSecretName` | string | `vault-injector` | all | Nom du mount KV-v2 utilisé pour les métadonnées par pod |
+| `vaultSecretName` | string | `vault-db-injector` | all | Nom du mount KV-v2 utilisé pour les métadonnées par pod |
 | `vaultSecretPrefix` | string | `kubernetes` | all | Préfixe de chemin à l'intérieur du mount KV |
 | `useProjectedSA` | bool | `false` | injector, NRI | Lorsque `true`, émet un Kubernetes TokenRequest par pod admis et l'utilise pour se connecter à Vault au nom du pod |
 | `tokenRequestAudiences` | []string | `[]` | injector, NRI | Audiences définies sur le JWT TokenRequest. Doit être non vide lorsque `useProjectedSA: true` |
@@ -55,7 +55,7 @@ vaultAddress: https://vault.example.com:8200
 vaultAuthPath: kubernetes
 kubeRole: vault-db-injector
 tokenTTL: 8766h
-vaultSecretName: vault-injector
+vaultSecretName: vault-db-injector
 vaultSecretPrefix: kubernetes
 mode: injector
 useProjectedSA: true
@@ -75,7 +75,7 @@ vaultAddress: https://vault.example.com:8200
 vaultAuthPath: kubernetes
 kubeRole: vault-db-injector-renewer
 tokenTTL: 8766h
-vaultSecretName: vault-injector
+vaultSecretName: vault-db-injector
 vaultSecretPrefix: kubernetes
 mode: renewer
 SyncTTLSecond: 300
@@ -90,7 +90,7 @@ vaultAddress: https://vault.example.com:8200
 vaultAuthPath: kubernetes
 kubeRole: vault-db-injector-revoker
 tokenTTL: 8766h
-vaultSecretName: vault-injector
+vaultSecretName: vault-db-injector
 vaultSecretPrefix: kubernetes
 mode: revoker
 injectorLabel: vault-db-injector

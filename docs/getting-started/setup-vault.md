@@ -12,14 +12,14 @@ vault-db-injector uses three Vault mounts:
 
 | Mount | Type | Default path | Purpose |
 |---|---|---|---|
-| KV-v2 secrets engine | `kv` (version 2) | `vault-injector` | Per-pod bookkeeping: lease IDs, token IDs, namespace, UUID |
+| KV-v2 secrets engine | `kv` (version 2) | `vault-db-injector` | Per-pod bookkeeping: lease IDs, token IDs, namespace, UUID |
 | Database secrets engine | `database` | `database` | Issues dynamic database credentials |
 | Kubernetes auth method | `kubernetes` | `kubernetes` | Authenticates the injector's ServiceAccount and each pod's ServiceAccount |
 
 ## Enable the mounts
 
 ```bash
-vault secrets enable -path=vault-injector -version=2 kv
+vault secrets enable -path=vault-db-injector -version=2 kv
 vault secrets enable database
 vault auth enable kubernetes
 ```
@@ -50,10 +50,10 @@ Then pass `/tmp/k8s-ca.crt` as the `@` argument above.
 
 ```bash
 vault read auth/kubernetes/config
-vault secrets list | grep -E '(database|vault-injector)'
+vault secrets list | grep -E '(database|vault-db-injector)'
 ```
 
-Expected: `auth/kubernetes/config` returns the host and CA you set. The secrets list shows both `database/` and `vault-injector/`.
+Expected: `auth/kubernetes/config` returns the host and CA you set. The secrets list shows both `database/` and `vault-db-injector/`.
 
 ## Next
 

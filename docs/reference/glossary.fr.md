@@ -4,7 +4,7 @@
 
 | Terme | Définition |
 |---|---|
-| KV mount | Mount KV-v2 de Vault qui contient les métadonnées par pod : lease ID, token ID, namespace, UUID. Clé Helm : `vaultSecretName` (défaut : `vault-injector`). |
+| KV mount | Mount KV-v2 de Vault qui contient les métadonnées par pod : lease ID, token ID, namespace, UUID. Clé Helm : `vaultSecretName` (défaut : `vault-db-injector`). |
 | Vault auth path | Chemin de mount de la méthode d'authentification Kubernetes sur Vault. Clé Helm : `vaultAuthPath` (défaut : `kubernetes`). |
 | Injector role | Rôle Vault utilisé par le binaire injector pour se connecter. Clé Helm : `kubeRole`. |
 | Database backend | Moteur de secrets `database` de Vault qui émet des identifiants dynamiques pour les connexions de base de données configurées. |
