@@ -139,13 +139,21 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	}()
 
 	// Serve metrics
+	metricsServer := &http.Server{
+		Addr:              ":8080",
+		Handler:           promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+	}
 	go func() {
 		whLogger.Infof("Listening metrics on :8080")
-		err = http.ListenAndServe(":8080", promhttp.HandlerFor(reg, promhttp.HandlerOpts{})) //nolint:gosec // metrics server; no user input processed, timeout risk accepted
-		if err != nil {
+		err = metricsServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
 			s.sentry.CaptureError(err)
 			errCh <- errors.Newf("error serving webhook metrics: %w", err)
 			close(stopChan)
+			return
 		}
 		errCh <- nil
 	}()
@@ -162,7 +170,11 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 			shutdownMess := "Shutting down servers due to context cancellation"
 			s.sentry.CaptureMessage(shutdownMess)
 			s.log.Info(shutdownMess)
-			httpServer.Shutdown(ctx) //nolint:errcheck,gosec // graceful shutdown; error logged by server goroutine
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := httpServer.Shutdown(shutdownCtx); err != nil {
+				s.log.Errorf("webhook server shutdown error: %v", err)
+			}
 			close(stopChan)
 			// Shutdown metrics server as well
 		}
