@@ -45,7 +45,7 @@ func TestNewTokenRevoker_NotNil(t *testing.T) {
 func TestTokenRevokerImpl_ImplementsInterface(t *testing.T) {
 	cfg := &config.Config{}
 	stopChan := make(chan struct{})
-	var _ TokenRevoker = NewTokenRevoker(cfg, &fakeKubernetesClient{}, stopChan)
+	var _ TokenRevoker = NewTokenRevoker(cfg, &fakeKubernetesClient{}, stopChan) //nolint:staticcheck // QF1011: explicit type is intentional interface assertion
 }
 
 // TestRevokeTokenJob_StopChanUnblocks verifies the stop-channel lifecycle

@@ -164,13 +164,13 @@ func (s *Service) readyzHandler() http.HandlerFunc {
 		if !s.isReady.Load().(bool) {
 			response.Status = StatusNotReady
 			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(response)
+			json.NewEncoder(w).Encode(response) //nolint:errcheck,gosec // G104: write to http.ResponseWriter; error unactionable
 			return
 		}
 
 		response.Status = StatusReady
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(response) //nolint:errcheck,gosec // G104: write to http.ResponseWriter; error unactionable
 	}
 }
 

@@ -54,7 +54,7 @@ func (a *KubernetesClientAdapter) RawClientset() kubernetes.Interface {
 
 var _ KubernetesClient = (*KubernetesClientAdapter)(nil)
 
-const tokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+const tokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token" //nolint:gosec // G101: well-known Kubernetes service account token path; not a hardcoded credential
 
 func NewClient() *Client {
 	return &Client{}

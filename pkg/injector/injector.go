@@ -114,6 +114,7 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
 		ClientCAs:    caCertPool,
+		MinVersion:   tls.VersionTLS12,
 	}
 
 	httpServer := &http.Server{
@@ -140,7 +141,7 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	// Serve metrics
 	go func() {
 		whLogger.Infof("Listening metrics on :8080")
-		err = http.ListenAndServe(":8080", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+		err = http.ListenAndServe(":8080", promhttp.HandlerFor(reg, promhttp.HandlerOpts{})) //nolint:gosec // metrics server; no user input processed, timeout risk accepted
 		if err != nil {
 			s.sentry.CaptureError(err)
 			errCh <- errors.Newf("error serving webhook metrics: %w", err)
@@ -161,7 +162,7 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 			shutdownMess := "Shutting down servers due to context cancellation"
 			s.sentry.CaptureMessage(shutdownMess)
 			s.log.Info(shutdownMess)
-			httpServer.Shutdown(ctx) //nolint:errcheck
+			httpServer.Shutdown(ctx) //nolint:errcheck,gosec // graceful shutdown; error logged by server goroutine
 			close(stopChan)
 			// Shutdown metrics server as well
 		}

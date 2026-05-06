@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/numberly/vault-db-injector/pkg/logger"
 	"github.com/prometheus/client_golang/prometheus"
@@ -22,8 +23,9 @@ func NewMetricsService() *MetricsImpl {
 	Init(reg)
 	return &MetricsImpl{
 		Server: &http.Server{
-			Addr:    "0.0.0.0:8080",
-			Handler: promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
+			Addr:              "0.0.0.0:8080",
+			Handler:           promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
+			ReadHeaderTimeout: 10 * time.Second,
 		},
 		log: logger.GetLogger(),
 	}

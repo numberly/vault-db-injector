@@ -133,7 +133,7 @@ func TestGetAllPodAndNamespace_PodsWithAnnotations(t *testing.T) {
 	// Each result must contain pod.UID first, then the annotation UUIDs.
 
 	for i, res := range result {
-		expected := append([]string{string(pods[i].UID)}, strings.Split(pods[i].ObjectMeta.Annotations[k8s.ANNOTATION_VAULT_POD_UUID], ",")...)
+		expected := append([]string{string(pods[i].UID)}, strings.Split(pods[i].Annotations[k8s.ANNOTATION_VAULT_POD_UUID], ",")...)
 		assert.Equal(t, expected, res.PodNameUUIDs)
 		assert.Equal(t, pods[i].Namespace, res.Namespace)
 	}

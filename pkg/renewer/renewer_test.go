@@ -46,7 +46,7 @@ func TestNewTokenRenewer_NotNil(t *testing.T) {
 func TestTokenRenewerImpl_ImplementsInterface(t *testing.T) {
 	cfg := &config.Config{}
 	stopChan := make(chan struct{})
-	var _ TokenRenewer = NewTokenRenewer(cfg, &fakeKubernetesClient{}, stopChan)
+	var _ TokenRenewer = NewTokenRenewer(cfg, &fakeKubernetesClient{}, stopChan) //nolint:staticcheck // QF1011: explicit type is intentional interface assertion
 }
 
 // TestRenewTokenJob_ContextCancellation verifies that RenewTokenJob exits when
