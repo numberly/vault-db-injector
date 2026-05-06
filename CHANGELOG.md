@@ -1,21 +1,5 @@
 # Changelog
 
-## [3.0.2](https://github.com/numberly/vault-db-injector/compare/v3.0.1...v3.0.2) (2026-05-06)
-
-
-### Bug Fixes
-
-* **vault:** detach StoreDataAsync from caller context ([5173a39](https://github.com/numberly/vault-db-injector/commit/5173a39cbd1e22bc1f0994002219bf5d7e4d81c1))
-* **vault:** detach StoreDataAsync from caller context ([48af1fc](https://github.com/numberly/vault-db-injector/commit/48af1fcba00aa862526182026ac6a6ab0a462989))
-
-## [3.0.1](https://github.com/numberly/vault-db-injector/compare/v3.0.0...v3.0.1) (2026-05-06)
-
-
-### Bug Fixes
-
-* **ci:** regenerate helm/README.md and auto-regen on release-please PRs ([d413caf](https://github.com/numberly/vault-db-injector/commit/d413caf8d640be865c2a44e940f81db7a26e2652))
-* **ci:** regenerate helm/README.md and auto-regen on release-please PRs ([0bfaa10](https://github.com/numberly/vault-db-injector/commit/0bfaa1002ad045f5e9ed47145fb699021cec811e))
-
 ## [3.0.0](https://github.com/numberly/vault-db-injector/compare/v2.0.12...v3.0.0) (2026-05-06)
 
 
