@@ -6,7 +6,50 @@
 
 **Architecture:** Four GitHub Actions workflows: `ci.yml` (quality gate, also `workflow_call`), `release-please.yml` (version-bump bot), `release.yml` (tag-driven publish pipeline calling `ci.yml` as a gate), and the existing `deploy-docs.yml` (preserved with `keep_files: true`). Releases bump `helm/Chart.yml` (`version` + `appVersion`) and `helm/values.yml` image tags 1:1 with the tag.
 
-**Tech Stack:** GitHub Actions, golangci-lint v2, govulncheck, helm-docs, chart-testing (`ct`), mkdocs-material, Trivy, Cosign (keyless via Sigstore + GitHub OIDC), release-please, chart-releaser-action, Dependabot, dynamic-badges-action, Docker Buildx (multi-arch).
+**Tech Stack:** GitHub Actions, golangci-lint v2, govulncheck, helm-docs, chart-testing (`ct`), mkdocs-material (via `hatch -e docs`), Trivy, Cosign (keyless via Sigstore + GitHub OIDC), release-please, chart-releaser-action, Dependabot, dynamic-badges-action, Docker Buildx (multi-arch).
+
+---
+
+## Phase 0 — Operator setup (must complete before Phase 1)
+
+Phase 1 commits push `ci.yml` to main. The `coverage-badge` job will fail authentication on `dynamic-badges-action` if `GIST_TOKEN` and `COVERAGE_GIST_ID` are not present. Setup must happen first.
+
+### Task 0.1: Operator one-shot setup
+
+**This task is run by the operator (Guillaume), not the agent.** The agent prints this checklist and waits for confirmation before proceeding to Phase 1.
+
+- [ ] **Step 1: Create two private gists**
+
+Visit https://gist.github.com twice. Create two **secret** gists, one for the coverage badge and one for the release version badge. Each can contain `{}` initially. Record both gist IDs from their URLs (`gist.github.com/<user>/<gistid>`).
+
+- [ ] **Step 2: Generate a fine-grained PAT**
+
+GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens.
+- Resource owner: your account
+- Expiration: 90 days (calendar-reminder; longer if org policy permits)
+- Permissions → "Gists: Read and write" only (no other scopes)
+
+Store as repo secret on `numberly/vault-db-injector`: name `GIST_TOKEN`.
+
+- [ ] **Step 3: Add two repo variables**
+
+Repo Settings → Secrets and variables → Actions → Variables tab → New repository variable, twice:
+- `COVERAGE_GIST_ID` = the first gist ID (coverage)
+- `RELEASE_GIST_ID` = the second gist ID (release)
+
+- [ ] **Step 4: Survey open PRs**
+
+Phase 1 introduces the `pr-title` Conventional-Commits gate. Any open PR with a non-conformant title will fail CI on rebase.
+
+```bash
+gh pr list --repo numberly/vault-db-injector --state open --json number,title,author
+```
+
+For each open PR, either: rename the title to conventional format (`feat:`, `fix:`, …), close-and-recreate, or coordinate with the author. Done before pushing Phase 1.
+
+- [ ] **Step 5: Confirm "ready"**
+
+Operator says "ready" or equivalent before the agent starts Phase 1.
 
 ---
 
@@ -110,7 +153,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.1.0
 
@@ -193,7 +236,7 @@ jobs:
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.7.0
       - name: Run chart-testing lint
-        run: ct lint --charts helm --validate-maintainers=false --target-branch=${{ github.event.repository.default_branch }}
+        run: ct lint --charts helm --validate-maintainers=false
       - name: Render templates with default values
         run: helm template test-render helm/ > /dev/null
 
@@ -218,10 +261,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Install mkdocs and plugins
-        run: pip install mkdocs mkdocs-material mkdocs-static-i18n
+      - name: Install hatch
+        run: pip install --upgrade hatch
       - name: Build docs (strict mode)
-        run: mkdocs build --strict
+        run: hatch -e docs run mkdocs build --strict
 
   pr-title:
     name: Conventional PR title
@@ -289,8 +332,10 @@ If Task 1.1 Step 3 produced inline lint fixes, also `git add` those Go files.
 ```bash
 git commit -m "ci: add consolidated ci.yml with lint, test+coverage, govulncheck, helm-lint, helm-docs sync, and mkdocs strict
 
-Replaces the legacy test.yml gate with a 7-job parallel quality gate
-modelled on terraform-provider-mica's ci.yml.
+Replaces the legacy test.yml gate with an 8-job parallel quality gate
+(lint, test, coverage-badge, govulncheck, helm-lint, helm-docs-check,
+docs-build-strict, pr-title) modelled on terraform-provider-mica's
+ci.yml.
 
 - golangci-lint v2 with the Numberly profile (govet, errcheck, staticcheck,
   ineffassign, unused, gosec, bodyclose, noctx, exhaustive)
@@ -457,43 +502,26 @@ Bot only. No tags fired, no images built. The bot will open a "release v3.0.0" P
 
 - [ ] **Step 1: Write the config**
 
+**Important context** — release-please's `extra-files` `jsonpath` field is **only** honored for `type: json`. For YAML files we use `type: generic` + inline `# x-release-please-version` annotation comments at the target lines. Task 3.4 adds those comments to `helm/Chart.yml` and `helm/values.yml`.
+
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "go",
+  "release-type": "simple",
   "include-component-in-tag": false,
   "include-v-in-tag": true,
-  "bump-minor-pre-major": true,
-  "bump-patch-for-minor-pre-major": true,
   "packages": {
     ".": {
-      "release-type": "go",
+      "release-type": "simple",
       "package-name": "vault-db-injector",
       "extra-files": [
         {
-          "type": "yaml",
-          "path": "helm/Chart.yml",
-          "jsonpath": "$.version"
+          "type": "generic",
+          "path": "helm/Chart.yml"
         },
         {
-          "type": "yaml",
-          "path": "helm/Chart.yml",
-          "jsonpath": "$.appVersion"
-        },
-        {
-          "type": "yaml",
-          "path": "helm/values.yml",
-          "jsonpath": "$.vaultDbInjector.injector.image.tag"
-        },
-        {
-          "type": "yaml",
-          "path": "helm/values.yml",
-          "jsonpath": "$.vaultDbInjector.renewer.image.tag"
-        },
-        {
-          "type": "yaml",
-          "path": "helm/values.yml",
-          "jsonpath": "$.vaultDbInjector.revoker.image.tag"
+          "type": "generic",
+          "path": "helm/values.yml"
         }
       ]
     }
@@ -524,21 +552,15 @@ Expected: silent.
 
 - [ ] **Step 1: Write the manifest**
 
-The manifest pins the **current** version. Because release-please bumps
-**from** the manifest, we set it to `2.99.99` so the next release-please
-run computes `3.0.0` from the conventional commits since the last
-release tag (this branch contains breaking changes — `BREAKING CHANGE:`
-footers and `feat!:` prefixes — that release-please will recognise).
+Pin the manifest at `2.0.12` (the current image tag — see Task 3.4 which aligns chart `version` and `appVersion` to the same value). release-please bumps **from** the manifest based on conventional commits; this branch contains `feat!:` / `BREAKING CHANGE:` footers, so the next bot run computes `3.0.0`.
 
 ```json
 {
-  ".": "2.99.99"
+  ".": "2.0.12"
 }
 ```
 
-If the operator prefers a different starting point (e.g. they want the
-bot to not bump anything until they manually open a PR), they can also
-seed `"3.0.0"` directly and rely on the bot to bump from there.
+The 1:1 invariant from spec §3 (chart `version` = chart `appVersion` = image tag = manifest = release tag) is now coherent.
 
 - [ ] **Step 2: Validate JSON**
 
@@ -580,21 +602,21 @@ jobs:
 Run: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release-please.yml'))"`
 Expected: silent.
 
-### Task 3.4: Add a `.versionrc` aware of `helm/Chart.yml` and a placeholder `appVersion`
+### Task 3.4: Annotate `helm/Chart.yml` and `helm/values.yml` for release-please
 
-The chart currently has no `appVersion` field. release-please's `extra-files` jsonpath replacement requires the field to **exist** before the first run, otherwise it silently no-ops on the missing key.
+release-please's generic updater replaces version values **on lines containing the inline annotation `# x-release-please-version`**. The chart currently has no `appVersion` field and `version: 2.0.0` is out of sync with the image tag `2.0.12`. Both must be aligned and annotated.
 
 **Files:**
 - Modify: `/home/gule/Workspace/team-infrastructure/vault-db-injector/helm/Chart.yml`
+- Modify: `/home/gule/Workspace/team-infrastructure/vault-db-injector/helm/values.yml`
 
-- [ ] **Step 1: Add `appVersion: 2.0.12` (current image tag) at the bottom of `Chart.yml`**
-
-The file becomes:
+- [ ] **Step 1: Rewrite `helm/Chart.yml` with version sync + annotations**
 
 ```yaml
 apiVersion: v1
 name: vault-db-injector
-version: 2.0.0
+version: 2.0.12 # x-release-please-version
+appVersion: 2.0.12 # x-release-please-version
 description: vault-db-injector helm chart
 keywords:
 - vault-db-injector
@@ -605,16 +627,51 @@ maintainers:
 - name: Guillaume LEGRAIN
   email: guillaume.legrain@numberly.com
 engine: gotpl
-appVersion: 2.0.12
 ```
 
-- [ ] **Step 2: Regenerate `helm/README.md`**
+- [ ] **Step 2: Annotate the three image tags in `helm/values.yml`**
 
-Run: `make helm-docs`
-Expected: `helm/README.md` is updated with the `appVersion`. `make helm-docs-check` should now pass.
+For each of `vaultDbInjector.injector.image.tag`, `vaultDbInjector.renewer.image.tag`, `vaultDbInjector.revoker.image.tag`, the YAML line must end with the inline annotation. The current line is:
 
-Run: `make helm-docs-check`
-Expected: exit 0.
+```yaml
+      tag: 2.0.12
+```
+
+Change each occurrence to:
+
+```yaml
+      tag: 2.0.12 # x-release-please-version
+```
+
+Use Edit with `replace_all: false` and a unique-context match per occurrence (the surrounding `image:` block of each section discriminates them; the helm-docs comment line `# -- <Component> container image tag.` precedes each one and is unique).
+
+- [ ] **Step 3: Regenerate `helm/README.md`**
+
+helm-docs strips inline annotations from the rendered values table by default (the comments after `# --` are the canonical source of description). Run:
+
+```bash
+make helm-docs
+make helm-docs-check
+```
+
+Expected: README regenerates cleanly, `helm-docs-check` passes (exit 0). If `helm-docs-check` fails, the `helm/README.md` differs from a clean regenerate — commit the regenerated file.
+
+- [ ] **Step 4: Verify a release-please dry-run picks up the annotations**
+
+Optional but strongly recommended. From a fork or a test branch:
+
+```bash
+docker run --rm -v "$PWD":/repo -w /repo \
+  ghcr.io/googleapis/release-please:latest \
+  release-pr \
+  --token=fake \
+  --repo-url=https://github.com/numberly/vault-db-injector \
+  --config-file=release-please-config.json \
+  --manifest-file=.release-please-manifest.json \
+  --dry-run
+```
+
+Expected: log lines mentioning `helm/Chart.yml` and `helm/values.yml` as files to be updated, with the `2.0.12 → 3.0.0` substitutions visible. If the run is silent on those files, the annotations are misplaced — fix before proceeding.
 
 ### Task 3.5: Commit Phase 3
 
@@ -676,7 +733,8 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
 
 permissions:
   contents: write
@@ -766,6 +824,8 @@ jobs:
     name: Promote to stable tag
     needs: [cosign-sign, trivy-scan]
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     steps:
       - uses: docker/setup-buildx-action@v3
       - name: Log in to GHCR
@@ -789,6 +849,31 @@ jobs:
           docker buildx imagetools create \
             -t "ghcr.io/numberly/vault-db-injector:latest" \
             "ghcr.io/numberly/vault-db-injector:${VERSION}-unsigned"
+      - name: Delete the transient :VERSION-unsigned tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.build-image.outputs.version }}
+        run: |
+          # GHCR keeps versions by digest; deleting the :VERSION-unsigned
+          # tag does NOT delete the underlying digest (which :VERSION and
+          # :latest still reference). The signature attached to that
+          # digest is preserved.
+          PACKAGE_TYPE=container
+          PACKAGE_NAME=vault-db-injector
+          ORG=numberly
+          # Find the package version whose tags include VERSION-unsigned
+          VID=$(gh api -H "Accept: application/vnd.github+json" \
+            "/orgs/${ORG}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions" \
+            --paginate \
+            --jq ".[] | select(.metadata.container.tags[]? == \"${VERSION}-unsigned\") | .id" \
+            | head -1)
+          if [ -n "${VID}" ]; then
+            gh api -X DELETE -H "Accept: application/vnd.github+json" \
+              "/orgs/${ORG}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions/${VID}"
+            echo "Deleted package version ${VID} that held tag ${VERSION}-unsigned"
+          else
+            echo "No package version found holding tag ${VERSION}-unsigned (already deleted?)"
+          fi
 
   chart-releaser:
     name: Publish chart to gh-pages
@@ -807,12 +892,15 @@ jobs:
       - uses: azure/setup-helm@v4
         with:
           version: v3.16.4
+      - name: Pre-package the chart
+        run: |
+          mkdir -p .cr-release-packages
+          helm package helm -d .cr-release-packages
+          ls -la .cr-release-packages
       - uses: helm/chart-releaser-action@v1.7.0
         with:
-          charts_dir: .
-          config: |
-            chart-dirs:
-              - helm
+          charts_dir: helm
+          skip_packaging: true
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CR_SKIP_EXISTING: "true"
@@ -837,8 +925,16 @@ jobs:
         run: |
           helm package helm
           PKG=$(ls vault-db-injector-*.tgz | head -1)
-          OUT=$(helm push "${PKG}" oci://ghcr.io/numberly/charts 2>&1 | tee /dev/stderr)
-          DIGEST=$(echo "${OUT}" | grep -oE 'sha256:[a-f0-9]{64}' | head -1)
+          # helm push writes "Digest: sha256:..." to stderr. Capture only
+          # that line — sha256:... could otherwise also appear in body
+          # text or chart-level digests we don't want.
+          helm push "${PKG}" oci://ghcr.io/numberly/charts 2> /tmp/helm-push.err
+          cat /tmp/helm-push.err
+          DIGEST=$(awk '/^Digest: sha256:/ {print $2}' /tmp/helm-push.err)
+          if [ -z "${DIGEST}" ]; then
+            echo "::error::Failed to extract chart manifest digest from helm push output"
+            exit 1
+          fi
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
       - name: Sign chart by digest
         env:
@@ -874,12 +970,30 @@ jobs:
 
           \`\`\`
           cosign verify ghcr.io/numberly/vault-db-injector:${TAG} \\\\
-            --certificate-identity-regexp=https://github.com/numberly/vault-db-injector \\\\
+            --certificate-identity-regexp=^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*$ \\\\
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com
           \`\`\`
           "
           gh release edit "${TAG}" --repo "${REPO}" --notes "${BODY}${APPENDIX}"
+
+  update-release-badge:
+    name: Update release version badge
+    needs: [retag-stable, chart-releaser, chart-oci-push]
+    if: needs.build-image.outputs.is-prerelease == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push release version to gist
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.RELEASE_GIST_ID }}
+          filename: vault-db-injector-release.json
+          label: release
+          message: ${{ needs.build-image.outputs.version }}
+          color: blue
 ```
+
+The badge job uses a **second** gist (`RELEASE_GIST_ID`) so coverage and release values do not collide on the same JSON. Operator setup (Phase 0) creates the second gist and stores its ID as a repo variable.
 
 - [ ] **Step 2: Validate YAML**
 
@@ -918,10 +1032,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Install mkdocs and plugins
-        run: pip install mkdocs mkdocs-material mkdocs-static-i18n
+      - name: Install hatch
+        run: pip install --upgrade hatch
       - name: Build site
-        run: mkdocs build
+        run: hatch -e docs run mkdocs build
       - name: Deploy to gh-pages (preserving chart-releaser artifacts)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
@@ -1026,7 +1140,7 @@ Expected:
 # Image pull and signature verify
 docker pull ghcr.io/numberly/vault-db-injector:v3.0.0-rc.1
 cosign verify ghcr.io/numberly/vault-db-injector:v3.0.0-rc.1 \
-  --certificate-identity-regexp="https://github.com/numberly/vault-db-injector" \
+  --certificate-identity-regexp="^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*$" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
   | head -5
 
@@ -1185,7 +1299,7 @@ The image is signed with Cosign keyless. Verify before deployment:
 
 ```bash
 cosign verify ghcr.io/numberly/vault-db-injector:v3.0.0 \
-  --certificate-identity-regexp="https://github.com/numberly/vault-db-injector" \
+  --certificate-identity-regexp="^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*$" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 ```
 
@@ -1230,17 +1344,21 @@ Visual check: open the README on GitHub. Badges should render. If a badge URL st
 
 ## Self-review checklist
 
-After completing all six phases:
+After completing all phases:
 
-- [ ] Spec section §3 decisions all reflected: scope tier B (mica + extensions), all artifacts on ghcr.io, release-please for changelogs, 1:1 chart=app version, gist coverage badge, Trivy blocking + `.trivyignore`. ✓
-- [ ] Spec section §4 architecture: 4 workflows present, 3 legacy ones deleted in Phase 5. ✓
-- [ ] Spec section §5 new config files: `.golangci.yml` (Phase 1), `.trivyignore` (Phase 2), `release-please-config.json` + manifest (Phase 3), `.github/dependabot.yml` (Phase 2) — all created. ✓
-- [ ] Spec section §6 modified files: `deploy-docs.yml` (Phase 4), `README.md` (Phase 6), `helm/Chart.yml` `appVersion` (Phase 3). ✓
-- [ ] Spec section §7 one-shot setup: surfaced as Task 4.4 (gist + PAT + branch protection) and Task 5.1 Step 3 (branch protection update). ✓
-- [ ] Each phase = one commit per the spec phasing (§8). ✓
-- [ ] No GoReleaser anywhere (per §3 "decisions deferred"). ✓
-- [ ] `pr-title` job is guarded by `if: github.event_name == 'pull_request'` (per the design self-review note). ✓ (ci.yml Task 1.2)
-- [ ] No placeholders ("TBD", "implement later"). The README badge URL has `<gist-user>` placeholders that are **operator-fillable**, with explicit instructions — this is intentional, not a plan defect. ✓
+- [ ] Spec §3 decisions reflected: scope tier B, all artifacts on ghcr.io, release-please for changelogs, 1:1 chart=app version (manifest pinned at `2.0.12` to match), gist coverage badge, Trivy blocking + `.trivyignore`.
+- [ ] Spec §4 architecture: 4 workflows present, 3 legacy ones deleted in Phase 5.
+- [ ] Spec §5 new config files: `.golangci.yml` (Phase 1), `.trivyignore` (Phase 2), `release-please-config.json` + manifest (Phase 3), `.github/dependabot.yml` (Phase 2) — all created.
+- [ ] Spec §6 modified files: `deploy-docs.yml` (Phase 4), `README.md` (Phase 6), `helm/Chart.yml` (Phase 3, version sync + annotations), `helm/values.yml` (Phase 3, image-tag annotations).
+- [ ] Spec §7 one-shot setup: surfaced as **Phase 0** (gist + PAT + open-PR survey) and Task 5.1 Step 3 (branch protection update post-Phase-5).
+- [ ] Each phase = one commit per the spec phasing (§8). Phase 0 is operator-only, no commit.
+- [ ] No GoReleaser anywhere (per §3 decisions).
+- [ ] `pr-title` job guarded by `if: github.event_name == 'pull_request'` (ci.yml Task 1.2).
+- [ ] release-please uses `type: generic` + `# x-release-please-version` annotations (per release-please v4 docs — `jsonpath` only honored for `type: json`).
+- [ ] chart-releaser-action uses `skip_packaging: true` after a manual `helm package` because the chart lives at `helm/Chart.yml` (not `helm/<chartname>/Chart.yaml`).
+- [ ] `:VERSION-unsigned` tag deleted via `gh api` after `retag-stable` to prevent leak of an unsigned tag pointer.
+- [ ] Cosign verify uses workflow-pinned identity regex (`/.github/workflows/release.yml@refs/tags/v[0-9].*$`), not the bare repo URL.
+- [ ] No placeholders ("TBD", "implement later"). README has `<gist-user>` and gist IDs that are **operator-fillable** with explicit instructions; this is intentional.
 
 ## Known operator-side blockers
 
