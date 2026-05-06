@@ -66,7 +66,7 @@ jobs:
           PCT=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
           echo "percentage=${PCT}" >> "$GITHUB_OUTPUT"
       - name: Update coverage badge gist
-        uses: schneegans/dynamic-badges-action@v1.7.0
+        uses: schneegans/dynamic-badges-action@v1.8.0
         with:
           auth: ${{ secrets.GIST_TOKEN }}
           gistID: ${{ vars.COVERAGE_GIST_ID }}
@@ -99,7 +99,7 @@ jobs:
         with:
           version: v3.16.4
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.7.0
+        uses: helm/chart-testing-action@v2.8.0
       - name: Run chart-testing lint
         run: ct lint --charts helm --validate-maintainers=false
       - name: Render templates with default values
