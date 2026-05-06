@@ -1,0 +1,255 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  ci-gate:
+    name: CI gate
+    uses: ./.github/workflows/ci.yml
+
+  build-image:
+    name: Build and push image (unsigned)
+    needs: ci-gate
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+      version: ${{ steps.version.outputs.version }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "${VERSION}" == *-* ]]; then
+            echo "is-prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is-prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: push
+        name: Build and push (unsigned tag)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/numberly/vault-db-injector:${{ steps.version.outputs.version }}-unsigned
+          provenance: true
+          sbom: true
+
+  cosign-sign:
+    name: Cosign keyless sign
+    needs: build-image
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      id-token: write
+    steps:
+      - uses: sigstore/cosign-installer@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sign image by digest
+        env:
+          DIGEST: ${{ needs.build-image.outputs.digest }}
+        run: cosign sign --yes "ghcr.io/numberly/vault-db-injector@${DIGEST}"
+
+  trivy-scan:
+    name: Trivy image scan
+    needs: build-image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/numberly/vault-db-injector:${{ needs.build-image.outputs.version }}-unsigned
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          trivyignores: ".trivyignore"
+
+  retag-stable:
+    name: Promote to stable tag
+    needs: [cosign-sign, trivy-scan, build-image]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create stable tag from unsigned-tag manifest
+        env:
+          VERSION: ${{ needs.build-image.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            -t "ghcr.io/numberly/vault-db-injector:${VERSION}" \
+            "ghcr.io/numberly/vault-db-injector:${VERSION}-unsigned"
+      - name: Tag :latest if not prerelease
+        if: needs.build-image.outputs.is-prerelease == 'false'
+        env:
+          VERSION: ${{ needs.build-image.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            -t "ghcr.io/numberly/vault-db-injector:latest" \
+            "ghcr.io/numberly/vault-db-injector:${VERSION}-unsigned"
+      - name: Delete the transient :VERSION-unsigned tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.build-image.outputs.version }}
+        run: |
+          PACKAGE_TYPE=container
+          PACKAGE_NAME=vault-db-injector
+          ORG=numberly
+          VID=$(gh api -H "Accept: application/vnd.github+json" \
+            "/orgs/${ORG}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions" \
+            --paginate \
+            --jq ".[] | select(.metadata.container.tags[]? == \"${VERSION}-unsigned\") | .id" \
+            | head -1)
+          if [ -n "${VID}" ]; then
+            gh api -X DELETE -H "Accept: application/vnd.github+json" \
+              "/orgs/${ORG}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions/${VID}"
+            echo "Deleted package version ${VID} that held tag ${VERSION}-unsigned"
+          else
+            echo "No package version found holding tag ${VERSION}-unsigned (already deleted?)"
+          fi
+
+  chart-releaser:
+    name: Publish chart to gh-pages
+    needs: retag-stable
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+      - name: Pre-package the chart
+        run: |
+          mkdir -p .cr-release-packages
+          helm package helm -d .cr-release-packages
+          ls -la .cr-release-packages
+      - uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: helm
+          skip_packaging: true
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CR_SKIP_EXISTING: "true"
+
+  chart-oci-push:
+    name: Publish chart to ghcr.io OCI
+    needs: retag-stable
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+      - uses: sigstore/cosign-installer@v3
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Package and push chart
+        id: push
+        run: |
+          helm package helm
+          PKG=$(find . -maxdepth 1 -name 'vault-db-injector-*.tgz' | head -1)
+          helm push "${PKG}" oci://ghcr.io/numberly/charts 2> /tmp/helm-push.err
+          cat /tmp/helm-push.err
+          DIGEST=$(awk '/^Digest: sha256:/ {print $2}' /tmp/helm-push.err)
+          if [ -z "${DIGEST}" ]; then
+            echo "::error::Failed to extract chart manifest digest from helm push output"
+            exit 1
+          fi
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+      - name: Sign chart by digest
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: cosign sign --yes "ghcr.io/numberly/charts/vault-db-injector@${DIGEST}"
+
+  augment-release-notes:
+    name: Add verification commands to release notes
+    needs: [retag-stable, chart-releaser, chart-oci-push]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Append verification commands
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          BODY=$(gh release view "${TAG}" --repo "${REPO}" --json body --jq '.body')
+          APPENDIX="
+
+          ## Pull
+
+          \`\`\`
+          docker pull ghcr.io/numberly/vault-db-injector:${TAG}
+          helm pull oci://ghcr.io/numberly/charts/vault-db-injector --version ${TAG#v}
+          helm repo add numberly https://numberly.github.io/vault-db-injector
+          helm pull numberly/vault-db-injector --version ${TAG#v}
+          \`\`\`
+
+          ## Verify the Cosign signature
+
+          \`\`\`
+          cosign verify ghcr.io/numberly/vault-db-injector:${TAG} \\\\
+            --certificate-identity-regexp=^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*$ \\\\
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+          \`\`\`
+          "
+          gh release edit "${TAG}" --repo "${REPO}" --notes "${BODY}${APPENDIX}"
+
+  update-release-badge:
+    name: Update release version badge
+    needs: [retag-stable, chart-releaser, chart-oci-push, build-image]
+    if: needs.build-image.outputs.is-prerelease == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push release version to gist
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.RELEASE_GIST_ID }}
+          filename: vault-db-injector-release.json
+          label: release
+          message: ${{ needs.build-image.outputs.version }}
+          color: blue
