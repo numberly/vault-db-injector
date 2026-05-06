@@ -53,7 +53,7 @@ vaultDbInjector:
       # -- Injector container image repository.
       repository: numberly/vault-db-injector
       # -- Injector container image tag.
-      tag: 3.0.1  # x-release-please-version
+      tag: 3.0.2  # x-release-please-version
     # -- imagePullPolicy applied to the injector container.
     imagePullPolicy: Always
     # -- Service ports for the webhook (HTTPS).
@@ -86,7 +86,7 @@ vaultDbInjector:
       # -- Renewer container image repository.
       repository: numberly/vault-db-injector
       # -- Renewer container image tag.
-      tag: 3.0.1  # x-release-please-version
+      tag: 3.0.2  # x-release-please-version
     # -- imagePullPolicy applied to the renewer container.
     imagePullPolicy: Always
   revoker:
@@ -108,7 +108,7 @@ vaultDbInjector:
       # -- Revoker container image repository.
       repository: numberly/vault-db-injector
       # -- Revoker container image tag.
-      tag: 3.0.1  # x-release-please-version
+      tag: 3.0.2  # x-release-please-version
     # -- imagePullPolicy applied to the revoker container.
     imagePullPolicy: Always
 
