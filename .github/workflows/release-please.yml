@@ -12,9 +12,45 @@ jobs:
   release-please:
     name: release-please
     runs-on: ubuntu-latest
+    outputs:
+      pr: ${{ steps.release.outputs.pr }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - id: release
+        uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  regen-helm-docs:
+    name: Regenerate helm-docs in release PR
+    needs: release-please
+    if: needs.release-please.outputs.pr != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release-please PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install helm-docs
+        run: |
+          HELM_DOCS_VERSION=1.14.2
+          curl -fsSL "https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.deb" -o /tmp/helm-docs.deb
+          sudo dpkg -i /tmp/helm-docs.deb
+      - name: Regenerate helm/README.md
+        run: make helm-docs
+      - name: Commit and push if drift
+        run: |
+          if ! git diff --exit-code helm/README.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add helm/README.md
+            git commit -m "chore: regenerate helm-docs after release-please version bump"
+            git push
+            echo "::notice::Regenerated helm/README.md and pushed to release-please PR branch."
+          else
+            echo "::notice::helm/README.md already in sync — no regeneration needed."
+          fi
