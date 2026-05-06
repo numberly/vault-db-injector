@@ -18,9 +18,11 @@ Phase 1 commits push `ci.yml` to main. The `coverage-badge` job will fail authen
 
 **This task is run by the operator (Guillaume), not the agent.** The agent prints this checklist and waits for confirmation before proceeding to Phase 1.
 
-- [ ] **Step 1: Create two private gists**
+- [ ] **Step 1: Create one private gist**
 
-Visit https://gist.github.com twice. Create two **secret** gists, one for the coverage badge and one for the release version badge. Each can contain `{}` initially. Record both gist IDs from their URLs (`gist.github.com/<user>/<gistid>`).
+Visit https://gist.github.com, create a **secret** gist with any filename (e.g. `coverage.json` containing `{}`). Record the gist ID from the URL `gist.github.com/<user>/<gistid>`.
+
+(Earlier revisions of this plan called for a second gist for a release-version badge; that was dropped during final review because the README uses the native `img.shields.io/github/v/release/...` endpoint, which does not need a gist backing.)
 
 - [ ] **Step 2: Generate a fine-grained PAT**
 
@@ -31,11 +33,9 @@ GitHub Settings → Developer settings → Personal access tokens → Fine-grain
 
 Store as repo secret on `numberly/vault-db-injector`: name `GIST_TOKEN`.
 
-- [ ] **Step 3: Add two repo variables**
+- [ ] **Step 3: Add a repo variable**
 
-Repo Settings → Secrets and variables → Actions → Variables tab → New repository variable, twice:
-- `COVERAGE_GIST_ID` = the first gist ID (coverage)
-- `RELEASE_GIST_ID` = the second gist ID (release)
+`COVERAGE_GIST_ID` = the gist ID from Step 1. Repo Settings → Secrets and variables → Actions → Variables tab → New repository variable.
 
 - [ ] **Step 4: Survey open PRs**
 

@@ -79,6 +79,8 @@ jobs:
     name: Trivy image scan
     needs: build-image
     runs-on: ubuntu-latest
+    permissions:
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - name: Run Trivy
@@ -231,25 +233,9 @@ jobs:
           ## Verify the Cosign signature
 
           \`\`\`
-          cosign verify ghcr.io/numberly/vault-db-injector:${TAG} \\\\
-            --certificate-identity-regexp=^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*$ \\\\
-            --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+          cosign verify ghcr.io/numberly/vault-db-injector:${TAG} \\
+            --certificate-identity-regexp=\"^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*\\\$\" \\
+            --certificate-oidc-issuer=\"https://token.actions.githubusercontent.com\"
           \`\`\`
           "
           gh release edit "${TAG}" --repo "${REPO}" --notes "${BODY}${APPENDIX}"
-
-  update-release-badge:
-    name: Update release version badge
-    needs: [retag-stable, chart-releaser, chart-oci-push, build-image]
-    if: needs.build-image.outputs.is-prerelease == 'false'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Push release version to gist
-        uses: schneegans/dynamic-badges-action@v1.7.0
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: ${{ vars.RELEASE_GIST_ID }}
-          filename: vault-db-injector-release.json
-          label: release
-          message: ${{ needs.build-image.outputs.version }}
-          color: blue
