@@ -1,0 +1,13 @@
+# Trivy CVE allowlist — auditable exceptions for the vault-db-injector image.
+#
+# Format (one per line):
+#   CVE-XXXX-NNNN  # short reason — operator name — YYYY-MM-DD
+#
+# Add a CVE here only when:
+#   1. Trivy reports it on the built image
+#   2. There is no patched upstream version available
+#   3. Exposure has been assessed (does the vulnerable code path execute
+#      with attacker-controlled input in the injector? Usually no)
+#   4. A linked issue or ADR documents the long-term mitigation
+#
+# Review every entry quarterly: stale exceptions are worse than no exceptions.
