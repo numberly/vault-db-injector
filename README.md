@@ -1,5 +1,13 @@
 # Vault Database Injector
 
+[![CI](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml/badge.svg)](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<gist-user>/<COVERAGE_GIST_ID>/raw/vault-db-injector-coverage.json)](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/numberly/vault-db-injector?logo=github)](https://github.com/numberly/vault-db-injector/releases)
+[![Image](https://img.shields.io/badge/image-ghcr.io-blue?logo=docker)](https://github.com/numberly/vault-db-injector/pkgs/container/vault-db-injector)
+[![License](https://img.shields.io/github/license/numberly/vault-db-injector)](LICENSE)
+
+> Maintainer setup: replace the `<gist-user>` and `<COVERAGE_GIST_ID>` placeholders in the Coverage badge URL above with the actual gist user and gist ID created during CI setup (see `.planning/specs/2026-05-06-ci-overhaul-design.md` §7).
+
 The Vault DB Injector relies on the database engine from Vault to generate credentials, distribute them to Kubernetes applications and handle their lifecycle.
 
 ##  1. <a name='Feature'></a>Feature
@@ -57,6 +65,44 @@ admin must restrict who can mount these paths.
 
 See [docs/operators/security.md](docs/operators/security.md) for
 the complete threat model.
+
+## Installation
+
+### Helm chart (Helm Pages)
+
+```bash
+helm repo add numberly https://numberly.github.io/vault-db-injector
+helm repo update
+helm install vault-db-injector numberly/vault-db-injector \
+  --namespace vault-db-injector --create-namespace \
+  -f my-values.yaml
+```
+
+### Helm chart (OCI)
+
+```bash
+helm install vault-db-injector \
+  oci://ghcr.io/numberly/charts/vault-db-injector \
+  --version 3.0.0 \
+  --namespace vault-db-injector --create-namespace \
+  -f my-values.yaml
+```
+
+### Container image
+
+```bash
+docker pull ghcr.io/numberly/vault-db-injector:v3.0.0
+```
+
+The image is signed with Cosign keyless. Verify before deployment:
+
+```bash
+cosign verify ghcr.io/numberly/vault-db-injector:v3.0.0 \
+  --certificate-identity-regexp="^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*$" \
+  --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+```
+
+> **Docker Hub deprecation**: as of v3.0.0, releases publish to `ghcr.io` only. The `numberly/vault-db-injector` Docker Hub image is frozen at v2.x and will not receive further updates. Migrate by replacing `numberly/vault-db-injector:<tag>` with `ghcr.io/numberly/vault-db-injector:<tag>` in your values file.
 
 ##  4. <a name='Contribution'></a>Contribution
 
