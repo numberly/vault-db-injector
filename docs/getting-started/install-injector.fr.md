@@ -18,6 +18,10 @@ helm upgrade --install vault-db-injector ./helm \
 
 Remplacez `https://vault.example.com:8200` par votre adresse Vault ou OpenBao. Toutes les autres valeurs correspondent aux noms d'exemple utilisés dans [Politiques et rôles Vault](vault-policies.md).
 
+Pour la liste complète des values du chart, des défauts et la documentation
+par clé, consultez la [référence des Helm values](../reference/helm-values.md)
+— auto-générée depuis `helm/values.yml`.
+
 !!! warning
     Avec `useProjectedSA: true`, `tokenRequestAudiences` doit être non vide. Le binaire refuse de démarrer si cette valeur est vide — cela prévient une dégradation silencieuse de la sécurité où le token d'un pod pourrait être réutilisé entre services.
 
