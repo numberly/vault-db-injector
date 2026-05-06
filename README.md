@@ -1,12 +1,10 @@
 # Vault Database Injector
 
 [![CI](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml/badge.svg)](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<gist-user>/<COVERAGE_GIST_ID>/raw/vault-db-injector-coverage.json)](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/SoulKyu/d8f343bb35420cc7e3273f3a032d400f/raw/vault-db-injector-coverage.json)](https://github.com/numberly/vault-db-injector/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/numberly/vault-db-injector?logo=github)](https://github.com/numberly/vault-db-injector/releases)
 [![Image](https://img.shields.io/badge/image-ghcr.io-blue?logo=docker)](https://github.com/numberly/vault-db-injector/pkgs/container/vault-db-injector)
 [![License](https://img.shields.io/github/license/numberly/vault-db-injector)](LICENSE)
-
-> Maintainer setup: replace the `<gist-user>` and `<COVERAGE_GIST_ID>` placeholders in the Coverage badge URL above with the actual gist user and gist ID created during CI setup (see `.planning/specs/2026-05-06-ci-overhaul-design.md` §7).
 
 The Vault DB Injector relies on the database engine from Vault to generate credentials, distribute them to Kubernetes applications and handle their lifecycle.
 
