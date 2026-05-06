@@ -58,7 +58,7 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 	// causing "plugins X and X both tried to set env" errors when the
 	// next DS pod reconnects with the same idx+name.
 	runDone := make(chan error, 1)
-	go func() { runDone <- s.Run(context.Background()) }()
+	go func() { runDone <- s.Run(ctx) }()
 
 	var runErr error
 	select {

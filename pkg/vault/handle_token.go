@@ -99,7 +99,7 @@ func (c *Connector) StoreData(ctx context.Context, contextID string, vaultInform
 func (c *Connector) StoreDataAsync(ctx context.Context, contextID string, vaultInformation *KeyInfo, secretName, uuid, namespace, prefix string) {
 	go func() {
 		start := time.Now()
-		asyncCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		asyncCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 		defer cancel()
 
 		if c.K8sSaVaultToken == "" {

@@ -158,7 +158,7 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 		errCh <- nil
 	}()
 
-	go func() {
+	go func() { //nolint:gosec // G118: shutdown ctx intentionally uses context.Background — parent ctx is already cancelled at this point
 		select {
 		case err := <-errCh:
 			if err != nil {

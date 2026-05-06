@@ -126,7 +126,7 @@ func TestHealthzHandler(t *testing.T) {
 
 			service, _ := setupTestService(tt.k8sShouldFail)
 
-			req := httptest.NewRequest("GET", "/healthz", nil)
+			req := httptest.NewRequestWithContext(context.Background(), "GET", "/healthz", nil)
 			w := httptest.NewRecorder()
 
 			service.healthHandler(w, req)
@@ -181,7 +181,7 @@ func TestReadyzHandler(t *testing.T) {
 			service, _ := setupTestService(false)
 			service.isReady.Store(tt.isReady)
 
-			req := httptest.NewRequest("GET", "/readyz", nil)
+			req := httptest.NewRequestWithContext(context.Background(), "GET", "/readyz", nil)
 			w := httptest.NewRecorder()
 
 			handler := service.readyzHandler()
