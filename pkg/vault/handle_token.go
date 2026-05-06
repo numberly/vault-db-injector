@@ -97,9 +97,16 @@ func (c *Connector) StoreData(ctx context.Context, contextID string, vaultInform
 // Callers that require guaranteed persistence (e.g. integration tests, migration tools)
 // MUST use StoreData (synchronous) instead of this function.
 func (c *Connector) StoreDataAsync(ctx context.Context, contextID string, vaultInformation *KeyInfo, secretName, uuid, namespace, prefix string) {
+	// Detach from the caller's context: the admission webhook handler's
+	// ctx is cancelled as soon as the hot path returns a response to the
+	// API server, which would kill the in-flight kv.Put with
+	// "context canceled" and leave the KV bookkeeping entry missing —
+	// breaking renewer/revoker management on the next cycle. We keep the
+	// values (logger, tracing) but drop the cancellation signal.
+	detached := context.WithoutCancel(ctx)
 	go func() {
 		start := time.Now()
-		asyncCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		asyncCtx, cancel := context.WithTimeout(detached, 60*time.Second)
 		defer cancel()
 
 		if c.K8sSaVaultToken == "" {

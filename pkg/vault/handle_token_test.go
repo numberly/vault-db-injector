@@ -332,6 +332,64 @@ func TestStoreDataAsync_UsesK8sSaVaultTokenDirectly(t *testing.T) {
 	}
 }
 
+// TestStoreDataAsync_SurvivesParentContextCancel guarantees that the async KV
+// write is detached from the caller's context. The admission webhook handler
+// returns to the API server long before the Vault round-trip completes, which
+// cancels the parent ctx. If StoreDataAsync re-uses that ctx, kv.Put fails
+// with "context canceled" and the bookkeeping entry is never written —
+// breaking renewer/revoker management on the next cycle.
+func TestStoreDataAsync_SurvivesParentContextCancel(t *testing.T) {
+	const bookkeepingToken = "s.bookkeeping-token"
+
+	kvPutDone := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			// Simulate Vault round-trip latency so the parent ctx has time
+			// to be cancelled while the request is in flight.
+			time.Sleep(150 * time.Millisecond)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"data":{"version":1}}`))
+			close(kvPutDone)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel)
+
+	vaultCfg := vaultapi.DefaultConfig()
+	vaultCfg.Address = srv.URL
+	client, err := vaultapi.NewClient(vaultCfg)
+	require.NoError(t, err)
+	client.SetToken(bookkeepingToken)
+
+	c := &Connector{
+		address:         srv.URL,
+		client:          client,
+		vaultToken:      bookkeepingToken,
+		K8sSaVaultToken: bookkeepingToken,
+		Log:             log,
+	}
+
+	ki := NewKeyInfo("pod-uid", "lease-1", "tok-1", "default", "sa", "pod", "node")
+
+	parentCtx, cancel := context.WithCancel(context.Background())
+	c.StoreDataAsync(parentCtx, "ctx-id", ki, "vault-injector", "pod-uid", "default", "prefix")
+	// Cancel immediately — mirroring the webhook handler returning before
+	// the goroutine's kv.Put completes.
+	cancel()
+
+	select {
+	case <-kvPutDone:
+		// success: write completed despite parent cancellation
+	case <-time.After(2 * time.Second):
+		t.Fatal("KV put never completed — async write is still bound to the cancelled parent context")
+	}
+}
+
 // TestSyncAndCleanupTokens_EmptyKeys verifies that an empty keysInformations slice
 // returns true (no-op success). No Vault client is required: the orphan-token
 // dance was removed; SyncAndCleanupTokens now uses the renewer's own login token
