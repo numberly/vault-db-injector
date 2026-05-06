@@ -8,33 +8,35 @@
       
       
       
-        <link rel="canonical" href="https://numberly.github.io/vault-db-injector/">
+        <link rel="canonical" href="https://numberly.github.io/vault-db-injector/reference/helm-values/">
       
       
+        <link rel="prev" href="../configuration/">
       
-        <link rel="next" href="getting-started/overview/">
+      
+        <link rel="next" href="../metrics/">
       
       
         
-          <link rel="alternate" href="/vault-db-injector/" hreflang="en">
+          <link rel="alternate" href="./" hreflang="en">
         
-          <link rel="alternate" href="/vault-db-injector/fr/" hreflang="fr">
+          <link rel="alternate" href="../../fr/reference/helm-values/" hreflang="fr">
         
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Vault DB Injector Documentation</title>
+        <title>Helm values reference - Vault DB Injector Documentation</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -47,7 +49,7 @@
       
     
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -70,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#vault-db-injector" class="md-skip">
+        <a href="#helm-values-reference" class="md-skip">
           Skip to content
         </a>
       
@@ -84,7 +86,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="Vault DB Injector Documentation" class="md-header__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
+    <a href="../.." title="Vault DB Injector Documentation" class="md-header__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2zm-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3"/></svg>
@@ -104,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              Helm values reference
             
           </span>
         </div>
@@ -125,13 +127,13 @@
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="/vault-db-injector/" hreflang="en" class="md-select__link">
+            <a href="./" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
         
           <li class="md-select__item">
-            <a href="/vault-db-injector/fr/" hreflang="fr" class="md-select__link">
+            <a href="../../fr/reference/helm-values/" hreflang="fr" class="md-select__link">
               Français
             </a>
           </li>
@@ -213,11 +215,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="." class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -238,7 +238,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="getting-started/overview/" class="md-tabs__link">
+        <a href="../../getting-started/overview/" class="md-tabs__link">
           
   
   
@@ -260,7 +260,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="developers/annotations/" class="md-tabs__link">
+        <a href="../../developers/annotations/" class="md-tabs__link">
           
   
   
@@ -282,7 +282,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="operators/architecture/" class="md-tabs__link">
+        <a href="../../operators/architecture/" class="md-tabs__link">
           
   
   
@@ -304,7 +304,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="contributors/build-from-source/" class="md-tabs__link">
+        <a href="../../contributors/build-from-source/" class="md-tabs__link">
           
   
   
@@ -322,11 +322,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="reference/glossary/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../glossary/" class="md-tabs__link">
           
   
   
@@ -364,7 +366,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="Vault DB Injector Documentation" class="md-nav__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
+    <a href="../.." title="Vault DB Injector Documentation" class="md-nav__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2zm-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3"/></svg>
@@ -391,37 +393,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -437,81 +412,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#why-it-exists" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why it exists
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-delivery-modes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two delivery modes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#pick-your-entry-point" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pick your entry point
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#openbao-compatibility" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        OpenBao compatibility
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#license" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        License
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -595,7 +495,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/overview/" class="md-nav__link">
+      <a href="../../getting-started/overview/" class="md-nav__link">
         
   
   
@@ -623,7 +523,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/prerequisites/" class="md-nav__link">
+      <a href="../../getting-started/prerequisites/" class="md-nav__link">
         
   
   
@@ -651,7 +551,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/setup-kubernetes/" class="md-nav__link">
+      <a href="../../getting-started/setup-kubernetes/" class="md-nav__link">
         
   
   
@@ -679,7 +579,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/setup-vault/" class="md-nav__link">
+      <a href="../../getting-started/setup-vault/" class="md-nav__link">
         
   
   
@@ -707,7 +607,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/setup-database/" class="md-nav__link">
+      <a href="../../getting-started/setup-database/" class="md-nav__link">
         
   
   
@@ -735,7 +635,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/vault-policies/" class="md-nav__link">
+      <a href="../../getting-started/vault-policies/" class="md-nav__link">
         
   
   
@@ -763,7 +663,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/install-injector/" class="md-nav__link">
+      <a href="../../getting-started/install-injector/" class="md-nav__link">
         
   
   
@@ -791,7 +691,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/first-injected-pod/" class="md-nav__link">
+      <a href="../../getting-started/first-injected-pod/" class="md-nav__link">
         
   
   
@@ -890,7 +790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="developers/annotations/" class="md-nav__link">
+      <a href="../../developers/annotations/" class="md-nav__link">
         
   
   
@@ -918,7 +818,7 @@
   
   
     <li class="md-nav__item">
-      <a href="developers/injection-modes/" class="md-nav__link">
+      <a href="../../developers/injection-modes/" class="md-nav__link">
         
   
   
@@ -946,7 +846,7 @@
   
   
     <li class="md-nav__item">
-      <a href="developers/examples/" class="md-nav__link">
+      <a href="../../developers/examples/" class="md-nav__link">
         
   
   
@@ -974,7 +874,7 @@
   
   
     <li class="md-nav__item">
-      <a href="developers/troubleshooting/" class="md-nav__link">
+      <a href="../../developers/troubleshooting/" class="md-nav__link">
         
   
   
@@ -1079,7 +979,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operators/architecture/" class="md-nav__link">
+      <a href="../../operators/architecture/" class="md-nav__link">
         
   
   
@@ -1107,7 +1007,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operators/components/" class="md-nav__link">
+      <a href="../../operators/components/" class="md-nav__link">
         
   
   
@@ -1135,7 +1035,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operators/security/" class="md-nav__link">
+      <a href="../../operators/security/" class="md-nav__link">
         
   
   
@@ -1163,7 +1063,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operators/monitoring/" class="md-nav__link">
+      <a href="../../operators/monitoring/" class="md-nav__link">
         
   
   
@@ -1191,7 +1091,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operators/operations/" class="md-nav__link">
+      <a href="../../operators/operations/" class="md-nav__link">
         
   
   
@@ -1219,7 +1119,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operators/legacy-webhook-mode/" class="md-nav__link">
+      <a href="../../operators/legacy-webhook-mode/" class="md-nav__link">
         
   
   
@@ -1247,7 +1147,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operators/migration-v2-to-v3/" class="md-nav__link">
+      <a href="../../operators/migration-v2-to-v3/" class="md-nav__link">
         
   
   
@@ -1346,7 +1246,7 @@
   
   
     <li class="md-nav__item">
-      <a href="contributors/build-from-source/" class="md-nav__link">
+      <a href="../../contributors/build-from-source/" class="md-nav__link">
         
   
   
@@ -1374,7 +1274,7 @@
   
   
     <li class="md-nav__item">
-      <a href="contributors/contributing/" class="md-nav__link">
+      <a href="../../contributors/contributing/" class="md-nav__link">
         
   
   
@@ -1402,7 +1302,7 @@
   
   
     <li class="md-nav__item">
-      <a href="contributors/comparison/" class="md-nav__link">
+      <a href="../../contributors/comparison/" class="md-nav__link">
         
   
   
@@ -1430,7 +1330,7 @@
   
   
     <li class="md-nav__item">
-      <a href="contributors/architecture-deep-dive/" class="md-nav__link">
+      <a href="../../contributors/architecture-deep-dive/" class="md-nav__link">
         
   
   
@@ -1462,8 +1362,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -1479,21 +1381,22 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
-        
-          
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -1511,7 +1414,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1529,7 +1432,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/glossary/" class="md-nav__link">
+      <a href="../glossary/" class="md-nav__link">
         
   
   
@@ -1557,7 +1460,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/configuration/" class="md-nav__link">
+      <a href="../configuration/" class="md-nav__link">
         
   
   
@@ -1582,10 +1485,19 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="reference/helm-values/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1601,6 +1513,7 @@
   
 
       </a>
+      
     </li>
   
 
@@ -1613,7 +1526,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/metrics/" class="md-nav__link">
+      <a href="../metrics/" class="md-nav__link">
         
   
   
@@ -1661,45 +1574,375 @@
   
 
 
-<h1 id="vault-db-injector">Vault DB Injector</h1>
-<p><strong>Audience:</strong> Anyone</p>
-<p>vault-db-injector issues short-lived database credentials from HashiCorp Vault (or OpenBao) and delivers them to Kubernetes workloads at runtime. It handles the full lifecycle: issuance, renewal, and revocation when the pod dies.</p>
-<h2 id="why-it-exists">Why it exists</h2>
-<p>Static database credentials in Kubernetes Secrets are a known weak point: they live forever, leak through GitOps, and are readable by anyone who can <code>kubectl get secret</code> in the namespace. vault-db-injector replaces them with credentials that exist only for the lifetime of the pod, are rotated by Vault rather than by the application, and appear in the Vault audit log tied to the pod's identity.</p>
-<h2 id="two-delivery-modes">Two delivery modes</h2>
+<h1 id="helm-values-reference">Helm values reference</h1>
+<p><strong>Audience:</strong> Platform operator</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This page is auto-generated from <code>helm/values.yml</code> via
+<a href="https://github.com/norwoodj/helm-docs">helm-docs</a>. Do not edit it
+directly — annotate the values file with <code># --</code> comments and re-run
+<code>make helm-docs</code> (or rely on the pre-commit hook). The
+<code>helm-docs-check</code> CI gate fails the build if the regenerated content
+drifts from what is committed.</p>
+</div>
+<hr />
+<h1 id="vault-db-injector">vault-db-injector</h1>
+<p>vault-db-injector helm chart</p>
+<p><img alt="Version: 2.0.12" src="https://img.shields.io/badge/Version-2.0.12-informational?style=flat-square" /> <img alt="AppVersion: 2.0.12" src="https://img.shields.io/badge/AppVersion-2.0.12-informational?style=flat-square" /></p>
+<h2 id="tldr-minimal-values-for-the-canonical-nri-projected-sa-install">TL;DR — minimal values for the canonical NRI + projected-SA install</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">vaultDbInjector</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">configuration</span><span class="p">:</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">vaultAddress</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://vault.example.com:8200&quot;</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">vaultAuthPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;kubernetes&quot;</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nt">kubeRole</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;vault-db-injector&quot;</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">useProjectedSA</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">tokenRequestAudiences</span><span class="p">:</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vault</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="nt">nri</span><span class="p">:</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="nt">pluginIndex</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;10&quot;</span>
+</code></pre></div>
+<p>All other keys fall back to the defaults documented below. See
+<a href="https://numberly.github.io/vault-db-injector/getting-started/install-injector/">getting-started/install-injector</a>
+for a full walkthrough including Vault prerequisites.</p>
+<h2 id="values">Values</h2>
 <table>
 <thead>
 <tr>
-<th>Mode</th>
-<th>Where credentials live in Kubernetes</th>
-<th>Recommended for</th>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>NRI + Projected-SA</strong> (canonical)</td>
-<td>Nowhere — substituted at container start by a node-local NRI plugin. PodSpec, etcd, and audit logs only see opaque placeholders</td>
-<td>New deployments</td>
+<td>nri.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>When <code>true</code>, deploys the NRI DaemonSet AND tells the injector to wrap every credential it issues with placeholders. Both pieces are tied to this single switch so the cluster cannot end up in a "webhook produces placeholders but nothing substitutes" state. When <code>false</code>, behavior is byte-identical to the legacy webhook mode (literal credentials in env vars). Requires containerd ≥ 1.7 with NRI enabled, OR CRI-O ≥ 1.26.</td>
 </tr>
 <tr>
-<td><strong>Webhook + injector-SA</strong> (legacy)</td>
-<td>Plaintext environment variables in the PodSpec</td>
-<td>Existing v2.x clusters that have not migrated yet</td>
+<td>nri.image.repository</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>NRI container image repository. Empty = falls back to <code>vaultDbInjector.injector.image.repository</code>.</td>
+</tr>
+<tr>
+<td>nri.image.tag</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>NRI container image tag. Empty = falls back to <code>vaultDbInjector.injector.image.tag</code>.</td>
+</tr>
+<tr>
+<td>nri.imagePullPolicy</td>
+<td>string</td>
+<td><code>"Always"</code></td>
+<td>imagePullPolicy applied to the NRI container.</td>
+</tr>
+<tr>
+<td>nri.nodeSelector</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Node selector for the NRI DaemonSet.</td>
+</tr>
+<tr>
+<td>nri.pluginIndex</td>
+<td>string</td>
+<td><code>"10"</code></td>
+<td>NRI plugin priority for <code>stub.WithPluginIdx</code>. Must be unique per containerd instance — running multiple injector releases on the same cluster requires distinct values (e.g. <code>"10"</code> for prod, <code>"11"</code> for dev). The plugin name auto-defaults to the helm release fullname.</td>
+</tr>
+<tr>
+<td>nri.resources</td>
+<td>object</td>
+<td><code>{"limits":{"cpu":"200m","memory":"256Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}</code></td>
+<td>Resource requests and limits for each NRI plugin pod.</td>
+</tr>
+<tr>
+<td>nri.serviceAccountName</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Override the ServiceAccount used by the NRI DaemonSet. Empty = chart-managed default (<code>&lt;release&gt;</code>, shared with the injector). Set to a distinct value to enable privilege separation between webhook and NRI identities (also requires <code>kubeRoleNri</code>).</td>
+</tr>
+<tr>
+<td>nri.tolerations</td>
+<td>list</td>
+<td><code>[{"operator":"Exists"}]</code></td>
+<td>Tolerations for the NRI DaemonSet. The default tolerates every taint so the plugin runs on every node. The plugin is node-local — if it is missing on a tainted node where labelled pods are scheduled, those pods start with the raw placeholder string in env (visible CrashLoop, but still a leak window). Override to restrict where the plugin runs.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.injectorLabel</td>
+<td>string</td>
+<td><code>"vault-db-injector"</code></td>
+<td>Pod label value the injector uses to recognise pods it owns.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.kubeRole</td>
+<td>string</td>
+<td><code>"all-rw"</code></td>
+<td>Default Vault auth/kubernetes role used by the binaries to log in. Per-component overrides below take precedence when set.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.kubeRoleNri</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Override <code>kubeRole</code> for the NRI plugin only. Empty = falls back to <code>kubeRole</code>. Useful in projected-SA mode for privilege separation between webhook and DaemonSet identities.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.kubeRoleRenewer</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Override <code>kubeRole</code> for the renewer Deployment only. Empty = falls back to <code>kubeRole</code>. In projected-SA mode this should point at the dedicated renewer Vault role + policy.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.kubeRoleRevoker</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Override <code>kubeRole</code> for the revoker Deployment only. Empty = falls back to <code>kubeRole</code>. In projected-SA mode this should point at the dedicated revoker Vault role + policy.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.logLevel</td>
+<td>string</td>
+<td><code>"info"</code></td>
+<td>Log level for all three binaries (<code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>).</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.sentry</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Enable Sentry error reporting in the binaries.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.sentryDsn</td>
+<td>string</td>
+<td><code>"https://your-sentry@sentry/660"</code></td>
+<td>Sentry DSN. Required when <code>sentry: true</code>.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.tokenRequestAudiences</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Audiences set on the TokenRequest JWT in projected-SA mode. Empty = cluster-default audience (legacy compat). Recommended for new deployments: <code>["vault"]</code> with a matching <code>audience</code> configured on each Vault k8s-auth role. The binary refuses to start when <code>useProjectedSA: true</code> and this list is empty.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.tokenRequestExpirationSeconds</td>
+<td>int</td>
+<td><code>600</code></td>
+<td>Requested lifetime of the TokenRequest JWT in seconds. The kube-apiserver enforces a hard floor of 600s (<code>--service-account-min-token-expiration</code> default). The JWT is used for one Vault login round-trip only, so 600 is the practical minimum.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.tokenTTL</td>
+<td>string</td>
+<td><code>"8766h"</code></td>
+<td>Periodic Vault token TTL requested at login. Applies to the binaries' own login tokens, not to per-pod credentials. Default ≈ 1 year.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.useProjectedSA</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>When <code>true</code>, the injector authenticates to Vault per-pod using a Kubernetes TokenRequest JWT for the admitted pod's ServiceAccount, instead of using the injector's own SA. Requires every Vault auth/kubernetes role to have <code>token_period &gt; 0</code>. The chart provisions the ClusterRole granting <code>create</code> on <code>serviceaccounts/token</code>.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.vaultAddress</td>
+<td>string</td>
+<td><code>"https://vault1.numberly.in:8200"</code></td>
+<td>Vault or OpenBao base URL the binaries log into.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.vaultAuthPath</td>
+<td>string</td>
+<td><code>"kubernetes"</code></td>
+<td>Mount path of the Kubernetes auth method on Vault.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.vaultSecretName</td>
+<td>string</td>
+<td><code>"vault-db-injector"</code></td>
+<td>Name of the KV-v2 mount used for per-pod bookkeeping (lease ID, token ID, namespace, UUID). Must match the path enabled in Vault and referenced in the policies.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.vaultSecretPrefix</td>
+<td>string</td>
+<td><code>"kubernetes"</code></td>
+<td>First path segment under <code>vaultSecretName</code> used to scope bookkeeping per cluster. Production-grade policies should pin this segment to prevent cross-cluster reads/writes.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.webhookFqdn</td>
+<td>string</td>
+<td><code>"vault-db-injector.numberly.io"</code></td>
+<td>FQDN used in the webhook service name and the TLS cert SANs.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.configuration.webhookMatchLabels</td>
+<td>string</td>
+<td><code>"vault-db-injector"</code></td>
+<td>Value of the <code>objectSelector</code> label on the MutatingWebhookConfiguration. Pods carrying this label are sent to the webhook for admission.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.args</td>
+<td>list</td>
+<td><code>["--config=/injector/config.yaml"]</code></td>
+<td>Arguments passed to the injector container.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.containerSecurityContext</td>
+<td>object</td>
+<td><code>{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}</code></td>
+<td>Pod-level securityContext applied to the injector container. Defaults are non-root + read-only root filesystem.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.image.repository</td>
+<td>string</td>
+<td><code>"numberly/vault-db-injector"</code></td>
+<td>Injector container image repository.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.image.tag</td>
+<td>string</td>
+<td><code>"2.0.12"</code></td>
+<td>Injector container image tag.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.imagePullPolicy</td>
+<td>string</td>
+<td><code>"Always"</code></td>
+<td>imagePullPolicy applied to the injector container.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.ports</td>
+<td>list</td>
+<td><code>[{"port":8443,"targetPort":8443}]</code></td>
+<td>Service ports for the webhook (HTTPS).</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.replicas</td>
+<td>int</td>
+<td><code>2</code></td>
+<td>Number of injector Deployment replicas.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.serviceAccount.annotations</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Annotations added to the injector ServiceAccount only (e.g. for IRSA / GCP Workload Identity). Not propagated to the renewer/revoker SAs.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.serviceAccountName</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Override the ServiceAccount used by the injector Deployment. Empty = chart-managed default (<code>&lt;release&gt;</code>). Set to bring your own SA provisioned outside the chart (e.g. shared SA across releases).</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.type</td>
+<td>string</td>
+<td><code>"ClusterIP"</code></td>
+<td>Service type for the webhook service.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.renewer.args</td>
+<td>list</td>
+<td><code>["--config=/renewer/config.yaml"]</code></td>
+<td>Arguments passed to the renewer container.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.renewer.containerSecurityContext</td>
+<td>object</td>
+<td><code>{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}</code></td>
+<td>Pod-level securityContext applied to the renewer container.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.renewer.image.repository</td>
+<td>string</td>
+<td><code>"numberly/vault-db-injector"</code></td>
+<td>Renewer container image repository.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.renewer.image.tag</td>
+<td>string</td>
+<td><code>"2.0.12"</code></td>
+<td>Renewer container image tag.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.renewer.imagePullPolicy</td>
+<td>string</td>
+<td><code>"Always"</code></td>
+<td>imagePullPolicy applied to the renewer container.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.renewer.replicas</td>
+<td>int</td>
+<td><code>4</code></td>
+<td>Number of renewer replicas. Leader election selects one active renewer at a time.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.renewer.serviceAccountName</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Override the ServiceAccount used by the renewer Deployment. Empty = chart-managed default (<code>&lt;release&gt;</code> in legacy mode, <code>&lt;release&gt;-renewer</code> when <code>useProjectedSA: true</code>).</td>
+</tr>
+<tr>
+<td>vaultDbInjector.revoker.args</td>
+<td>list</td>
+<td><code>["--config=/revoker/config.yaml"]</code></td>
+<td>Arguments passed to the revoker container.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.revoker.containerSecurityContext</td>
+<td>object</td>
+<td><code>{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}</code></td>
+<td>Pod-level securityContext applied to the revoker container.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.revoker.image.repository</td>
+<td>string</td>
+<td><code>"numberly/vault-db-injector"</code></td>
+<td>Revoker container image repository.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.revoker.image.tag</td>
+<td>string</td>
+<td><code>"2.0.12"</code></td>
+<td>Revoker container image tag.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.revoker.imagePullPolicy</td>
+<td>string</td>
+<td><code>"Always"</code></td>
+<td>imagePullPolicy applied to the revoker container.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.revoker.replicas</td>
+<td>int</td>
+<td><code>4</code></td>
+<td>Number of revoker replicas. Leader election selects one active revoker at a time.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.revoker.serviceAccountName</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Override the ServiceAccount used by the revoker Deployment. Empty = chart-managed default (<code>&lt;release&gt;</code> in legacy mode, <code>&lt;release&gt;-revoker</code> when <code>useProjectedSA: true</code>).</td>
 </tr>
 </tbody>
 </table>
-<p>The legacy mode is preserved for backward compatibility. New deployments should follow <a href="getting-started/overview/">Getting Started</a>, which walks through the canonical NRI + Projected-SA path end to end.</p>
-<h2 id="pick-your-entry-point">Pick your entry point</h2>
-<ul>
-<li><a href="getting-started/overview/"><strong>Getting Started</strong></a> — install from zero, in order</li>
-<li><a href="developers/annotations/"><strong>For application developers</strong></a> — annotate your pods to consume injected credentials</li>
-<li><a href="operators/architecture/"><strong>For platform operators</strong></a> — operate, secure, monitor, and migrate the injector</li>
-<li><a href="contributors/build-from-source/"><strong>For contributors</strong></a> — build, test, and contribute code</li>
-</ul>
-<h2 id="openbao-compatibility">OpenBao compatibility</h2>
-<p>Every Vault API used by this project works against OpenBao without changes. Point <code>vaultAddress</code> at your OpenBao instance and follow the same setup steps. See the OpenBao note in <a href="getting-started/setup-vault/">setup-vault</a>.</p>
-<h2 id="license">License</h2>
-<p>Apache-2.0. See <a href="https://github.com/numberly/vault-db-injector/blob/main/LICENSE"><code>LICENSE</code></a>.</p>
+<h2 id="vault-auth-roles-the-operator-must-create-when-useprojectedsa-true">Vault auth roles the operator must create when <code>useProjectedSA: true</code></h2>
+<p>When projected-SA mode is enabled, the chart provisions dedicated
+ServiceAccounts for the renewer and the revoker. The Vault operator must
+create matching <code>auth/kubernetes/role</code> entries:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>auth/kubernetes/role/&lt;release&gt;-renewer:
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  bound_service_account_names = &lt;release&gt;-renewer
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  bound_service_account_namespaces = &lt;release-namespace&gt;
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  token_policies = &lt;release&gt;-renewer
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>auth/kubernetes/role/&lt;release&gt;-revoker:
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  bound_service_account_names = &lt;release&gt;-revoker
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  bound_service_account_namespaces = &lt;release-namespace&gt;
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  token_policies = &lt;release&gt;-revoker
+</code></pre></div>
+<p>See <a href="https://numberly.github.io/vault-db-injector/getting-started/vault-policies/">Vault policies and roles</a>
+for the full policy HCL and <code>vault write</code> commands.</p>
+<hr />
+<p>Autogenerated from chart metadata using <a href="https://github.com/norwoodj/helm-docs/releases/v1.14.2">helm-docs v1.14.2</a></p>
 
 
 
@@ -1766,10 +2009,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

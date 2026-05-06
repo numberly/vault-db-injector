@@ -8,29 +8,35 @@
       
       
       
+        <link rel="canonical" href="https://numberly.github.io/vault-db-injector/fr/getting-started/install-injector/">
       
+      
+        <link rel="prev" href="../vault-policies/">
+      
+      
+        <link rel="next" href="../first-injected-pod/">
       
       
         
-          <link rel="alternate" href="/vault-db-injector/reference/metrics/" hreflang="en">
+          <link rel="alternate" href="../../../getting-started/install-injector/" hreflang="en">
         
-          <link rel="alternate" href="/vault-db-injector/fr/reference/metrics/" hreflang="fr">
+          <link rel="alternate" href="./" hreflang="fr">
         
       
       
-      <link rel="icon" href="/vault-db-injector/assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Vault DB Injector Documentation</title>
+        <title>Installer l'injector - Vault DB Injector Documentation</title>
       
     
     
-      <link rel="stylesheet" href="/vault-db-injector/assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="/vault-db-injector/assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -43,7 +49,7 @@
       
     
     
-    <script>__md_scope=new URL("/vault-db-injector/",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -65,6 +71,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#installer-linjector" class="md-skip">
+          Aller au contenu
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -75,7 +86,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="En-tête">
-    <a href="/vault-db-injector/fr/" title="Vault DB Injector Documentation" class="md-header__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
+    <a href="../../" title="Vault DB Injector Documentation" class="md-header__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2zm-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3"/></svg>
@@ -95,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              Installer l'injector
             
           </span>
         </div>
@@ -116,13 +127,13 @@
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="/vault-db-injector/reference/metrics/" hreflang="en" class="md-select__link">
+            <a href="../../../getting-started/install-injector/" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
         
           <li class="md-select__item">
-            <a href="/vault-db-injector/fr/reference/metrics/" hreflang="fr" class="md-select__link">
+            <a href="./" hreflang="fr" class="md-select__link">
               Français
             </a>
           </li>
@@ -206,7 +217,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="/vault-db-injector/fr/" class="md-tabs__link">
+      <a href="../../" class="md-tabs__link">
         
   
   
@@ -223,11 +234,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="/vault-db-injector/fr/getting-started/overview/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
           
   
   
@@ -249,7 +262,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="/vault-db-injector/fr/developers/annotations/" class="md-tabs__link">
+        <a href="../../developers/annotations/" class="md-tabs__link">
           
   
   
@@ -271,7 +284,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="/vault-db-injector/fr/operators/architecture/" class="md-tabs__link">
+        <a href="../../operators/architecture/" class="md-tabs__link">
           
   
   
@@ -293,7 +306,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="/vault-db-injector/fr/contributors/build-from-source/" class="md-tabs__link">
+        <a href="../../contributors/build-from-source/" class="md-tabs__link">
           
   
   
@@ -315,7 +328,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="/vault-db-injector/fr/reference/glossary/" class="md-tabs__link">
+        <a href="../../reference/glossary/" class="md-tabs__link">
           
   
   
@@ -353,7 +366,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/vault-db-injector/fr/" title="Vault DB Injector Documentation" class="md-nav__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
+    <a href="../../" title="Vault DB Injector Documentation" class="md-nav__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2zm-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3"/></svg>
@@ -383,7 +396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/" class="md-nav__link">
+      <a href="../../" class="md-nav__link">
         
   
   
@@ -407,8 +420,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -432,21 +447,22 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -464,7 +480,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -482,7 +498,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/getting-started/overview/" class="md-nav__link">
+      <a href="../overview/" class="md-nav__link">
         
   
   
@@ -510,7 +526,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/getting-started/prerequisites/" class="md-nav__link">
+      <a href="../prerequisites/" class="md-nav__link">
         
   
   
@@ -538,7 +554,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/getting-started/setup-kubernetes/" class="md-nav__link">
+      <a href="../setup-kubernetes/" class="md-nav__link">
         
   
   
@@ -566,7 +582,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/getting-started/setup-vault/" class="md-nav__link">
+      <a href="../setup-vault/" class="md-nav__link">
         
   
   
@@ -594,7 +610,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/getting-started/setup-database/" class="md-nav__link">
+      <a href="../setup-database/" class="md-nav__link">
         
   
   
@@ -622,7 +638,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/getting-started/vault-policies/" class="md-nav__link">
+      <a href="../vault-policies/" class="md-nav__link">
         
   
   
@@ -647,10 +663,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/getting-started/install-injector/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installer l'injector
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -666,6 +709,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation-helm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation Helm
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ce-que-le-chart-provisionne" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ce que le chart provisionne
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vérifier
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#suivant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suivant
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -678,7 +785,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/getting-started/first-injected-pod/" class="md-nav__link">
+      <a href="../first-injected-pod/" class="md-nav__link">
         
   
   
@@ -777,7 +884,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/developers/annotations/" class="md-nav__link">
+      <a href="../../developers/annotations/" class="md-nav__link">
         
   
   
@@ -805,7 +912,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/developers/injection-modes/" class="md-nav__link">
+      <a href="../../developers/injection-modes/" class="md-nav__link">
         
   
   
@@ -833,7 +940,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/developers/examples/" class="md-nav__link">
+      <a href="../../developers/examples/" class="md-nav__link">
         
   
   
@@ -861,7 +968,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/developers/troubleshooting/" class="md-nav__link">
+      <a href="../../developers/troubleshooting/" class="md-nav__link">
         
   
   
@@ -966,7 +1073,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/operators/architecture/" class="md-nav__link">
+      <a href="../../operators/architecture/" class="md-nav__link">
         
   
   
@@ -994,7 +1101,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/operators/components/" class="md-nav__link">
+      <a href="../../operators/components/" class="md-nav__link">
         
   
   
@@ -1022,7 +1129,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/operators/security/" class="md-nav__link">
+      <a href="../../operators/security/" class="md-nav__link">
         
   
   
@@ -1050,7 +1157,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/operators/monitoring/" class="md-nav__link">
+      <a href="../../operators/monitoring/" class="md-nav__link">
         
   
   
@@ -1078,7 +1185,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/operators/operations/" class="md-nav__link">
+      <a href="../../operators/operations/" class="md-nav__link">
         
   
   
@@ -1106,7 +1213,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/operators/legacy-webhook-mode/" class="md-nav__link">
+      <a href="../../operators/legacy-webhook-mode/" class="md-nav__link">
         
   
   
@@ -1134,7 +1241,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/operators/migration-v2-to-v3/" class="md-nav__link">
+      <a href="../../operators/migration-v2-to-v3/" class="md-nav__link">
         
   
   
@@ -1233,7 +1340,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/contributors/build-from-source/" class="md-nav__link">
+      <a href="../../contributors/build-from-source/" class="md-nav__link">
         
   
   
@@ -1261,7 +1368,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/contributors/contributing/" class="md-nav__link">
+      <a href="../../contributors/contributing/" class="md-nav__link">
         
   
   
@@ -1289,7 +1396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/contributors/comparison/" class="md-nav__link">
+      <a href="../../contributors/comparison/" class="md-nav__link">
         
   
   
@@ -1317,7 +1424,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/contributors/architecture-deep-dive/" class="md-nav__link">
+      <a href="../../contributors/architecture-deep-dive/" class="md-nav__link">
         
   
   
@@ -1416,7 +1523,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/reference/glossary/" class="md-nav__link">
+      <a href="../../reference/glossary/" class="md-nav__link">
         
   
   
@@ -1444,7 +1551,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/reference/configuration/" class="md-nav__link">
+      <a href="../../reference/configuration/" class="md-nav__link">
         
   
   
@@ -1472,7 +1579,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/reference/helm-values/" class="md-nav__link">
+      <a href="../../reference/helm-values/" class="md-nav__link">
         
   
   
@@ -1500,7 +1607,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/vault-db-injector/fr/reference/metrics/" class="md-nav__link">
+      <a href="../../reference/metrics/" class="md-nav__link">
         
   
   
@@ -1541,8 +1648,120 @@
               
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+  
+  
+
+
+<h1 id="installer-linjector">Installer l'injector</h1>
+<p><strong>Audience:</strong> Opérateur de plateforme</p>
+<h2 id="installation-helm">Installation Helm</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>--install<span class="w"> </span>vault-db-injector<span class="w"> </span>./helm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>--namespace<span class="w"> </span>vault-db-injector<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.vaultAddress<span class="o">=</span>https://vault.example.com:8200<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.vaultAuthPath<span class="o">=</span>kubernetes<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.kubeRole<span class="o">=</span>vault-db-injector<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.useProjectedSA<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.tokenRequestAudiences<span class="o">=</span><span class="s1">&#39;{vault}&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span>--set<span class="w"> </span>nri.enabled<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span>--set<span class="w"> </span>nri.pluginIndex<span class="o">=</span><span class="m">10</span>
+</code></pre></div>
+<p>Remplacez <code>https://vault.example.com:8200</code> par votre adresse Vault ou OpenBao. Toutes les autres valeurs correspondent aux noms d'exemple utilisés dans <a href="../vault-policies/">Politiques et rôles Vault</a>.</p>
+<p>Pour la liste complète des values du chart, des défauts et la documentation
+par clé, consultez la <a href="../../reference/helm-values/">référence des Helm values</a>
+— auto-générée depuis <code>helm/values.yml</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Avec <code>useProjectedSA: true</code>, <code>tokenRequestAudiences</code> doit être non vide. Le binaire refuse de démarrer si cette valeur est vide — cela prévient une dégradation silencieuse de la sécurité où le token d'un pod pourrait être réutilisé entre services.</p>
+</div>
+<h2 id="ce-que-le-chart-provisionne">Ce que le chart provisionne</h2>
+<p>Quand <code>useProjectedSA: true</code> et <code>nri.enabled: true</code>, le chart crée :</p>
+<table>
+<thead>
+<tr>
+<th>Objet</th>
+<th>Nom</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ServiceAccount</td>
+<td><code>vault-db-injector</code></td>
+<td>Identité du webhook et du plugin NRI de l'injector</td>
+</tr>
+<tr>
+<td>ServiceAccount</td>
+<td><code>vault-db-injector-renewer</code></td>
+<td>Identité du Deployment renewer</td>
+</tr>
+<tr>
+<td>ServiceAccount</td>
+<td><code>vault-db-injector-revoker</code></td>
+<td>Identité du Deployment revoker</td>
+</tr>
+<tr>
+<td>ClusterRole + binding</td>
+<td><code>vault-db-injector-token</code></td>
+<td>Accorde au ServiceAccount de l'injector <code>create</code> sur <code>serviceaccounts/token</code> (nécessaire pour émettre des JWT TokenRequest par pod)</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td><code>vault-db-injector</code></td>
+<td>Serveur webhook (2 réplicas par défaut)</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td><code>vault-db-injector-renewer</code></td>
+<td>Renouvellement périodique des tokens et baux (4 réplicas)</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td><code>vault-db-injector-revoker</code></td>
+<td>Revoker à surveillance des pods avec balayage de filet de sécurité (4 réplicas)</td>
+</tr>
+<tr>
+<td>DaemonSet</td>
+<td><code>vault-db-injector-nri</code></td>
+<td>Plugin NRI local au nœud (1 pod par nœud)</td>
+</tr>
+<tr>
+<td>MutatingWebhookConfiguration</td>
+<td><code>vault-db-injector</code></td>
+<td>Intercepte les pods avec le label <code>vault-db-injector: "true"</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="verifier">Vérifier</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>vault-db-injector<span class="w"> </span>get<span class="w"> </span>pods
+</code></pre></div>
+<p>Résultat attendu : 2 pods injector, 4 pods renewer, 4 pods revoker, et 1 pod NRI par nœud — tous <code>Ready</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>vault-db-injector<span class="w"> </span>logs<span class="w"> </span>deployment/vault-db-injector<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;(starting webhook|vault login)&quot;</span>
+</code></pre></div>
+<p>Lignes de sortie attendues :
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>starting webhook server on :8443
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>vault login successful role=vault-db-injector
+</code></pre></div></p>
+<p>Si le plugin NRI échoue à s'enregistrer, vérifiez les logs containerd sur le nœud :</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>containerd<span class="w"> </span>--since<span class="w"> </span><span class="s2">&quot;5 minutes ago&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>nri
+</code></pre></div>
+<h2 id="suivant">Suivant</h2>
+<p><a href="../first-injected-pod/">Premier pod injecté</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -1596,10 +1815,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "/vault-db-injector/", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "/vault-db-injector/assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
     
     
-      <script src="/vault-db-injector/assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

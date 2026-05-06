@@ -1,0 +1,2478 @@
+
+<!doctype html>
+<html lang="fr" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://numberly.github.io/vault-db-injector/fr/operators/migration-v2-to-v3/">
+      
+      
+        <link rel="prev" href="../legacy-webhook-mode/">
+      
+      
+        <link rel="next" href="../../contributors/build-from-source/">
+      
+      
+        
+          <link rel="alternate" href="../../../operators/migration-v2-to-v3/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="fr">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Migration de v2.x vers v3.0 - Vault DB Injector Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#migration-de-v2x-vers-v30" class="md-skip">
+          Aller au contenu
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="En-tête">
+    <a href="../../" title="Vault DB Injector Documentation" class="md-header__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2zm-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Vault DB Injector Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Migration de v2.x vers v3.0
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sélectionner la langue">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../operators/migration-v2-to-v3/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Rechercher" placeholder="Rechercher" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Recherche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Effacer" aria-label="Effacer" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initialisation de la recherche
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/numberly/vault-db-injector" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Onglets" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Accueil
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Démarrage rapide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../developers/annotations/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Pour les développeurs
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Pour les opérateurs
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../contributors/build-from-source/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Pour les contributeurs
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/glossary/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Référence
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="Vault DB Injector Documentation" class="md-nav__button md-logo" aria-label="Vault DB Injector Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2zm-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3"/></svg>
+
+    </a>
+    Vault DB Injector Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/numberly/vault-db-injector" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accueil
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Démarrage rapide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Démarrage rapide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vue d'ensemble
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/prerequisites/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prérequis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/setup-kubernetes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration : Cluster Kubernetes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/setup-vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration : Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/setup-database/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration : Base de données
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/vault-policies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Politiques et rôles Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/install-injector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installer l'injector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/first-injected-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Premier pod injecté
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pour les développeurs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pour les développeurs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developers/annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developers/injection-modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modes d'injection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developers/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exemples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developers/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dépannage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pour les opérateurs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pour les opérateurs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sécurité
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Opérations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../legacy-webhook-mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mode legacy webhook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration de v2.x vers v3.0
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration de v2.x vers v3.0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TL;DR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pourquoi-migrer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pourquoi migrer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#changements-incompatibles-liste-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changements incompatibles (liste complète)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changements incompatibles (liste complète)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#b1-noms-de-metriques-vault_injector_-vdbi_" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B1. Noms de métriques — vault_injector_* → vdbi_*
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b2-modifications-du-chart-helm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B2. Modifications du chart Helm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b3-ajouts-au-schema-de-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B3. Ajouts au schéma de configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b4-canigetroles-ignore-en-mode-projected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B4. CanIGetRoles ignoré en mode projected
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b5-double-identite-vault-en-mode-projected-sa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B5. Double identité Vault en mode projected-SA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b6-multi-dbconfiguration-en-mode-nri-desormais-fonctionnel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B6. Multi-dbConfiguration en mode NRI désormais fonctionnel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b7-separation-des-responsabilites-renewer-revoker-mode-projected-sa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B7. Séparation des responsabilités renewer / revoker (mode projected-SA)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b8-le-defaut-du-chart-vaultsecretname-passe-a-vault-db-injector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B8. Le défaut du chart vaultSecretName passe à vault-db-injector
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ce-qui-ne-change-pas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ce qui ne change PAS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checklist-pre-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checklist pré-migration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#etapes-de-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Étapes de migration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Étapes de migration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#etape-1-mettre-a-jour-les-tableaux-de-bord-et-alertes-avant-la-mise-a-niveau-du-chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Étape 1 — Mettre à jour les tableaux de bord et alertes (AVANT la mise à niveau du chart)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etape-2-mettre-a-niveau-le-chart-avec-les-flags-desactives-pas-de-changement-de-comportement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Étape 2 — Mettre à niveau le chart avec les flags DÉSACTIVÉS (pas de changement de comportement)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etape-3-optionnel-activer-le-mode-nri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Étape 3 (optionnel) — Activer le mode NRI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etape-4-optionnel-activer-le-mode-projected-sa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Étape 4 (optionnel) — Activer le mode projected-SA
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#depannage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dépannage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Référence
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pour les contributeurs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pour les contributeurs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributors/build-from-source/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construire depuis les sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributors/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contribuer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributors/comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparaison du projet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributors/architecture-deep-dive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture en profondeur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Référence
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Référence
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossaire
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Référence de configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/helm-values/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Helm values reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Référence des métriques
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="migration-de-v2x-vers-v30">Migration de v2.x vers v3.0</h1>
+<p><strong>Audience:</strong> Opérateur de plateforme</p>
+<blockquote>
+<p>⚠️ <strong>v3.0 est une release avec changements incompatibles.</strong> Lisez l'intégralité
+de ce document avant de mettre à jour. Prévoyez une fenêtre de maintenance si
+vous avez des tableaux de bord ou des alertes qui référencent les anciens noms
+de métriques.</p>
+</blockquote>
+<h2 id="tldr">TL;DR</h2>
+<p>Trois choses changent entre la v2.x (<code>main</code> actuel) et la v3.0 :</p>
+<ol>
+<li><strong>Deux nouveaux modes d'injection</strong> s'ajoutent au webhook mutant legacy :
+   le <strong>mode plugin NRI</strong> (identifiants résolus à la création du conteneur,
+   pas de clair dans le PodSpec), et le <strong>mode auth Vault projected-SA</strong>
+   (identité par pod, attestation Vault native, injector au moindre privilège).
+   Les deux sont des feature flags opt-in. Le flux legacy du webhook reste
+   inchangé quand les flags sont désactivés.</li>
+<li><strong>Tous les noms de métriques Prometheus</strong> ont été renommés du préfixe
+   <code>vault_injector_*</code> vers <code>vdbi_*</code>. Les tableaux de bord, règles d'alerte et
+   règles d'enregistrement DOIVENT être mis à jour avant la mise à niveau, sans
+   quoi vous perdez toute visibilité.</li>
+<li><strong>Les valeurs Helm intègrent de nouvelles clés</strong> (<code>useProjectedSA</code>,
+   <code>nri.enabled</code>, etc.) et <strong>provisionnent conditionnellement</strong> de nouveaux RBAC
+   et ServiceAccounts. Les valeurs par défaut préservent un comportement
+   bit-identique à la v2.x.</li>
+</ol>
+<hr />
+<h2 id="pourquoi-migrer">Pourquoi migrer</h2>
+<table>
+<thead>
+<tr>
+<th>Capacité</th>
+<th>v2.x</th>
+<th>v3.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identité du pod attestée par Vault</td>
+<td>❌ vérification en interne (<code>CanIGetRoles</code>)</td>
+<td>✅ native via <code>bound_service_account_names</code></td>
+</tr>
+<tr>
+<td>Rayon d'impact de l'injector si compromis</td>
+<td>large (peut émettre des identifiants pour tout rôle DB)</td>
+<td>limité au rôle du pod uniquement (en mode projected)</td>
+</tr>
+<tr>
+<td>Identifiants au repos dans le PodSpec</td>
+<td>variables d'environnement en clair</td>
+<td>mode NRI optionnel résout à la création du conteneur, sans clair</td>
+</tr>
+<tr>
+<td>Politiques renewer / revoker</td>
+<td>partagées avec l'injector (larges)</td>
+<td>ServiceAccounts dédiés + politiques Vault minimales (en mode projected)</td>
+</tr>
+<tr>
+<td>Contrainte d'audience sur TokenRequest</td>
+<td>n/a</td>
+<td>configurable par rôle Vault</td>
+</tr>
+<tr>
+<td>Observabilité</td>
+<td>compteurs + jauge leader</td>
+<td>+ 4 nouvelles métriques (erreurs TokenRequest, raisons d'erreur de login Vault, mauvaise config de rôle, jauge audience non contrainte)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Vous DEVRIEZ migrer si</strong> l'un des cas suivants s'applique :
+- Votre modèle de menace traite l'injector comme un point unique de compromission privilégié
+- Vous souhaitez que les journaux d'audit Vault attribuent l'émission des identifiants au
+  ServiceAccount du pod réel, et non à celui de l'injector
+- Vous souhaitez sortir les identifiants du PodSpec en clair (mode NRI)</p>
+<p><strong>Vous pouvez rester en v2.x si</strong> vous êtes satisfait du modèle de confiance actuel
+et n'avez pas le temps de mettre à jour tableaux de bord et alertes.</p>
+<hr />
+<h2 id="changements-incompatibles-liste-complete">Changements incompatibles (liste complète)</h2>
+<h3 id="b1-noms-de-metriques-vault_injector_-vdbi_">B1. Noms de métriques — <code>vault_injector_*</code> → <code>vdbi_*</code></h3>
+<p>Chaque métrique a été renommée par substitution de préfixe. Même comportement,
+mêmes labels, nouveau nom. Renommage à la volée.</p>
+<p>Le tableau de correspondance complet (39 noms de métriques) :</p>
+<table>
+<thead>
+<tr>
+<th>Nom v2.x</th>
+<th>Nom v3.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vault_injector_renew_token_count_success</code></td>
+<td><code>vdbi_renew_token_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_renew_token_count_error</code></td>
+<td><code>vdbi_renew_token_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_renew_lease_count_success</code></td>
+<td><code>vdbi_renew_lease_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_renew_lease_count_error</code></td>
+<td><code>vdbi_renew_lease_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_revoke_token_count_success</code></td>
+<td><code>vdbi_revoke_token_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_revoke_token_count_error</code></td>
+<td><code>vdbi_revoke_token_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_token_expiration</code></td>
+<td><code>vdbi_token_expiration</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_lease_expiration</code></td>
+<td><code>vdbi_lease_expiration</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_synchronization_count_success</code></td>
+<td><code>vdbi_synchronization_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_synchronization_count_error</code></td>
+<td><code>vdbi_synchronization_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_pod_cleanup_count_success</code></td>
+<td><code>vdbi_pod_cleanup_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_pod_cleanup_count_error</code></td>
+<td><code>vdbi_pod_cleanup_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_last_synchronization_success</code></td>
+<td><code>vdbi_last_synchronization_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_orphan_ticket_created_count_success</code></td>
+<td><code>vdbi_orphan_ticket_created_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_orphan_ticket_created_count_error</code></td>
+<td><code>vdbi_orphan_ticket_created_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_store_data_count_success</code></td>
+<td><code>vdbi_store_data_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_store_data_count_error</code></td>
+<td><code>vdbi_store_data_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_delete_data_count_success</code></td>
+<td><code>vdbi_delete_data_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_delete_data_count_error</code></td>
+<td><code>vdbi_delete_data_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_connect_vault_count_success</code></td>
+<td><code>vdbi_connect_vault_count_success</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_connect_vault_count_error</code></td>
+<td><code>vdbi_connect_vault_count_error</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_service_account_authorized_count</code></td>
+<td><code>vdbi_service_account_authorized_count</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_service_account_denied_count</code></td>
+<td><code>vdbi_service_account_denied_count</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_last_synchronization_duration</code></td>
+<td><code>vdbi_last_synchronization_duration</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_is_leader</code></td>
+<td><code>vdbi_is_leader</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_leader_election_attempts_total</code></td>
+<td><code>vdbi_leader_election_attempts_total</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_leader_election_duration_seconds</code></td>
+<td><code>vdbi_leader_election_duration_seconds</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_fetch_pods_success_count</code></td>
+<td><code>vdbi_fetch_pods_success_count</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_fetch_pods_error_count</code></td>
+<td><code>vdbi_fetch_pods_error_count</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_mutated_pods_success_count</code></td>
+<td><code>vdbi_mutated_pods_success_count</code></td>
+</tr>
+<tr>
+<td><code>vault_injector_mutated_pods_error_count</code></td>
+<td><code>vdbi_mutated_pods_error_count</code></td>
+</tr>
+</tbody>
+</table>
+<p>Nouvelles métriques en v3.0 (sans équivalent v2.x) :</p>
+<table>
+<thead>
+<tr>
+<th>Nouvelle métrique</th>
+<th>Type</th>
+<th>Objet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vdbi_nri_substitutions_total</code></td>
+<td>counter</td>
+<td>Plugin NRI a substitué l'environnement à CreateContainer</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_unwrap_failures_total{reason}</code></td>
+<td>counter</td>
+<td>Plugin NRI n'a pas pu récupérer un identifiant</td>
+</tr>
+<tr>
+<td><code>vdbi_token_request_errors_total{reason}</code></td>
+<td>counter</td>
+<td>TokenRequest Kubernetes a échoué (mode projected)</td>
+</tr>
+<tr>
+<td><code>vdbi_vault_login_errors_total{reason,auth_mode}</code></td>
+<td>counter</td>
+<td>Login Vault échoué ; <code>auth_mode</code> est <code>legacy</code> ou <code>projected</code></td>
+</tr>
+<tr>
+<td><code>vdbi_projected_role_misconfigured_total{role}</code></td>
+<td>counter</td>
+<td>Un rôle Vault utilisé en mode projected est sans <code>token_period &gt; 0</code></td>
+</tr>
+<tr>
+<td><code>vdbi_nri_resolve_duplicate_total</code></td>
+<td>counter</td>
+<td>Appels <code>resolveMapping</code> concurrents fusionnés via singleflight. Doit rester proche de 0 ; les pics indiquent une race sidecar/main correctement évitée.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Migration</strong> : voir "Mise à jour des tableaux de bord et alertes" ci-dessous pour une recette <code>sed</code> automatisée.</p>
+<h3 id="b2-modifications-du-chart-helm">B2. Modifications du chart Helm</h3>
+<p>Le chart crée <strong>toujours</strong> les ServiceAccounts <code>&lt;release&gt;-renewer</code> et
+<code>&lt;release&gt;-revoker</code> et lie les pods renewer/revoker existants à ceux-ci
+quand <code>useProjectedSA: true</code>. Quand <code>useProjectedSA: false</code> (défaut), ces
+ServiceAccounts ne sont pas créés et la topologie mono-SA existante est
+préservée — bit-identique à la v2.x.</p>
+<h3 id="b3-ajouts-au-schema-de-configuration">B3. Ajouts au schéma de configuration</h3>
+<p>Nouvelles clés sous <code>vaultDbInjector.configuration</code> :</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">useProjectedSA</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">                    </span><span class="c1"># default false</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">tokenRequestAudiences</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span><span class="w">                </span><span class="c1"># default empty</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">tokenRequestExpirationSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">600</span><span class="w">       </span><span class="c1"># default 600s (apiserver minimum)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">kubeRoleNri</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="w">                          </span><span class="c1"># optional override; falls back to kubeRole</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">kubeRoleRenewer</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="w">                      </span><span class="c1"># optional override; falls back to kubeRole</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">kubeRoleRevoker</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="w">                      </span><span class="c1"># optional override; falls back to kubeRole</span>
+</code></pre></div>
+<p>Plus l'ensemble du bloc <code>nri:</code> de niveau supérieur (voir <a href="../security/">modèle de sécurité NRI</a>).
+Les valeurs par défaut gardent toutes les nouvelles fonctionnalités DÉSACTIVÉES.</p>
+<blockquote>
+<p>⚠️ <strong>Validation bloquante</strong> : lorsque <code>useProjectedSA: true</code> est défini, le
+binaire refuse désormais de démarrer si <code>tokenRequestAudiences</code> est vide.
+Une audience vide désactive la contrainte d'usurpation d'identité SA
+cryptographique (tout porteur JWT peut présenter le token de n'importe quel
+ServiceAccount à n'importe quel service qui ne vérifie pas strictement
+l'audience), annulant l'objectif de sécurité du mode projected. Définissez
+<code>tokenRequestAudiences: ["vault"]</code> (ou le nom d'audience correspondant)
+avant d'activer le flag.</p>
+</blockquote>
+<h3 id="b4-canigetroles-ignore-en-mode-projected">B4. CanIGetRoles ignoré en mode projected</h3>
+<p>Lorsque <code>useProjectedSA: true</code>, la vérification <code>CanIGetRoles</code> en interne
+<strong>n'est pas</strong> invoquée car Vault effectue l'attestation équivalente nativement
+au moment du login. En mode legacy (<code>useProjectedSA: false</code>), <code>CanIGetRoles</code>
+est inchangé.</p>
+<h3 id="b5-double-identite-vault-en-mode-projected-sa">B5. Double identité Vault en mode projected-SA</h3>
+<p>En mode projected-SA, l'injector détient deux tokens Vault distincts par
+récupération d'identifiants de pod : le pod-token (émis via le TokenRequest du
+ServiceAccount projected du pod, utilisé pour <code>database/creds</code>) et le token de
+bookkeeping (<code>K8sSaVaultToken</code>, émis via le ServiceAccount propre de l'injector,
+utilisé pour les écritures KV et la gestion des baux). Les chemins de nettoyage
+utilisent <code>conn.GetToken()</code> pour le pod-token et <code>conn.K8sSaVaultToken</code> pour le
+token de bookkeeping. Les opérateurs externes et les importateurs hors-arbre de
+<code>pkg/vault</code> doivent utiliser ces accesseurs ; le champ déprécié <code>PodVaultToken</code>
+a été supprimé.</p>
+<h3 id="b6-multi-dbconfiguration-en-mode-nri-desormais-fonctionnel">B6. Multi-dbConfiguration en mode NRI désormais fonctionnel</h3>
+<p>Auparavant, les pods avec plusieurs annotations <code>db-creds-injector.numberly.io/role-N</code>
+en mode NRI ne voyaient résolue que leur <strong>première</strong> paire d'identifiants
+dbConfig ; toutes les autres paires de placeholders restaient non substituées
+(l'application plantait avec un placeholder littéral comme mot de passe).</p>
+<p>C'est corrigé : le webhook inscrit désormais un UUID par dbConfig dans
+l'annotation <code>db-creds-injector.numberly.io/uuid</code>, et le plugin NRI itère
+tous les dbConfigs en utilisant ces UUIDs comme clés KV distinctes.</p>
+<p><strong>Comportement à la mise à niveau</strong> : les pods admis avant cette mise à niveau
+ne portent pas l'annotation UUID. Le plugin NRI retombe sur l'UID du pod pour
+le premier dbConfig uniquement (préservant le comportement mono-dbConfig). Les
+pods avec plusieurs dbConfigs doivent être relancés après la mise à niveau pour
+que l'annotation UUID soit inscrite pour tous les dbConfigs.</p>
+<h3 id="b7-separation-des-responsabilites-renewer-revoker-mode-projected-sa">B7. Séparation des responsabilités renewer / revoker (mode projected-SA)</h3>
+<p>La logique de nettoyage filet-de-sécurité du renewer (révocation + suppression
+KV des entrées orphelines pour les pods qui n'existent plus) a été déplacée vers
+le revoker sous la forme d'un ticker périodique (intervalle de 5 minutes). Deux
+conséquences :</p>
+<ol>
+<li>
+<p>La <strong>politique Vault du renewer</strong> est désormais strictement minimale : lecture
+   sur KV + <code>auth/token/renew</code> + <code>sys/leases/renew</code> + <code>auth/token/renew-self</code> +
+   <code>sys/health</code>. Elle n'a notamment plus besoin de <code>auth/token/revoke-orphan</code>
+   ni de <code>delete</code> KV. Si vous avez précédemment accordé la politique plus large
+   en suivant une version antérieure de la documentation, il est sûr (et
+   recommandé) de révoquer les capacités supplémentaires.</p>
+</li>
+<li>
+<p>La <strong>politique Vault du revoker</strong> nécessite désormais <code>sys/leases/lookup</code>
+   (utilisé pour récupérer les métadonnées de bail lors du balayage de filet de
+   sécurité). Ajoutez cette capacité à votre politique <code>vault-db-revoker</code> avant
+   la mise à niveau.</p>
+</li>
+</ol>
+<p>Voir <a href="../../getting-started/vault-policies/">Vault policies</a> §2b (renewer) et §2c (revoker)
+pour les blocs de politique exacts.</p>
+<h3 id="b8-le-defaut-du-chart-vaultsecretname-passe-a-vault-db-injector">B8. Le défaut du chart <code>vaultSecretName</code> passe à <code>vault-db-injector</code></h3>
+<p>Le défaut Helm pour <code>vaultDbInjector.configuration.vaultSecretName</code> est passé
+de <code>vault-injector</code> à <code>vault-db-injector</code> pour s'aligner sur le nom de l'outil
+lui-même. <strong>Ceci est breaking</strong> pour tout déploiement qui n'overridait pas la
+valeur : le chemin du mount KV que l'injector lit et écrit change de
+<code>vault-injector/data/&lt;cluster&gt;/&lt;uuid&gt;</code> à <code>vault-db-injector/data/&lt;cluster&gt;/&lt;uuid&gt;</code>,
+et les entrées de bookkeeping existantes deviennent invisibles pour la nouvelle
+release.</p>
+<p>Deux façons de gérer :</p>
+<ol>
+<li>
+<p><strong>Figer l'ancienne valeur (sans interruption, sans changement Vault)</strong> —
+   définissez <code>vaultDbInjector.configuration.vaultSecretName: vault-injector</code>
+   dans votre fichier de values avant la mise à niveau. Les données existantes
+   restent là où elles sont, aucun changement de chemin de policy nécessaire.</p>
+</li>
+<li>
+<p><strong>Migrer vers le nouveau défaut (opération Vault unique)</strong> — drainez le
+   travail en cours, puis déplacez le mount KV avec
+   <code>vault secrets move vault-injector vault-db-injector</code> et mettez à jour
+   chaque politique Vault qui référence <code>vault-injector/{data,metadata}/...</code>
+   pour pointer vers le nouveau chemin. Prévoyez une brève fenêtre de
+   maintenance — les pods admis pendant le move échoueront à écrire le
+   bookkeeping.</p>
+</li>
+</ol>
+<p>L'option 1 est le chemin recommandé pour une mise à niveau in-place. L'option 2
+s'adresse aux opérateurs qui veulent explicitement la cohérence de nommage
+entre l'outil, la release du chart, et le mount KV.</p>
+<hr />
+<h2 id="ce-qui-ne-change-pas">Ce qui ne change PAS</h2>
+<ul>
+<li>Toutes les annotations sur les pods utilisateurs (<code>db-creds-injector.numberly.io/*</code>).</li>
+<li>La structure KV Vault pour les informations de bail/token stockées.</li>
+<li>Le comportement du renewer / revoker sur les baux existants.</li>
+<li>L'URL du webhook mutant, le bootstrap des certificats, la NetworkPolicy.</li>
+<li>Les valeurs Helm par défaut (webhook legacy + variables d'environnement en clair, sauf si les flags sont activés).</li>
+</ul>
+<p>Un cluster v2.x mis à niveau vers la v3.0 <strong>sans modification de valeurs</strong> exécute
+exactement le même flux qu'auparavant, avec le même comportement observable
+hormis les noms de métriques.</p>
+<hr />
+<h2 id="checklist-pre-migration">Checklist pré-migration</h2>
+<p>Avant <code>helm upgrade</code> :</p>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <strong>Inventaire des tableaux de bord</strong> : lister tous les panneaux Grafana et
+  règles Prometheus référençant les noms de métriques <code>vault_injector_*</code>.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <strong>Inventaire des alertes</strong> : idem pour les règles Alertmanager.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <strong>Décider de la topologie cible</strong> pour la v3.0 :</li>
+<li>Rester sur le webhook legacy ? Vous avez terminé — mettez simplement à jour
+    les noms de métriques.</li>
+<li>Passer au mode NRI ? Lire le <a href="../security/">modèle de sécurité NRI</a>.
+    Prérequis cluster : containerd ≥ 1.7 avec NRI activé, ou CRI-O ≥ 1.26.</li>
+<li>Passer au mode projected-SA ? Lire <a href="../../getting-started/vault-policies/">Vault policies</a>.
+    Prérequis Vault : chaque rôle k8s-auth utilisé par les pods injectés doit
+    avoir <code>token_period &gt; 0</code>, et les rôles Vault <code>&lt;release&gt;-renewer</code> /
+    <code>&lt;release&gt;-revoker</code> dédiés doivent exister avant la mise à niveau du chart.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <strong>Prévoir une fenêtre de Rollback</strong> : conserver le chart v2.x et le tag
+  d'image épinglés en cas de besoin de revenir en arrière.</li>
+</ul>
+<hr />
+<h2 id="etapes-de-migration">Étapes de migration</h2>
+<h3 id="etape-1-mettre-a-jour-les-tableaux-de-bord-et-alertes-avant-la-mise-a-niveau-du-chart">Étape 1 — Mettre à jour les tableaux de bord et alertes (AVANT la mise à niveau du chart)</h3>
+<p>Utilisez l'une des commandes suivantes :</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Tableaux de bord JSON Grafana</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/vault_injector_/vdbi_/g&#39;</span><span class="w"> </span>grafana-dashboards/*.json
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Fichiers de règles Prometheus</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/vault_injector_/vdbi_/g&#39;</span><span class="w"> </span>prometheus-rules/*.yml
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Fichiers de règles Alertmanager (quand les alertes incluent la métrique dans l&#39;expr)</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/vault_injector_/vdbi_/g&#39;</span><span class="w"> </span>alertmanager-rules/*.yml
+</code></pre></div>
+<p>Rechargez Prometheus et Alertmanager. Vérifiez que les requêtes PromQL dans
+Grafana se résolvent toujours (elles retourneront <strong>aucune donnée</strong> jusqu'au
+déploiement de la v3.0 ; c'est attendu).</p>
+<blockquote>
+<p>Note : les séries legacy <code>vault_injector_*</code> et les nouvelles <code>vdbi_*</code> ne sont
+<strong>pas</strong> émises simultanément dans la v3.0. Il n'y a pas de fenêtre de
+chevauchement. Prévoyez un bref trou d'observabilité pendant le déploiement,
+ou exécutez temporairement les tableaux de bord avec les deux noms
+(<code>vault_injector_X OR vdbi_X</code>) pendant la transition.</p>
+</blockquote>
+<h3 id="etape-2-mettre-a-niveau-le-chart-avec-les-flags-desactives-pas-de-changement-de-comportement">Étape 2 — Mettre à niveau le chart avec les flags DÉSACTIVÉS (pas de changement de comportement)</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>&lt;release&gt;<span class="w"> </span>./helm/<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--reuse-values<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">3</span>.0.0
+</code></pre></div>
+<p>Les valeurs par défaut conservent :
+- <code>vaultDbInjector.configuration.useProjectedSA: false</code>
+- <code>nri.enabled: false</code></p>
+<p>Validation :
+- Tous les pods atteignent l'état <code>Ready</code>.
+- Le renewer et le revoker continuent de renouveler/révoquer les baux existants.
+- Les nouvelles métriques <code>vdbi_*</code> commencent à se peupler.
+- Aucun pod existant n'est refusé ni perturbé.</p>
+<p>Cette étape est le point le plus sûr pour valider la mise à niveau. En cas de
+problème, voir "Rollback".</p>
+<h3 id="etape-3-optionnel-activer-le-mode-nri">Étape 3 (optionnel) — Activer le mode NRI</h3>
+<p>Si votre cluster remplit les prérequis et que vous souhaitez sortir les
+identifiants du PodSpec en clair :</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">nri</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">pluginIndex</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;10&quot;</span><span class="w">     </span><span class="c1"># must be unique per containerd instance</span>
+</code></pre></div>
+<p>Voir le <a href="../security/">modèle de sécurité NRI</a> pour la liste complète des
+prérequis, le chemin du socket NRI, et les mises en garde par runtime.
+Déployez sur un cluster à la fois et validez au moins une injection
+d'identifiants de bout en bout avant de continuer.</p>
+<h3 id="etape-4-optionnel-activer-le-mode-projected-sa">Étape 4 (optionnel) — Activer le mode projected-SA</h3>
+<p>C'est le changement le plus important et il nécessite une préparation côté Vault.
+Suivez <a href="../../getting-started/vault-policies/">Vault policies</a> pas à pas.</p>
+<p>En résumé :</p>
+<ol>
+<li>Pré-Vault : configurer <code>token_period &gt; 0</code> sur chaque rôle k8s-auth utilisé
+   par les pods injectés. Créer les rôles et politiques Vault <code>&lt;release&gt;-renewer</code>
+   et <code>&lt;release&gt;-revoker</code>.</li>
+<li>Par cluster, définir <code>vaultDbInjector.configuration.useProjectedSA: true</code>
+   dans les valeurs. Le chart provisionne alors :</li>
+<li>Le ClusterRole <code>serviceaccounts/token</code> pour le ServiceAccount de l'injector</li>
+<li>Les ServiceAccounts dédiés <code>-renewer</code> et <code>-revoker</code> et leurs bindings</li>
+<li>Les Deployments renewer/revoker basculent vers les ServiceAccounts dédiés</li>
+<li>Validation : les pods existants continuent de se renouveler normalement ;
+   les pods nouvellement admis reçoivent un token Vault dont la liste <code>policies</code>
+   ne contient que la politique de leur rôle (vérifiable via
+   <code>vault token lookup &lt;stored-tokenID&gt;</code>).</li>
+</ol>
+<blockquote>
+<p>⚠️ <strong>Important</strong> : quand vous activez <code>useProjectedSA: true</code>, le chart fait
+immédiatement basculer les Deployments renewer et revoker vers des
+ServiceAccounts dédiés (<code>&lt;release&gt;-renewer</code>, <code>&lt;release&gt;-revoker</code>).
+Les rôles Vault auth/kubernetes liés à ces ServiceAccounts DOIVENT exister
+AVANT la mise à niveau du chart, sinon les pods renewer/revoker entrent en
+crash-loop au login Vault et les baux existants expirent silencieusement au TTL.</p>
+<p>Ordre recommandé :
+1. Créer les nouveaux rôles et politiques Vault (voir <a href="../../getting-started/vault-policies/">Vault policies</a> (sections renewer + revoker))
+2. <code>helm upgrade</code> avec <code>useProjectedSA: true</code>
+3. Vérifier que les pods renewer/revoker sont en état Ready
+4. Optionnel : resserrer la politique legacy de l'injector (voir §4 de ce document)</p>
+</blockquote>
+<hr />
+<h2 id="rollback">Rollback</h2>
+<p>Le chemin legacy est préservé inconditionnellement — le Rollback est simplement un
+<code>helm rollback</code> :</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>helm<span class="w"> </span>rollback<span class="w"> </span>&lt;release&gt;<span class="w"> </span>&lt;previous-revision&gt;
+</code></pre></div>
+<p>Mises en garde :
+- Si vous avez renommé les tableaux de bord/alertes (Étape 1) avant de revenir
+  en arrière, ils ne verront aucune donnée jusqu'à ce que vous revertiez le
+  renommage ou utilisiez des requêtes duales.
+- Si vous aviez activé <code>useProjectedSA: true</code> (Étape 4) et que les rôles
+  Vault-side attendent toujours les ServiceAccounts dédiés renewer/revoker,
+  la rétrogradation laisse ces rôles Vault orphelins mais inoffensifs. Nettoyez-les
+  à votre convenance.
+- Si vous aviez activé le mode NRI (Étape 3) et que les identifiants étaient
+  injectés via NRI, ces pods continuent à avoir des identifiants valides (NRI
+  n'a pas modifié l'état Vault) — mais ils devront être relancés pour revenir
+  au mode variables d'environnement en clair si vous souhaitez le comportement
+  legacy.</p>
+<hr />
+<h2 id="depannage">Dépannage</h2>
+<table>
+<thead>
+<tr>
+<th>Symptôme après mise à niveau</th>
+<th>Cause probable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Panneau Grafana "no data"</td>
+<td>Étape 1 (renommage) omise — les tableaux de bord interrogent toujours <code>vault_injector_*</code></td>
+</tr>
+<tr>
+<td>Pods renewer en CrashLoop avec <code>permission denied</code> Vault</td>
+<td><code>useProjectedSA: true</code> mais le rôle Vault <code>&lt;release&gt;-renewer</code> n'a pas encore été créé avec <code>bound_service_account_names: &lt;release&gt;-renewer</code></td>
+</tr>
+<tr>
+<td><code>vdbi_token_request_errors_total{reason="rbac_denied"}</code> augmente</td>
+<td><code>useProjectedSA: true</code> mais le ClusterRoleBinding pour <code>serviceaccounts/token</code> n'est pas encore appliqué</td>
+</tr>
+<tr>
+<td><code>vdbi_vault_login_errors_total{reason="audience_mismatch"}</code></td>
+<td>Le rôle Vault a <code>audience="vault"</code> mais <code>tokenRequestAudiences: []</code> (ou inversement)</td>
+</tr>
+<tr>
+<td><code>vdbi_projected_role_misconfigured_total{role=…} &gt; 0</code></td>
+<td>Le rôle Vault nommé n'a pas <code>token_period</code> ; le pod-token mourra à <code>token_max_ttl</code></td>
+</tr>
+<tr>
+<td>Le pod injector ne démarre pas avec <code>tokenRequestAudiences must be set</code></td>
+<td><code>useProjectedSA: true</code> mais <code>tokenRequestAudiences: []</code>. Le chart échoue désormais au démarrage pour éviter une dégradation silencieuse de la sécurité. Définir <code>tokenRequestAudiences: ["vault"]</code> (ou votre nom d'audience) dans les valeurs.</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_resolve_duplicate_total &gt; 0</code></td>
+<td>Des sidecars ou pods multi-conteneurs ont déclenché des <code>CreateContainer</code> concurrents. Le plugin déduplique correctement via singleflight, c'est donc informatif uniquement — mais des valeurs persistamment élevées peuvent indiquer un pattern de création de pod intense méritant investigation.</td>
+</tr>
+<tr>
+<td>Pods du plugin NRI en CrashLoop</td>
+<td>Le cluster ne remplit pas les prérequis NRI (containerd &lt; 1.7 sans plugin NRI activé). Voir le <a href="../security/">modèle de sécurité NRI</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="reference">Référence</h2>
+<ul>
+<li><a href="../../getting-started/vault-policies/"><code>getting-started/vault-policies.md</code></a> — exploration approfondie de l'auth Vault projected-SA</li>
+<li><a href="../security/"><code>operators/security.md</code></a> — exploration approfondie du plugin NRI</li>
+<li><a href="../monitoring/"><code>operators/monitoring.md</code></a> — référence complète des métriques (noms v3.0)</li>
+<li><a href="../monitoring/"><code>operators/monitoring.md</code></a> — exemples de règles d'alerte (noms v3.0)</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright © 2024 Numberly
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/numberly/vault-db-injector" target="_blank" rel="noopener" title="vault-db-injector on Github" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

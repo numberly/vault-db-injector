@@ -2,240 +2,394 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
         <loc>https://numberly.github.io/vault-db-injector/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/getting-started/build/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/contributors/architecture-deep-dive/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/build/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/build/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/contributors/architecture-deep-dive/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/contributors/architecture-deep-dive/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/getting-started/comparison/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/contributors/build-from-source/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/comparison/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/contributors/build-from-source/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/contributors/build-from-source/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/getting-started/contributing/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/contributors/comparison/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/contributing/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/contributing/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/contributors/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/contributors/comparison/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/getting-started/getting-started/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/contributors/contributing/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/getting-started/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/contributors/contributing/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/contributors/contributing/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/configuration/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/developers/annotations/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/configuration/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/developers/annotations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/developers/annotations/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/healthcheck/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/developers/examples/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/healthcheck/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/healthcheck/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/developers/examples/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/developers/examples/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/how-it-work/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/developers/injection-modes/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/how-it-work/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/how-it-work/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/developers/injection-modes/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/developers/injection-modes/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/injector/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/developers/troubleshooting/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/injector/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/injector/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/developers/troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/developers/troubleshooting/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/kubernetes/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/first-injected-pod/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/kubernetes/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/kubernetes/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/first-injected-pod/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/first-injected-pod/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/leaderelection/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/install-injector/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/leaderelection/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/leaderelection/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/install-injector/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/install-injector/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/renewer/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/overview/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/renewer/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/renewer/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/overview/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/overview/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/revoker/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/prerequisites/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/revoker/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/revoker/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/prerequisites/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/prerequisites/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/how-it-works/vault/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/setup-database/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/vault/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/vault/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/setup-database/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/setup-database/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/monitoring/alertmanager/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/setup-kubernetes/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/alertmanager/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/alertmanager/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/setup-kubernetes/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/setup-kubernetes/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/monitoring/grafana/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/setup-vault/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/grafana/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/grafana/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/setup-vault/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/setup-vault/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/monitoring/prometheus/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/getting-started/vault-policies/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/prometheus/"/>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/prometheus/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/vault-policies/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/vault-policies/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/operators/architecture/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/architecture/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/operators/components/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/components/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/components/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/operators/legacy-webhook-mode/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/legacy-webhook-mode/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/legacy-webhook-mode/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/operators/migration-v2-to-v3/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/migration-v2-to-v3/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/migration-v2-to-v3/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/operators/monitoring/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/monitoring/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/monitoring/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/operators/operations/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/operations/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/operators/security/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/security/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/security/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/reference/configuration/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/reference/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/reference/configuration/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/reference/glossary/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/reference/glossary/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/reference/glossary/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/reference/helm-values/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/reference/helm-values/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/reference/helm-values/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/reference/metrics/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/reference/metrics/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/reference/metrics/"/>
     </url>
     <url>
         <loc>https://numberly.github.io/vault-db-injector/fr/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/build/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/contributors/architecture-deep-dive/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/build/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/build/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/contributors/architecture-deep-dive/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/contributors/architecture-deep-dive/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/contributors/build-from-source/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/comparison/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/contributors/build-from-source/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/contributors/build-from-source/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/contributing/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/contributors/comparison/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/contributing/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/contributing/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/contributors/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/contributors/comparison/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/getting-started/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/contributors/contributing/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/getting-started/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/contributors/contributing/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/contributors/contributing/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/configuration/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/developers/annotations/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/configuration/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/developers/annotations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/developers/annotations/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/healthcheck/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/developers/examples/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/healthcheck/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/healthcheck/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/developers/examples/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/developers/examples/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/how-it-work/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/developers/injection-modes/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/how-it-work/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/how-it-work/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/developers/injection-modes/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/developers/injection-modes/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/injector/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/developers/troubleshooting/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/injector/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/injector/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/developers/troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/developers/troubleshooting/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/kubernetes/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/first-injected-pod/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/kubernetes/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/kubernetes/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/first-injected-pod/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/first-injected-pod/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/leaderelection/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/install-injector/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/leaderelection/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/leaderelection/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/install-injector/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/install-injector/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/renewer/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/overview/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/renewer/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/renewer/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/overview/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/overview/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/revoker/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/prerequisites/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/revoker/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/revoker/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/prerequisites/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/prerequisites/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/how-it-works/vault/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/setup-database/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/how-it-works/vault/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/how-it-works/vault/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/setup-database/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/setup-database/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/monitoring/alertmanager/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/setup-kubernetes/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/alertmanager/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/alertmanager/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/setup-kubernetes/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/setup-kubernetes/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/monitoring/grafana/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/setup-vault/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/grafana/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/grafana/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/setup-vault/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/setup-vault/"/>
     </url>
     <url>
-        <loc>https://numberly.github.io/vault-db-injector/fr/monitoring/prometheus/</loc>
-        <lastmod>2026-05-02</lastmod>
+        <loc>https://numberly.github.io/vault-db-injector/fr/getting-started/vault-policies/</loc>
+        <lastmod>2026-05-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/monitoring/prometheus/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/monitoring/prometheus/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/getting-started/vault-policies/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/getting-started/vault-policies/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/operators/architecture/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/architecture/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/operators/components/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/components/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/components/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/operators/legacy-webhook-mode/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/legacy-webhook-mode/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/legacy-webhook-mode/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/operators/migration-v2-to-v3/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/migration-v2-to-v3/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/migration-v2-to-v3/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/operators/monitoring/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/monitoring/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/monitoring/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/operators/operations/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/operations/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/operators/security/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/operators/security/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/operators/security/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/reference/configuration/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/reference/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/reference/configuration/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/reference/glossary/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/reference/glossary/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/reference/glossary/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/reference/helm-values/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/reference/helm-values/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/reference/helm-values/"/>
+    </url>
+    <url>
+        <loc>https://numberly.github.io/vault-db-injector/fr/reference/metrics/</loc>
+        <lastmod>2026-05-06</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://numberly.github.io/vault-db-injector/fr/reference/metrics/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://numberly.github.io/vault-db-injector/reference/metrics/"/>
     </url>
 </urlset>
