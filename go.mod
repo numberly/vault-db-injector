@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/cockroachdb/errors v1.13.0
 	github.com/containerd/nri v0.12.0
-	github.com/getsentry/sentry-go v0.46.1
+	github.com/getsentry/sentry-go v0.46.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault v1.21.4
 	github.com/hashicorp/vault/api v1.23.0
