@@ -1539,6 +1539,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Full configuration key reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nri-plugin-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NRI plugin keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1571,6 +1588,56 @@
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nri-tuning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NRI tuning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NRI tuning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-profile-vanilla-containerd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default profile (vanilla containerd)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high-throughput-profile-vault-bursts-expected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-throughput profile (Vault bursts expected)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#diagnosing-fail-closed-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnosing fail-closed events
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1865,6 +1932,62 @@ keys that are irrelevant to a given mode are silently ignored.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="nri-plugin-keys">NRI plugin keys</h3>
+<p>The NRI DaemonSet reads its config from the same YAML schema, under the <code>nri:</code> top-level key.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nri.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Activates the NRI plugin code path. Set by Helm.</td>
+</tr>
+<tr>
+<td><code>nri.socketPath</code></td>
+<td>string</td>
+<td><code>/var/run/nri/nri.sock</code></td>
+<td>UNIX socket the plugin uses to register with containerd. Must match the host's NRI socket.</td>
+</tr>
+<tr>
+<td><code>nri.cachePath</code></td>
+<td>string</td>
+<td><code>/run/vault-db-injector/nri/cache.json</code></td>
+<td>On-disk JSON cache of unwrapped credentials. HostPath tmpfs — survives DS pod restart, cleared on node reboot.</td>
+</tr>
+<tr>
+<td><code>nri.pluginName</code></td>
+<td>string</td>
+<td><code>vault-db-injector</code> (Helm release fullname)</td>
+<td>NRI plugin name at registration. Must be unique per containerd instance — running multiple releases (prod + dev) on the same cluster requires distinct values.</td>
+</tr>
+<tr>
+<td><code>nri.pluginIndex</code></td>
+<td>string</td>
+<td><code>"10"</code></td>
+<td>NRI plugin priority (<code>stub.WithPluginIdx</code>). Must also be unique per containerd instance when multiple plugins coexist (e.g. <code>"10"</code> prod, <code>"11"</code> dev).</td>
+</tr>
+<tr>
+<td><code>nri.podLabel</code></td>
+<td>string</td>
+<td><code>vault-db-injector</code></td>
+<td>Pod label key the plugin filters on. Pods missing this label (or value <code>!= "true"</code>) are ignored. With multiple releases, set this to the release-specific label the matching webhook's <code>objectSelector</code> uses. Empty disables the filter.</td>
+</tr>
+<tr>
+<td><code>nri.fetchTimeout</code></td>
+<td>duration</td>
+<td><code>1500ms</code></td>
+<td>Vault credential fetch timeout per <code>CreateContainer</code> event. <strong>MUST be strictly less than containerd's <code>plugin_request_timeout</code></strong> (containerd default: <code>2s</code>). See <a href="#nri-tuning">NRI tuning</a> below.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="example-injector-config">Example: injector config</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">certFile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/tls/tls.crt</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">keyFile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/tls/tls.key</span>
@@ -1915,6 +2038,109 @@ The binary refuses to start and logs a fatal error if this constraint
 is violated. Set at least <code>["vault"]</code> and configure a matching <code>audience</code>
 on each Vault <code>auth/kubernetes</code> role.</p>
 </div>
+<h2 id="nri-tuning">NRI tuning</h2>
+<p>The NRI plugin runs as a DaemonSet and intercepts every <code>CreateContainer</code>
+event on its node. For each labelled pod with placeholders in env, it
+synchronously fetches credentials from Vault and returns the substituted
+env to containerd. Two timeouts interact here:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Setting</th>
+<th>Default</th>
+<th>Behavior on timeout</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>containerd</td>
+<td><code>plugin_request_timeout</code> (in <code>/etc/containerd/config.toml</code>)</td>
+<td><code>2s</code></td>
+<td><strong>Fail-open</strong>: containerd abandons the NRI call and starts the container with the unmodified env (placeholders leak).</td>
+</tr>
+<tr>
+<td>vault-db-injector</td>
+<td><code>nri.fetchTimeout</code></td>
+<td><code>1500ms</code></td>
+<td><strong>Fail-closed</strong>: the plugin returns an error before containerd's own timeout fires. Containerd propagates the error to kubelet, the pod enters <code>CreateContainerError</code>, kubelet retries with backoff.</td>
+</tr>
+</tbody>
+</table>
+<p>The hard invariant: <code>nri.fetchTimeout &lt; plugin_request_timeout</code> (with a few
+hundred milliseconds of margin so containerd has time to propagate our
+error). Otherwise containerd times out first and silently leaks placeholders.</p>
+<h3 id="default-profile-vanilla-containerd">Default profile (vanilla containerd)</h3>
+<p>Out of the box, containerd ships with <code>plugin_request_timeout = 2s</code>. The
+default <code>nri.fetchTimeout = 1500ms</code> is sized for this setting and works
+without any node-side configuration. Trade-off: any Vault fetch slower
+than 1.5s (e.g. during a burst that saturates Vault's <code>auth/kubernetes/login</code>)
+fails-closed. Kubelet retries with backoff (10s → 20s → 40s → … → 5min cap).</p>
+<h3 id="high-throughput-profile-vault-bursts-expected">High-throughput profile (Vault bursts expected)</h3>
+<p>When your workload schedules many labelled pods simultaneously (Airflow
+DAG runs, cronjobs at the top of the hour, scale-out events), Vault's
+<code>auth/kubernetes/login</code> can spike to several seconds. To absorb the burst
+without <code>CreateContainerError</code> events, raise both timeouts in lockstep:</p>
+<p><strong>On each node, in <code>/etc/containerd/config.toml</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[plugins.</span><span class="s2">&quot;io.containerd.nri.v1.nri&quot;</span><span class="k">]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">disable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">disable_connections</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="n">plugin_registration_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;15s&quot;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">plugin_request_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;30s&quot;</span><span class="w">   </span><span class="c1"># vs default 2s</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">socket_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/var/run/nri/nri.sock&quot;</span>
+</code></pre></div>
+<p>Then <code>systemctl reload containerd</code> (or <code>restart</code> if reload is not
+supported on your distribution).</p>
+<p><strong>In Helm values:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">nri</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">fetchTimeout</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;25s&quot;</span><span class="w">   </span><span class="c1"># &lt; containerd plugin_request_timeout (30s), with 5s margin</span>
+</code></pre></div>
+<p>Trade-off: when Vault is genuinely unavailable, pods will hang up to 25s
+per attempt before kubelet retries. Acceptable in most cases — the
+alternative (placeholder-leaking pod that crashes the app) is worse.</p>
+<h3 id="diagnosing-fail-closed-events">Diagnosing fail-closed events</h3>
+<p>Each fail-closed path increments <code>vdbi_nri_unwrap_failures_total{reason=...}</code>
+and produces a Kubernetes Warning event on the pod with a <code>vault-db-injector:</code>
+prefix. The reasons:</p>
+<table>
+<thead>
+<tr>
+<th><code>reason</code> label</th>
+<th>Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fetch_error</code></td>
+<td>Vault fetch returned an error or timed out (most common — increase <code>fetchTimeout</code> if it correlates with Vault bursts).</td>
+</tr>
+<tr>
+<td><code>empty_mapping</code></td>
+<td>Pod has placeholders in env but no <code>db-creds-injector.numberly.io/*.env-key-*</code> annotation matched any container env var name. User config error.</td>
+</tr>
+<tr>
+<td><code>no_change</code></td>
+<td>Mapping resolved, but <code>Substitute()</code> produced an identical env. Indicates env-key annotation refers to a key that does not exist on this specific container.</td>
+</tr>
+<tr>
+<td><code>residual_placeholder</code></td>
+<td>A <code>__VDBI_PH_…___</code> token remained in env after substitution (e.g. only password was resolved, username placeholder leaked). Indicates a partial mapping bug.</td>
+</tr>
+</tbody>
+</table>
+<p>Useful queries:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Fail-closed rate, by reason</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">reason</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_unwrap_failures_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Successful substitutions vs failures</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_substitutions_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="o">(</span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_substitutions_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">     </span><span class="o">+</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_unwrap_failures_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)))</span>
+</code></pre></div>
+<p>Per-step latency is also logged at <code>info</code> level under the <code>[timing]</code> tag,
+visible in <code>kubectl logs -l app=vault-db-injector-nri</code>. The total of
+<code>fetchAndBuildMapping TOTAL</code> against <code>nri.fetchTimeout</code> tells you how
+close you are to fail-closing under load.</p>
 
 
 

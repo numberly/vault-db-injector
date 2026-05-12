@@ -1624,6 +1624,12 @@ for a full walkthrough including Vault prerequisites.</p>
 <td>When <code>true</code>, deploys the NRI DaemonSet AND tells the injector to wrap every credential it issues with placeholders. Both pieces are tied to this single switch so the cluster cannot end up in a "webhook produces placeholders but nothing substitutes" state. When <code>false</code>, behavior is byte-identical to the legacy webhook mode (literal credentials in env vars). Requires containerd ≥ 1.7 with NRI enabled, OR CRI-O ≥ 1.26.</td>
 </tr>
 <tr>
+<td>nri.fetchTimeout</td>
+<td>string</td>
+<td><code>"1500ms"</code></td>
+<td>Vault credential fetch timeout per CreateContainer event. MUST be strictly less than containerd <code>plugin_request_timeout</code> so the plugin returns an error BEFORE containerd times out the plugin (containerd-side timeout fails-open and leaks placeholders into env). Default <code>"1500ms"</code> is aligned with containerd's default <code>plugin_request_timeout</code> of <code>2s</code> (leaves 500ms for containerd to propagate the error). On nodes configured with a higher <code>plugin_request_timeout</code> (e.g. <code>30s</code> to absorb Vault bursts), raise this to ~<code>plugin_request_timeout - 5s</code>.</td>
+</tr>
+<tr>
 <td>nri.image.repository</td>
 <td>string</td>
 <td><code>""</code></td>
