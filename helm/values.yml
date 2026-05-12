@@ -134,6 +134,8 @@ nri:
       memory: 256Mi
   # -- NRI plugin priority for `stub.WithPluginIdx`. Must be unique per containerd instance — running multiple injector releases on the same cluster requires distinct values (e.g. `"10"` for prod, `"11"` for dev). The plugin name auto-defaults to the helm release fullname.
   pluginIndex: "10"
+  # -- Vault credential fetch timeout per CreateContainer event. MUST be strictly less than containerd `plugin_request_timeout` so the plugin returns an error BEFORE containerd times out the plugin (containerd-side timeout fails-open and leaks placeholders into env). Default `"1500ms"` is aligned with containerd's default `plugin_request_timeout` of `2s` (leaves 500ms for containerd to propagate the error). On nodes configured with a higher `plugin_request_timeout` (e.g. `30s` to absorb Vault bursts), raise this to ~`plugin_request_timeout - 5s`.
+  fetchTimeout: "1500ms"
   # -- Tolerations for the NRI DaemonSet. The default tolerates every taint so the plugin runs on every node. The plugin is node-local — if it is missing on a tainted node where labelled pods are scheduled, those pods start with the raw placeholder string in env (visible CrashLoop, but still a leak window). Override to restrict where the plugin runs.
   tolerations:
   - operator: Exists

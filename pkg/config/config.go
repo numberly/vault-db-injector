@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -52,6 +53,16 @@ type NRIConfig struct {
 	// "vault-db-injector" or "vault-db-injector-dev"). Empty value
 	// disables the filter and processes every pod that has placeholders.
 	PodLabel string `yaml:"podLabel" envconfig:"pod_label"`
+	// FetchTimeout caps the Vault credential fetch inside CreateContainer.
+	// MUST be strictly less than containerd's plugin_request_timeout so that
+	// the plugin returns an error BEFORE containerd times out the plugin
+	// (containerd-side timeout fails-open, leaking placeholders into env).
+	//
+	// Default: 1500ms — aligned with containerd's default plugin_request_timeout
+	// of 2s (leaves 500ms for containerd to propagate the error to kubelet).
+	// On nodes configured with a higher plugin_request_timeout (e.g. 30s to
+	// absorb Vault bursts), raise this value to ~plugin_request_timeout - 5s.
+	FetchTimeout time.Duration `yaml:"fetchTimeout" envconfig:"fetch_timeout"`
 }
 
 type Config struct {
@@ -123,11 +134,12 @@ func NewConfig(configFile string) (*Config, error) {
 		DefaultEngine:     "databases",
 		VaultRateLimit:    30,
 		NRI: NRIConfig{
-			SocketPath:  "/var/run/nri/nri.sock",
-			CachePath:   "/run/vault-db-injector/nri/cache.json",
-			PluginName:  "vault-db-injector",
-			PluginIndex: "10",
-			PodLabel:    "vault-db-injector",
+			SocketPath:   "/var/run/nri/nri.sock",
+			CachePath:    "/run/vault-db-injector/nri/cache.json",
+			PluginName:   "vault-db-injector",
+			PluginIndex:  "10",
+			PodLabel:     "vault-db-injector",
+			FetchTimeout: 1500 * time.Millisecond,
 		},
 		UseProjectedSA:                false,
 		TokenRequestAudiences:         nil,

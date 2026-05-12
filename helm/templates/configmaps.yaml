@@ -82,4 +82,5 @@ data:
       pluginName: {{ include "vault-db-injector.fullname" . }}
       pluginIndex: {{ .Values.nri.pluginIndex | default "10" | quote }}
       podLabel: {{ .Values.vaultDbInjector.configuration.webhookMatchLabels | quote }}
+      fetchTimeout: {{ .Values.nri.fetchTimeout | default "1500ms" | quote }}
 {{- end }}

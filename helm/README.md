@@ -30,6 +30,7 @@ for a full walkthrough including Vault prerequisites.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | nri.enabled | bool | `false` | When `true`, deploys the NRI DaemonSet AND tells the injector to wrap every credential it issues with placeholders. Both pieces are tied to this single switch so the cluster cannot end up in a "webhook produces placeholders but nothing substitutes" state. When `false`, behavior is byte-identical to the legacy webhook mode (literal credentials in env vars). Requires containerd ≥ 1.7 with NRI enabled, OR CRI-O ≥ 1.26. |
+| nri.fetchTimeout | string | `"1500ms"` | Vault credential fetch timeout per CreateContainer event. MUST be strictly less than containerd `plugin_request_timeout` so the plugin returns an error BEFORE containerd times out the plugin (containerd-side timeout fails-open and leaks placeholders into env). Default `"1500ms"` is aligned with containerd's default `plugin_request_timeout` of `2s` (leaves 500ms for containerd to propagate the error). On nodes configured with a higher `plugin_request_timeout` (e.g. `30s` to absorb Vault bursts), raise this to ~`plugin_request_timeout - 5s`. |
 | nri.image.repository | string | `""` | NRI container image repository. Empty = falls back to `vaultDbInjector.injector.image.repository`. |
 | nri.image.tag | string | `""` | NRI container image tag. Empty = falls back to `vaultDbInjector.injector.image.tag`. |
 | nri.imagePullPolicy | string | `"Always"` | imagePullPolicy applied to the NRI container. |
