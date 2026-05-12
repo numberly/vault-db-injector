@@ -46,6 +46,20 @@ keys that are irrelevant to a given mode are silently ignored.
 | `certFile` | string | `/tls/tls.crt` | injector | TLS certificate for the webhook HTTPS server |
 | `keyFile` | string | `/tls/tls.key` | injector | TLS private key for the webhook HTTPS server |
 
+### NRI plugin keys
+
+The NRI DaemonSet reads its config from the same YAML schema, under the `nri:` top-level key.
+
+| Key | Type | Default | Purpose |
+|---|---|---|---|
+| `nri.enabled` | bool | `false` | Activates the NRI plugin code path. Set by Helm. |
+| `nri.socketPath` | string | `/var/run/nri/nri.sock` | UNIX socket the plugin uses to register with containerd. Must match the host's NRI socket. |
+| `nri.cachePath` | string | `/run/vault-db-injector/nri/cache.json` | On-disk JSON cache of unwrapped credentials. HostPath tmpfs — survives DS pod restart, cleared on node reboot. |
+| `nri.pluginName` | string | `vault-db-injector` (Helm release fullname) | NRI plugin name at registration. Must be unique per containerd instance — running multiple releases (prod + dev) on the same cluster requires distinct values. |
+| `nri.pluginIndex` | string | `"10"` | NRI plugin priority (`stub.WithPluginIdx`). Must also be unique per containerd instance when multiple plugins coexist (e.g. `"10"` prod, `"11"` dev). |
+| `nri.podLabel` | string | `vault-db-injector` | Pod label key the plugin filters on. Pods missing this label (or value `!= "true"`) are ignored. With multiple releases, set this to the release-specific label the matching webhook's `objectSelector` uses. Empty disables the filter. |
+| `nri.fetchTimeout` | duration | `1500ms` | Vault credential fetch timeout per `CreateContainer` event. **MUST be strictly less than containerd's `plugin_request_timeout`** (containerd default: `2s`). See [NRI tuning](#nri-tuning) below. |
+
 ## Example: injector config
 
 ```yaml
@@ -103,3 +117,89 @@ sentry: false
     The binary refuses to start and logs a fatal error if this constraint
     is violated. Set at least `["vault"]` and configure a matching `audience`
     on each Vault `auth/kubernetes` role.
+
+## NRI tuning
+
+The NRI plugin runs as a DaemonSet and intercepts every `CreateContainer`
+event on its node. For each labelled pod with placeholders in env, it
+synchronously fetches credentials from Vault and returns the substituted
+env to containerd. Two timeouts interact here:
+
+| Layer | Setting | Default | Behavior on timeout |
+|---|---|---|---|
+| containerd | `plugin_request_timeout` (in `/etc/containerd/config.toml`) | `2s` | **Fail-open**: containerd abandons the NRI call and starts the container with the unmodified env (placeholders leak). |
+| vault-db-injector | `nri.fetchTimeout` | `1500ms` | **Fail-closed**: the plugin returns an error before containerd's own timeout fires. Containerd propagates the error to kubelet, the pod enters `CreateContainerError`, kubelet retries with backoff. |
+
+The hard invariant: `nri.fetchTimeout < plugin_request_timeout` (with a few
+hundred milliseconds of margin so containerd has time to propagate our
+error). Otherwise containerd times out first and silently leaks placeholders.
+
+### Default profile (vanilla containerd)
+
+Out of the box, containerd ships with `plugin_request_timeout = 2s`. The
+default `nri.fetchTimeout = 1500ms` is sized for this setting and works
+without any node-side configuration. Trade-off: any Vault fetch slower
+than 1.5s (e.g. during a burst that saturates Vault's `auth/kubernetes/login`)
+fails-closed. Kubelet retries with backoff (10s → 20s → 40s → … → 5min cap).
+
+### High-throughput profile (Vault bursts expected)
+
+When your workload schedules many labelled pods simultaneously (Airflow
+DAG runs, cronjobs at the top of the hour, scale-out events), Vault's
+`auth/kubernetes/login` can spike to several seconds. To absorb the burst
+without `CreateContainerError` events, raise both timeouts in lockstep:
+
+**On each node, in `/etc/containerd/config.toml`:**
+
+```toml
+[plugins."io.containerd.nri.v1.nri"]
+  disable = false
+  disable_connections = false
+  plugin_registration_timeout = "15s"
+  plugin_request_timeout = "30s"   # vs default 2s
+  socket_path = "/var/run/nri/nri.sock"
+```
+
+Then `systemctl reload containerd` (or `restart` if reload is not
+supported on your distribution).
+
+**In Helm values:**
+
+```yaml
+nri:
+  fetchTimeout: "25s"   # < containerd plugin_request_timeout (30s), with 5s margin
+```
+
+Trade-off: when Vault is genuinely unavailable, pods will hang up to 25s
+per attempt before kubelet retries. Acceptable in most cases — the
+alternative (placeholder-leaking pod that crashes the app) is worse.
+
+### Diagnosing fail-closed events
+
+Each fail-closed path increments `vdbi_nri_unwrap_failures_total{reason=...}`
+and produces a Kubernetes Warning event on the pod with a `vault-db-injector:`
+prefix. The reasons:
+
+| `reason` label | Cause |
+|---|---|
+| `fetch_error` | Vault fetch returned an error or timed out (most common — increase `fetchTimeout` if it correlates with Vault bursts). |
+| `empty_mapping` | Pod has placeholders in env but no `db-creds-injector.numberly.io/*.env-key-*` annotation matched any container env var name. User config error. |
+| `no_change` | Mapping resolved, but `Substitute()` produced an identical env. Indicates env-key annotation refers to a key that does not exist on this specific container. |
+| `residual_placeholder` | A `__VDBI_PH_…___` token remained in env after substitution (e.g. only password was resolved, username placeholder leaked). Indicates a partial mapping bug. |
+
+Useful queries:
+
+```promql
+# Fail-closed rate, by reason
+sum by (reason) (rate(vdbi_nri_unwrap_failures_total[5m]))
+
+# Successful substitutions vs failures
+sum(rate(vdbi_nri_substitutions_total[5m]))
+  / (sum(rate(vdbi_nri_substitutions_total[5m]))
+     + sum(rate(vdbi_nri_unwrap_failures_total[5m])))
+```
+
+Per-step latency is also logged at `info` level under the `[timing]` tag,
+visible in `kubectl logs -l app=vault-db-injector-nri`. The total of
+`fetchAndBuildMapping TOTAL` against `nri.fetchTimeout` tells you how
+close you are to fail-closing under load.

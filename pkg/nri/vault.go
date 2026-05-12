@@ -3,6 +3,7 @@ package nri
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/numberly/vault-db-injector/pkg/config"
@@ -39,6 +40,14 @@ import (
 //   with token_period > 0 so the pod-token (and its lease) survives until
 //   explicit revocation.
 func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, podNamespace, podName string, bookCache *vault.BookkeepingTokenCache) (mapping map[string]string, creds *vault.DbCreds, retErr error) {
+	tTotal := time.Now()
+	defer func() {
+		logger.GetLogger().WithFields(map[string]interface{}{
+			"contextID": contextID,
+			"pod":       podNamespace + "/" + podName,
+		}).Infof("[timing] fetchAndBuildMapping TOTAL: %s err=%v ctxErr=%v", time.Since(tTotal), retErr, ctx.Err())
+	}()
+
 	// liveConns accumulates every connector whose Login succeeded.
 	// On partial failure (iteration K fails after 0..K-1 succeeded) the
 	// deferred cleanup revokes all pod-tokens and bookkeeping tokens that
@@ -63,12 +72,19 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		}
 	}()
 
+	log := logger.GetLogger().WithFields(map[string]interface{}{"contextID": contextID, "pod": podNamespace + "/" + podName})
+
+	tStep := time.Now()
 	k8sClient := k8s.NewClient()
 	clientset, err := k8sClient.GetKubernetesClient()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "k8s clientset")
 	}
+	log.Infof("[timing] k8s clientset init: %s", time.Since(tStep))
+
+	tStep = time.Now()
 	pod, err := clientset.CoreV1().Pods(podNamespace).Get(ctx, podName, metav1.GetOptions{})
+	log.Infof("[timing] k8s GET pod: %s err=%v", time.Since(tStep), err)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "get pod %s/%s", podNamespace, podName)
 	}
@@ -120,7 +136,9 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 
 	// Obtain the JWT for Vault login: pod's projected-SA in
 	// useProjectedSA mode, plugin's own SA otherwise.
+	tStep = time.Now()
 	tok, err := k8s.VaultLoginToken(ctx, k8sClient, pod, cfg.UseProjectedSA, cfg.TokenRequestAudiences, cfg.TokenRequestExpirationSeconds)
+	log.Infof("[timing] VaultLoginToken (k8s TokenRequest API): %s err=%v projectedSA=%v", time.Since(tStep), err, cfg.UseProjectedSA)
 	if err != nil {
 		metrics.TokenRequestErrors.WithLabelValues(k8s.ClassifyTokenRequestError(err)).Inc()
 		return nil, nil, errors.Wrap(err, "vault login token")
@@ -131,7 +149,9 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 	// which is always available regardless of mode.
 	var injectorSaToken string
 	if cfg.UseProjectedSA {
+		tStep = time.Now()
 		injectorSaToken, err = k8sClient.GetServiceAccountToken()
+		log.Infof("[timing] GetServiceAccountToken (read mounted file): %s err=%v", time.Since(tStep), err)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "read injector SA token for bookkeeping login")
 		}
@@ -165,13 +185,17 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 			authRole = dbConf.Role
 		}
 		conn := vault.NewConnector(cfg.VaultAddress, cfg.VaultAuthPath, authRole, pdc.VaultDbPath, dbConf.Role, tok, cfg.VaultRateLimit)
-		if err := conn.Login(ctx); err != nil {
+		tStep = time.Now()
+		loginErr := conn.Login(ctx)
+		log.Infof("[timing] vault Login (auth/%s/login dbConfig=%d role=%s): %s err=%v",
+			cfg.VaultAuthPath, i, dbConf.Role, time.Since(tStep), loginErr)
+		if loginErr != nil {
 			mode := "legacy"
 			if cfg.UseProjectedSA {
 				mode = "projected"
 			}
-			metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(err), mode).Inc()
-			return nil, nil, errors.Wrapf(err, "vault login for dbConfig %d (role %s)", i, dbConf.Role)
+			metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(loginErr), mode).Inc()
+			return nil, nil, errors.Wrapf(loginErr, "vault login for dbConfig %d (role %s)", i, dbConf.Role)
 		}
 		// Track this connector so the deferred cleanup can revoke its tokens
 		// if a subsequent iteration fails.
@@ -184,7 +208,10 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		}
 
 		if !cfg.UseProjectedSA {
+			tStep = time.Now()
 			ok, err := conn.CanIGetRoles(ctx, contextID, actualSA, podNamespace, cfg.VaultAuthPath, dbConf.Role)
+			log.Infof("[timing] vault CanIGetRoles (dbConfig=%d role=%s): %s err=%v",
+				i, dbConf.Role, time.Since(tStep), err)
 			if err != nil {
 				return nil, nil, errors.Wrapf(err, "vault CanIGetRoles for dbConfig %d (role %s)", i, dbConf.Role)
 			}
@@ -194,8 +221,12 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 		} else {
 			// Vault attests the pod identity natively via bound_service_account_names
 			// during Login above; CanIGetRoles is redundant. Check token_period in projected mode.
-			if period, err := conn.VerifyTokenPeriod(ctx); err != nil {
-				logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Debugf("VerifyTokenPeriod lookup-self failed: %v", err)
+			tStep = time.Now()
+			period, vtpErr := conn.VerifyTokenPeriod(ctx)
+			log.Infof("[timing] vault VerifyTokenPeriod (lookup-self dbConfig=%d): %s err=%v",
+				i, time.Since(tStep), vtpErr)
+			if vtpErr != nil {
+				logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Debugf("VerifyTokenPeriod lookup-self failed: %v", vtpErr)
 			} else if period == 0 {
 				metrics.ProjectedRoleMisconfigured.WithLabelValues(dbConf.Role).Inc()
 				logger.GetLogger().WithFields(map[string]interface{}{"role": dbConf.Role}).Warnf("vault role has no token_period — pod-token (and its lease) will die at max_ttl; configure token_period > 0")
@@ -212,11 +243,17 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 			}
 			var bookToken string
 			var bookErr error
+			tStep = time.Now()
+			var bookSource string
 			if bookCache != nil {
 				bookToken, bookErr = bookCache.Get(ctx, cfg, injectorSaToken, nriBookRole)
+				bookSource = "cache.Get"
 			} else {
 				bookToken, bookErr = vault.LoginAsInjectorSA(ctx, cfg, injectorSaToken, nriBookRole)
+				bookSource = "direct"
 			}
+			log.Infof("[timing] vault bookkeeping login (%s dbConfig=%d role=%s): %s err=%v",
+				bookSource, i, nriBookRole, time.Since(tStep), bookErr)
 			if bookErr != nil {
 				metrics.VaultLoginErrors.WithLabelValues(vault.ClassifyLoginError(bookErr), "projected_bookkeeping").Inc()
 				return nil, nil, errors.Wrapf(bookErr, "vault login as injector SA for bookkeeping (dbConfig %d)", i)
@@ -224,6 +261,7 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 			conn.K8sSaVaultToken = bookToken
 		}
 
+		tStep = time.Now()
 		creds, err = conn.GetDbCredentials(ctx, vault.DbCredentialsRequest{
 			ContextID:          contextID,
 			TTL:                cfg.TokenTTL,
@@ -234,6 +272,8 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 			ServiceAccount:     actualSA,
 			SkipOrphanCreation: cfg.UseProjectedSA,
 		})
+		log.Infof("[timing] vault GetDbCredentials (db engine Read+lease dbConfig=%d role=%s): %s err=%v",
+			i, dbConf.Role, time.Since(tStep), err)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "vault GetDbCredentials for dbConfig %d (role %s)", i, dbConf.Role)
 		}

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	nriapi "github.com/containerd/nri/pkg/api"
@@ -52,7 +53,8 @@ func newPlugin(cfg *config.Config, log logger.Logger) *plugin {
 // We use this opportunity to evict cache entries for pods that no longer
 // exist on this node — covers the case where pods were deleted while the
 // plugin DS was down (RemovePodSandbox missed).
-func (p *plugin) Synchronize(_ context.Context, pods []*nriapi.PodSandbox, _ []*nriapi.Container) ([]*nriapi.ContainerUpdate, error) {
+func (p *plugin) Synchronize(_ context.Context, pods []*nriapi.PodSandbox, containers []*nriapi.Container) ([]*nriapi.ContainerUpdate, error) {
+	p.log.Infof("NRI Synchronize start: pods=%d containers=%d (already-running, env immutable)", len(pods), len(containers))
 	live := make(map[string]struct{}, len(pods))
 	for _, pod := range pods {
 		live[pod.GetUid()] = struct{}{}
@@ -93,11 +95,17 @@ func (p *plugin) Synchronize(_ context.Context, pods []*nriapi.PodSandbox, _ []*
 //      the container env, with their env-key matching the user's
 //      env-key-* annotation.
 func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, container *nriapi.Container) (*nriapi.ContainerAdjustment, []*nriapi.ContainerUpdate, error) {
+	start := time.Now()
+	p.log.Infof("NRI CreateContainer enter pod=%s/%s uid=%s container=%s",
+		pod.GetNamespace(), pod.GetName(), pod.GetUid(), container.GetName())
+
 	// Filter by configured pod label. With multiple injector releases on
 	// the same cluster (e.g. prod + dev), each plugin DS only processes
 	// pods carrying its own label.
 	if label := p.cfg.NRI.PodLabel; label != "" {
 		if pod.GetLabels()[label] != "true" {
+			p.log.Debugf("NRI skip pod=%s/%s container=%s: label %q != \"true\" (have=%q)",
+				pod.GetNamespace(), pod.GetName(), container.GetName(), label, pod.GetLabels()[label])
 			return nil, nil, nil
 		}
 	}
@@ -106,21 +114,46 @@ func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, co
 	// substitutions to perform, regardless of annotations.
 	inEnv := container.GetEnv()
 	if !envHasAnyPlaceholder(inEnv) {
+		p.log.Debugf("NRI skip pod=%s/%s container=%s: no placeholder in env (envCount=%d)",
+			pod.GetNamespace(), pod.GetName(), container.GetName(), len(inEnv))
 		return nil, nil, nil
+	}
+	p.log.Infof("NRI placeholders detected pod=%s/%s container=%s envCount=%d",
+		pod.GetNamespace(), pod.GetName(), container.GetName(), len(inEnv))
+
+	// Bound the fetch under containerd's plugin_request_timeout so that we
+	// surface the error to containerd BEFORE containerd times out the plugin
+	// (which would fail-open and leak placeholders into the container env).
+	// FetchTimeout MUST be < containerd plugin_request_timeout.
+	fetchCtx := ctx
+	var cancel context.CancelFunc
+	if p.cfg.NRI.FetchTimeout > 0 {
+		fetchCtx, cancel = context.WithTimeout(ctx, p.cfg.NRI.FetchTimeout)
+		defer cancel()
 	}
 
-	mapping, err := p.resolveMapping(ctx, pod.GetUid(), pod.GetNamespace(), pod.GetName())
+	fetchStart := time.Now()
+	mapping, err := p.resolveMapping(fetchCtx, pod.GetUid(), pod.GetNamespace(), pod.GetName())
+	fetchDur := time.Since(fetchStart)
 	if err != nil {
-		p.log.Errorf("credential fetch failed for pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
+		p.log.Errorf("NRI credential fetch failed pod=%s/%s container=%s after=%s ctxErr=%v: %v",
+			pod.GetNamespace(), pod.GetName(), container.GetName(), fetchDur, ctx.Err(), err)
 		metrics.NRIUnwrapFailures.WithLabelValues("fetch_error").Inc()
-		return nil, nil, nil
+		// Fail-closed: refuse the CreateContainer so kubelet retries with
+		// backoff instead of starting the container with raw placeholders.
+		return nil, nil, errors.Wrapf(err,
+			"vault-db-injector: credential fetch failed for %s/%s container=%s after=%s — kubelet will retry",
+			pod.GetNamespace(), pod.GetName(), container.GetName(), fetchDur)
 	}
+	p.log.Infof("NRI resolveMapping done pod=%s/%s container=%s mappingSize=%d fetchDur=%s ctxErr=%v",
+		pod.GetNamespace(), pod.GetName(), container.GetName(), len(mapping), fetchDur, ctx.Err())
 	if len(mapping) == 0 {
-		// Pod has placeholders in env but the plugin couldn't resolve any
-		// of them (no matching dbConfiguration found by env-key). Skip
-		// silently; the visible failure will be the app crashing on the
-		// literal placeholder string.
-		return nil, nil, nil
+		p.log.Warnf("NRI empty mapping pod=%s/%s container=%s: placeholders in env but no env-key matched any dbConfiguration",
+			pod.GetNamespace(), pod.GetName(), container.GetName())
+		metrics.NRIUnwrapFailures.WithLabelValues("empty_mapping").Inc()
+		return nil, nil, errors.Newf(
+			"vault-db-injector: %s/%s container=%s has placeholders but no env-key annotation matched (check db-creds-injector.numberly.io/*.env-key-* matches container env var names) — kubelet will retry",
+			pod.GetNamespace(), pod.GetName(), container.GetName())
 	}
 
 	outEnv := Substitute(inEnv, mapping)
@@ -146,8 +179,33 @@ func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, co
 		changed++
 	}
 	if changed == 0 {
-		return nil, nil, nil
+		p.log.Warnf("NRI no env line changed pod=%s/%s container=%s: mappingSize=%d but Substitute produced identical env (placeholders in env don't match mapping keys?)",
+			pod.GetNamespace(), pod.GetName(), container.GetName(), len(mapping))
+		metrics.NRIUnwrapFailures.WithLabelValues("no_change").Inc()
+		return nil, nil, errors.Newf(
+			"vault-db-injector: %s/%s container=%s has placeholders but none matched the resolved mapping (mappingSize=%d) — kubelet will retry",
+			pod.GetNamespace(), pod.GetName(), container.GetName(), len(mapping))
 	}
+
+	// Paranoid residual check: ensure no placeholder leaks through after
+	// substitution. This catches partial mappings (e.g. only password
+	// resolved, username placeholder remaining) that would otherwise
+	// silently start the container with broken credentials.
+	for _, e := range outEnv {
+		if strings.Contains(e, placeholder.Prefix) {
+			k, _ := splitKV(e)
+			p.log.Errorf("NRI residual placeholder pod=%s/%s container=%s envKey=%s — substitution incomplete",
+				pod.GetNamespace(), pod.GetName(), container.GetName(), k)
+			metrics.NRIUnwrapFailures.WithLabelValues("residual_placeholder").Inc()
+			return nil, nil, errors.Newf(
+				"vault-db-injector: %s/%s container=%s has residual placeholder on env=%s after substitution — kubelet will retry",
+				pod.GetNamespace(), pod.GetName(), container.GetName(), k)
+		}
+	}
+
+	totalDur := time.Since(start)
+	p.log.Infof("NRI substituted pod=%s/%s container=%s changed=%d mappingSize=%d totalDur=%s",
+		pod.GetNamespace(), pod.GetName(), container.GetName(), changed, len(mapping), totalDur)
 	metrics.NRISubstitutionsTotal.WithLabelValues().Inc()
 	return adj, nil, nil
 }
@@ -158,6 +216,8 @@ func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) err
 	_, existed := p.cache[pod.GetUid()]
 	delete(p.cache, pod.GetUid())
 	p.mu.Unlock()
+	p.log.Infof("NRI RemovePodSandbox pod=%s/%s uid=%s cacheHit=%v",
+		pod.GetNamespace(), pod.GetName(), pod.GetUid(), existed)
 	if existed {
 		if err := saveCache(p.cfg.NRI.CachePath, p.snapshot()); err != nil {
 			p.log.Warnf("save cache after RemovePodSandbox %s: %v", pod.GetUid(), err)
@@ -181,6 +241,8 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podNa
 	cached, ok := p.cache[podUID]
 	p.mu.Unlock()
 	if ok {
+		p.log.Infof("NRI resolveMapping cache hit pod=%s/%s uid=%s mappingSize=%d",
+			podNamespace, podName, podUID, len(cached))
 		return cached, nil
 	}
 
@@ -198,7 +260,11 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podNa
 		}
 		p.mu.Unlock()
 
+		p.log.Infof("NRI fetchAndBuildMapping start pod=%s/%s uid=%s", podNamespace, podName, podUID)
+		fetchStart := time.Now()
 		mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, podUID, podNamespace, podName, p.bookkeepingCache)
+		p.log.Infof("NRI fetchAndBuildMapping end pod=%s/%s uid=%s dur=%s err=%v mappingSize=%d",
+			podNamespace, podName, podUID, time.Since(fetchStart), err, len(mapping))
 		if err != nil {
 			return nil, err
 		}
@@ -217,6 +283,7 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podNa
 		return nil, err
 	}
 	if shared {
+		p.log.Infof("NRI resolveMapping singleflight shared pod=%s/%s uid=%s", podNamespace, podName, podUID)
 		metrics.NRIResolveDuplicateTotal.WithLabelValues().Inc()
 	}
 	return v.(map[string]string), nil
