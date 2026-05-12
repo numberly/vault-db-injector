@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.0](https://github.com/numberly/vault-db-injector/compare/v3.0.1...v3.1.0) (2026-05-12)
+
+
+### Features
+
+* **nri:** fail-closed substitution + per-step timing logs ([0d8b5c3](https://github.com/numberly/vault-db-injector/commit/0d8b5c3d90f5d716879d32a4a9e5306d915a1c69))
+* **nri:** fail-closed substitution + per-step timing logs ([03f49c7](https://github.com/numberly/vault-db-injector/commit/03f49c79a81a976d342ba0ab7e49d6558e682a8e))
+
 ## [3.0.1](https://github.com/numberly/vault-db-injector/compare/v3.0.0...v3.0.1) (2026-05-06)
 
 
