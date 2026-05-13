@@ -65,8 +65,13 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 	// across reconnects.
 	lifecycle := newStubLifecycle(p, log)
 
+	// Use gctx (not ctx): when a sibling goroutine (prewarmer, sweeper)
+	// returns an error, errgroup cancels gctx, and the lifecycle must see
+	// that as a graceful shutdown — otherwise the inner Run unblocking from
+	// the sidecar's Stop() is misinterpreted as a ttrpc disconnect and
+	// triggers spurious reconnect attempts that prevent Run from returning.
 	g.Go(func() error {
-		return lifecycle.run(ctx)
+		return lifecycle.run(gctx)
 	})
 
 	// Sidecar: when gctx is cancelled (parent SIGTERM, or another goroutine

@@ -36,6 +36,10 @@ type prewarmer struct {
 	// fetchTimeout caps each async fetch context. Generous — the prewarmer
 	// is NOT on containerd's hot path.
 	fetchTimeout time.Duration
+	// runCtx is set by Run and used by spawned async fetch goroutines so
+	// they cancel cleanly on DS shutdown. The informer is started after
+	// runCtx is assigned, so onAdd cannot fire before this is non-nil.
+	runCtx context.Context
 }
 
 func newPrewarmer(p *plugin, client kubernetes.Interface, nodeName string, maxConcurrent int, log logger.Logger) *prewarmer {
@@ -61,6 +65,7 @@ func (pw *prewarmer) Run(ctx context.Context) error {
 		<-ctx.Done()
 		return nil
 	}
+	pw.runCtx = ctx
 	podLabel := pw.plugin.cfg.NRI.PodLabel
 	factory := informers.NewSharedInformerFactoryWithOptions(
 		pw.client, 0,
@@ -74,7 +79,11 @@ func (pw *prewarmer) Run(ctx context.Context) error {
 	podInformer := factory.Core().V1().Pods().Informer()
 	if _, err := podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    pw.onAdd,
-		UpdateFunc: func(_, _ any) {}, // see spec: pod identity fields are immutable post-admission
+		// UpdateFunc no-op: the pod identity fields the resolver reads (UID,
+		// namespace, name, SA) are immutable on a pod. Labels are mutable but
+		// transitions enter/exit the LabelSelector as Add/Delete events (the
+		// watch only delivers Updates while the selector still matches).
+		UpdateFunc: func(_, _ any) {},
 		DeleteFunc: pw.onDelete,
 	}); err != nil {
 		pw.log.Errorf("NRI prewarmer AddEventHandler: %v", err)
@@ -114,11 +123,19 @@ func (pw *prewarmer) onAdd(obj any) {
 	// DeletionTimestamp was checked at handler entry. Pods that transition
 	// to Terminating after dispatch are handled by DeleteFunc (cache evict)
 	// + revoker safetyNetSync (Vault revocation) — see design spec §4.
+	// Derive the fetch ctx from Run's ctx, not context.Background, so that
+	// in-flight prewarms cancel on DS shutdown instead of leaking for up to
+	// fetchTimeout while holding Vault sessions. Tests that call onAdd
+	// directly without going through Run get a fallback to Background.
+	parentCtx := pw.runCtx
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
 	go func() {
 		defer pw.sem.Release(1)
 		metrics.NRIPrewarmInflight.Inc()
 		defer metrics.NRIPrewarmInflight.Dec()
-		ctx, cancel := context.WithTimeout(context.Background(), pw.fetchTimeout)
+		ctx, cancel := context.WithTimeout(parentCtx, pw.fetchTimeout)
 		defer cancel()
 		if _, err := pw.resolver(ctx, uid, ns, name, "prewarm"); err != nil {
 			pw.log.Warnf("NRI prewarm failed for pod %s/%s (uid=%s): %v", ns, name, uid, err)
