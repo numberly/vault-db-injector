@@ -26,6 +26,10 @@ type plugin struct {
 
 	mu    sync.Mutex
 	cache map[string]map[string]string // pod UID → placeholder→value map
+	// cacheSource tracks which path populated each cache entry, used to label
+	// the cache_hit_total metric on hit. Values: "prewarm", "sync", "unknown"
+	// (the latter for entries loaded from disk on plugin restart).
+	cacheSource map[string]string
 	// sf deduplicates concurrent fetchAndBuildMapping calls for the same pod UID.
 	// Multi-container pods trigger CreateContainer near-simultaneously; without
 	// singleflight both calls would issue separate Vault credentials — only the
@@ -42,6 +46,7 @@ func newPlugin(cfg *config.Config, log logger.Logger) *plugin {
 		cfg:              cfg,
 		log:              log,
 		cache:            make(map[string]map[string]string),
+		cacheSource:      make(map[string]string),
 		bookkeepingCache: vault.NewBookkeepingTokenCache(),
 	}
 }

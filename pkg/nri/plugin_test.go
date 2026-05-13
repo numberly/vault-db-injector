@@ -122,3 +122,18 @@ func TestEnvHasAnyPlaceholder(t *testing.T) {
 		t.Fatal("false positive on plain value")
 	}
 }
+
+func TestPlugin_CacheSourceField_Exists(t *testing.T) {
+	p := newPlugin(&config.Config{}, logger.GetLogger())
+	if p.cacheSource == nil {
+		t.Fatal("newPlugin should initialise cacheSource map")
+	}
+	p.mu.Lock()
+	p.cache["uid-1"] = map[string]string{"__VDBI_PH_x___": "v"}
+	p.cacheSource["uid-1"] = "prewarm"
+	got := p.cacheSource["uid-1"]
+	p.mu.Unlock()
+	if got != "prewarm" {
+		t.Errorf("cacheSource[uid-1]: got %q, want %q", got, "prewarm")
+	}
+}
