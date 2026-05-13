@@ -296,22 +296,30 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 	}
 
 	// liveConns tracks every connector whose Login succeeded this call.
-	// On partial failure the deferred block revokes all previously issued
-	// tokens so they don't leak until token_max_ttl.
+	// On partial failure the deferred block revokes previously issued tokens
+	// so they don't leak until token_max_ttl.
+	//
+	// IMPORTANT: in projected-SA mode, c.K8sSaVaultToken is the SHARED
+	// bookkeeping token from BookkeepingTokenCache, reused across concurrent
+	// admissions. Revoking it here invalidates it for everyone else still
+	// holding the cached value and kills subsequent KV writes with 403
+	// "permission denied" until the cache entry expires (30 min). The
+	// bookkeeping token's lifecycle is owned by the cache, not this function.
+	// In legacy mode, c.K8sSaVaultToken == c.GetToken() (per-call login
+	// token, safe to revoke).
 	var liveConns []*vault.Connector
 	defer func() {
 		if retErr != nil {
 			for _, c := range liveConns {
-				if c.K8sSaVaultToken != "" {
-					if revokeErr := c.RevokeSelfToken(ctx, c.K8sSaVaultToken); revokeErr != nil {
-						logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken (bookkeeping) failed during cleanup: %v", revokeErr)
-					}
-				}
 				if cfg.UseProjectedSA {
 					if podTok := c.GetToken(); podTok != "" {
 						if revokeErr := c.RevokeSelfToken(ctx, podTok); revokeErr != nil {
 							logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken (pod-token) failed during cleanup: %v", revokeErr)
 						}
+					}
+				} else if c.K8sSaVaultToken != "" {
+					if revokeErr := c.RevokeSelfToken(ctx, c.K8sSaVaultToken); revokeErr != nil {
+						logger.WithValues(log.Kv{"contextID": contextID}).Errorf("RevokeSelfToken (legacy login token) failed during cleanup: %v", revokeErr)
 					}
 				}
 			}
