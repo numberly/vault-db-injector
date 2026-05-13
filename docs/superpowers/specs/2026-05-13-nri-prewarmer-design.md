@@ -146,7 +146,7 @@ The informer's initial `List` takes 100ms-2s to populate the cache. During this 
 
 ### Concurrency bound
 
-A `golang.org/x/sync/semaphore.Weighted` (`MaxConcurrent`, default 20) caps the number of in-flight async prewarm fetches. Protects Vault from a thundering herd when a node receives a burst of pods (Airflow DAG, scale-out event).
+A `golang.org/x/sync/semaphore.Weighted` (`MaxConcurrent`, default 50) caps the number of in-flight async prewarm fetches. Protects Vault from a thundering herd when a node receives a burst of pods (Airflow DAG, scale-out event).
 
 If the semaphore is full, `AddFunc` does NOT block — it falls through. The pod will get its credentials via the sync path at `CreateContainer` time (or via a later informer resync). Bounded backpressure, no deadlock.
 
@@ -301,7 +301,7 @@ No new alerts added in this spec — these are operational signals, observed in 
 
 ### Rollback
 
-Toggle `nri.prewarmer.enabled=false` via helm and re-deploy the DS (the binary reads its config at startup; no in-process reload). PodLister stays active in the new pods (no harm — local cache, no Vault calls). Prewarm goroutines stop. Reverts to current behavior within one DS rolling-restart cycle.
+Toggle `nri.prewarmer.enabled=false` via helm and re-deploy the DS (the binary reads its config at startup; no in-process reload). When disabled, no informer is constructed and no prewarm goroutines run — the DS pod behaves exactly like the pre-prewarmer build. Reverts to current behavior within one DS rolling-restart cycle.
 
 ## 11. Risks
 
