@@ -51,7 +51,7 @@ func TestPrewarmer_AddFunc_TriggersFetchForLabelledPod(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go pw.Run(ctx)
+	go func() { _ = pw.Run(ctx) }()
 
 	// Wait for informer to be ready, then push a pod.
 	pod := &corev1.Pod{
@@ -202,7 +202,7 @@ func TestPrewarmer_UpdateFunc_DoesNothing(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go pw.Run(ctx)
+	go func() { _ = pw.Run(ctx) }()
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -251,7 +251,7 @@ func TestPrewarmer_Integration_PrewarmBeatsCreateContainer(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go pw.Run(ctx)
+	go func() { _ = pw.Run(ctx) }()
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
