@@ -236,3 +236,64 @@ func TestPrewarmer_UpdateFunc_DoesNothing(t *testing.T) {
 			resolver.calls.Load(), beforeUpdate)
 	}
 }
+
+func TestPrewarmer_Integration_PrewarmBeatsCreateContainer(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	p := newPlugin(&config.Config{NRI: config.NRIConfig{
+		PodLabel:  "vault-db-injector",
+		CachePath: t.TempDir() + "/cache.json",
+		Prewarmer: config.NRIPrewarmerConfig{Enabled: true, MaxConcurrent: 5},
+	}}, logger.GetLogger())
+
+	resolver := &stubResolver{plugin: p}
+	pw := newPrewarmer(p, client, "node-1", 5, logger.GetLogger())
+	pw.resolver = resolver.resolveMappingWithSource
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go pw.Run(ctx)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "p", Namespace: "default", UID: types.UID("uid-int"),
+			Labels: map[string]string{"vault-db-injector": "true"},
+		},
+		Spec: corev1.PodSpec{NodeName: "node-1"},
+	}
+	if _, err := client.CoreV1().Pods("default").Create(ctx, pod, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("Create pod: %v", err)
+	}
+	// Wait until prewarm has populated the cache via the stub resolver.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		p.mu.Lock()
+		_, ok := p.cache["uid-int"]
+		p.mu.Unlock()
+		if ok {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	// Now check that resolveMappingWithSource("sync") returns the cache hit
+	// and does NOT call the resolver again.
+	callsBefore := resolver.calls.Load()
+	mapping, err := p.resolveMappingWithSource(ctx, "uid-int", "default", "p", "sync")
+	if err != nil {
+		t.Fatalf("resolveMappingWithSource cache hit: %v", err)
+	}
+	if len(mapping) == 0 {
+		t.Error("expected non-empty mapping from cache")
+	}
+	if resolver.calls.Load() != callsBefore {
+		t.Errorf("expected zero additional resolver calls on cache hit, got %d",
+			resolver.calls.Load()-callsBefore)
+	}
+	// The source recorded should be "prewarm" (set by the prewarmer's earlier call).
+	p.mu.Lock()
+	src := p.cacheSource["uid-int"]
+	p.mu.Unlock()
+	if src != "prewarm" {
+		t.Errorf("cacheSource[uid-int]: got %q, want %q", src, "prewarm")
+	}
+}
