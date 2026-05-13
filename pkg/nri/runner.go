@@ -34,14 +34,25 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 	g, gctx := errgroup.WithContext(ctx)
 	if c := k8s.NewClient(); c != nil {
 		if clientset, kerr := c.GetKubernetesClient(); kerr == nil {
-			if name := nodeNameFromEnv(); name != "" {
+			name := nodeNameFromEnv()
+			if name != "" {
 				sw := newSweeper(clientset, p, name, log)
 				g.Go(func() error { return sw.Run(gctx) })
 			} else {
 				log.Warn("NODE_NAME env unset; cache sweeper disabled")
 			}
+			if cfg.NRI.Prewarmer.Enabled {
+				if name != "" {
+					pw := newPrewarmer(p, clientset, name, cfg.NRI.Prewarmer.MaxConcurrent, log)
+					g.Go(func() error { return pw.Run(gctx) })
+				} else {
+					log.Warn("NODE_NAME env unset; NRI prewarmer disabled")
+				}
+			} else {
+				log.Info("NRI prewarmer disabled by config (nri.prewarmer.enabled=false)")
+			}
 		} else {
-			log.Warnf("kubernetes client init failed: %v (cache sweeper disabled)", kerr)
+			log.Warnf("kubernetes client init failed: %v (cache sweeper and prewarmer disabled)", kerr)
 		}
 	}
 
