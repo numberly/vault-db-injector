@@ -104,6 +104,10 @@ These metrics are emitted by the NRI DaemonSet. They are absent when
 | `vdbi_nri_substitutions_total` | `CreateContainer` events where the NRI plugin emitted an env adjustment | — |
 | `vdbi_nri_unwrap_failures_total` | NRI plugin failures resolving credentials at `CreateContainer` | `reason` |
 | `vdbi_nri_resolve_duplicate_total` | `resolveMapping` calls that hit a concurrent in-flight call (singleflight dedup). Should stay near 0 in normal operation; spikes indicate concurrent `CreateContainer` races. | — |
+| `vdbi_nri_prewarm_success_total` | Successful async prewarm fetches issued by the informer's `AddFunc` handler. | — |
+| `vdbi_nri_prewarm_error_total` | Failed or skipped prewarm attempts. | `reason` (`vault_fetch`, `semaphore_full`, `terminating_pod`) |
+| `vdbi_nri_prewarm_inflight` | In-flight async prewarm fetches (gauge). Compare against `nri.prewarmer.maxConcurrent`. | — |
+| `vdbi_nri_cache_hit_total` | `CreateContainer` events served from the in-memory cache, labelled by what populated the entry. | `source` (`prewarm`, `sync`, `unknown`) |
 
 ---
 
