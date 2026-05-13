@@ -115,3 +115,49 @@ func TestPrewarmer_AddFunc_SkipsTerminatingPod(t *testing.T) {
 		t.Errorf("expected 0 fetches for terminating pod, got %d", resolver.calls.Load())
 	}
 }
+
+// slowResolver blocks until released, simulating a slow Vault.
+type slowResolver struct {
+	released chan struct{}
+	calls    atomic.Int32
+}
+
+func (s *slowResolver) resolveMappingWithSource(_ context.Context, _, _, _, _ string) (map[string]string, error) {
+	s.calls.Add(1)
+	<-s.released
+	return map[string]string{"k": "v"}, nil
+}
+
+func TestPrewarmer_AddFunc_SemaphoreSaturates(t *testing.T) {
+	p := newPlugin(&config.Config{NRI: config.NRIConfig{
+		PodLabel:  "vault-db-injector",
+		CachePath: t.TempDir() + "/cache.json",
+		Prewarmer: config.NRIPrewarmerConfig{Enabled: true, MaxConcurrent: 2},
+	}}, logger.GetLogger())
+
+	slow := &slowResolver{released: make(chan struct{})}
+	pw := newPrewarmer(p, fake.NewSimpleClientset(), "node-1", 2, logger.GetLogger())
+	pw.resolver = slow.resolveMappingWithSource
+
+	makePod := func(uid string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "p-" + uid, Namespace: "default", UID: types.UID(uid),
+				Labels: map[string]string{"vault-db-injector": "true"},
+			},
+			Spec: corev1.PodSpec{NodeName: "node-1"},
+		}
+	}
+
+	pw.onAdd(makePod("u1"))
+	pw.onAdd(makePod("u2"))
+	time.Sleep(50 * time.Millisecond)
+	pw.onAdd(makePod("u3"))
+	time.Sleep(50 * time.Millisecond)
+
+	if slow.calls.Load() != 2 {
+		t.Errorf("expected 2 in-flight calls, got %d", slow.calls.Load())
+	}
+	close(slow.released)
+	time.Sleep(100 * time.Millisecond)
+}
