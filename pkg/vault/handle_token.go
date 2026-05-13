@@ -131,29 +131,6 @@ func (c *Connector) StoreDataAsync(ctx context.Context, contextID string, vaultI
 		}
 		asyncClient.SetToken(c.K8sSaVaultToken)
 
-		// TEMPORARY DEBUG: verify which token is actually used for the KV PUT.
-		// Logs the token prefix + the policies Vault attached to it, queried
-		// live via lookup-self. Remove after the 403 investigation closes.
-		tokenPrefix := c.K8sSaVaultToken
-		if len(tokenPrefix) > 8 {
-			tokenPrefix = tokenPrefix[:8] + "…"
-		}
-		if lookupSecret, lookupErr := asyncClient.Auth().Token().LookupSelf(); lookupErr != nil {
-			c.Log.WithFields(logrus.Fields{
-				"contextID":    contextID,
-				"token_prefix": tokenPrefix,
-			}).Errorf("[debug] StoreDataAsync lookup-self failed: %v", lookupErr)
-		} else {
-			policies, _ := lookupSecret.Data["policies"]
-			displayName, _ := lookupSecret.Data["display_name"]
-			c.Log.WithFields(logrus.Fields{
-				"contextID":    contextID,
-				"token_prefix": tokenPrefix,
-				"policies":     policies,
-				"display_name": displayName,
-			}).Infof("[debug] StoreDataAsync token info before kv.Put")
-		}
-
 		asyncConn := &Connector{
 			address:    c.address,
 			client:     asyncClient,
