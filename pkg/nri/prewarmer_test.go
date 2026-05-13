@@ -161,3 +161,29 @@ func TestPrewarmer_AddFunc_SemaphoreSaturates(t *testing.T) {
 	close(slow.released)
 	time.Sleep(100 * time.Millisecond)
 }
+
+func TestPrewarmer_OnDelete_EvictsCache(t *testing.T) {
+	p := newPlugin(&config.Config{NRI: config.NRIConfig{
+		CachePath: t.TempDir() + "/cache.json",
+	}}, logger.GetLogger())
+	p.mu.Lock()
+	p.cache["uid-del"] = map[string]string{"k": "v"}
+	p.cacheSource["uid-del"] = "prewarm"
+	p.mu.Unlock()
+
+	pw := newPrewarmer(p, fake.NewSimpleClientset(), "node-1", 1, logger.GetLogger())
+	pw.onDelete(&corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+		Name: "p", Namespace: "ns", UID: types.UID("uid-del"),
+	}})
+
+	p.mu.Lock()
+	_, hasCache := p.cache["uid-del"]
+	_, hasSrc := p.cacheSource["uid-del"]
+	p.mu.Unlock()
+	if hasCache {
+		t.Error("cache entry not evicted by onDelete")
+	}
+	if hasSrc {
+		t.Error("cacheSource entry not evicted by onDelete")
+	}
+}
