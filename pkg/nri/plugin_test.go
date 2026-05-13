@@ -137,3 +137,24 @@ func TestPlugin_CacheSourceField_Exists(t *testing.T) {
 		t.Errorf("cacheSource[uid-1]: got %q, want %q", got, "prewarm")
 	}
 }
+
+func TestEvictCacheEntry_RemovesMappingAndSource(t *testing.T) {
+	p := newPlugin(&config.Config{NRI: config.NRIConfig{CachePath: t.TempDir() + "/cache.json"}}, logger.GetLogger())
+	p.mu.Lock()
+	p.cache["uid-2"] = map[string]string{"k": "v"}
+	p.cacheSource["uid-2"] = "prewarm"
+	p.mu.Unlock()
+
+	existed := p.evictCacheEntry("uid-2")
+	if !existed {
+		t.Fatal("evictCacheEntry returned false for an existing UID")
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if _, ok := p.cache["uid-2"]; ok {
+		t.Error("cache entry not deleted")
+	}
+	if _, ok := p.cacheSource["uid-2"]; ok {
+		t.Error("cacheSource entry not deleted")
+	}
+}

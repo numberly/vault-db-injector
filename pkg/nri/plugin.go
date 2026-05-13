@@ -69,6 +69,7 @@ func (p *plugin) Synchronize(_ context.Context, pods []*nriapi.PodSandbox, conta
 	for uid := range p.cache {
 		if _, alive := live[uid]; !alive {
 			delete(p.cache, uid)
+			delete(p.cacheSource, uid)
 			evicted++
 		}
 	}
@@ -217,18 +218,26 @@ func (p *plugin) CreateContainer(ctx context.Context, pod *nriapi.PodSandbox, co
 
 // RemovePodSandbox evicts the per-pod cache entry and persists.
 func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) error {
-	p.mu.Lock()
-	_, existed := p.cache[pod.GetUid()]
-	delete(p.cache, pod.GetUid())
-	p.mu.Unlock()
+	existed := p.evictCacheEntry(pod.GetUid())
 	p.log.Infof("NRI RemovePodSandbox pod=%s/%s uid=%s cacheHit=%v",
 		pod.GetNamespace(), pod.GetName(), pod.GetUid(), existed)
+	return nil
+}
+
+// evictCacheEntry removes a UID from cache and cacheSource, then persists.
+// Returns true if the entry existed. Callers MUST NOT hold p.mu.
+func (p *plugin) evictCacheEntry(podUID string) bool {
+	p.mu.Lock()
+	_, existed := p.cache[podUID]
+	delete(p.cache, podUID)
+	delete(p.cacheSource, podUID)
+	p.mu.Unlock()
 	if existed {
 		if err := saveCache(p.cfg.NRI.CachePath, p.snapshot()); err != nil {
-			p.log.Warnf("save cache after RemovePodSandbox %s: %v", pod.GetUid(), err)
+			p.log.Warnf("save cache after evict %s: %v", podUID, err)
 		}
 	}
-	return nil
+	return existed
 }
 
 // resolveMapping returns the placeholder→value map for a pod, using a
