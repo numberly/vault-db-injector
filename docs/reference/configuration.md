@@ -59,6 +59,8 @@ The NRI DaemonSet reads its config from the same YAML schema, under the `nri:` t
 | `nri.pluginIndex` | string | `"10"` | NRI plugin priority (`stub.WithPluginIdx`). Must also be unique per containerd instance when multiple plugins coexist (e.g. `"10"` prod, `"11"` dev). |
 | `nri.podLabel` | string | `vault-db-injector` | Pod label key the plugin filters on. Pods missing this label (or value `!= "true"`) are ignored. With multiple releases, set this to the release-specific label the matching webhook's `objectSelector` uses. Empty disables the filter. |
 | `nri.fetchTimeout` | duration | `1500ms` | Vault credential fetch timeout per `CreateContainer` event. **MUST be strictly less than containerd's `plugin_request_timeout`** (containerd default: `2s`). See [NRI tuning](#nri-tuning) below. |
+| `nri.prewarmer.enabled` | bool | `true` | Master switch for the async credential prefetcher. When `true`, a SharedInformer watches labelled pods on the local node and pre-populates the NRI cache before `CreateContainer` fires, removing the Vault fetch from containerd's hot path in the common case. When `false`, no informer is constructed and every `CreateContainer` uses the sync fetch path (pre-prewarmer behavior). |
+| `nri.prewarmer.maxConcurrent` | int | `50` | Maximum number of in-flight async prewarm fetches per DS pod. Bounds Vault and apiserver load during pod bursts. When the semaphore saturates, the surplus pods fall through to the sync path at `CreateContainer` time. Increment `vdbi_nri_prewarm_error_total{reason="semaphore_full"}` is the operator signal to raise this value on dense nodes. |
 
 ## Example: injector config
 
@@ -203,3 +205,31 @@ Per-step latency is also logged at `info` level under the `[timing]` tag,
 visible in `kubectl logs -l app=vault-db-injector-nri`. The total of
 `fetchAndBuildMapping TOTAL` against `nri.fetchTimeout` tells you how
 close you are to fail-closing under load.
+
+### Prewarming (avoid CreateContainer fail-closed on apiserver bursts)
+
+Under default configuration, the plugin observed transient `CreateContainerError` events during bursts where the K8s apiserver `TokenRequest` p99 spikes above the plugin's `fetchTimeout`. The prewarmer subsystem moves the credential fetch out of containerd's `CreateContainer` hot path.
+
+**How it works.** A `SharedInformer` watches pods on the local node (filtered by `spec.nodeName` and `nri.podLabel`). On pod `ADD`, an async fetch populates the existing in-memory cache. When `CreateContainer` fires (1-5 seconds later, typically), it serves from cache in sub-ms. The sync fetch in `CreateContainer` remains as a fail-closed fallback for pods that race ahead of the prewarmer or for cold starts.
+
+**Observability.** Four metrics surface prewarmer health:
+
+| Metric | What it measures |
+|---|---|
+| `vdbi_nri_prewarm_success_total` | Successful prewarm fetches |
+| `vdbi_nri_prewarm_error_total{reason=…}` | Failed/skipped prewarm attempts (`vault_fetch`, `semaphore_full`, `terminating_pod`) |
+| `vdbi_nri_prewarm_inflight` | Live count of in-flight prewarm fetches (gauge) |
+| `vdbi_nri_cache_hit_total{source=…}` | `CreateContainer` cache hits labelled by what populated the entry (`prewarm`, `sync`, `unknown`) |
+
+The KPI is the prewarm hit rate:
+
+```promql
+sum(rate(vdbi_nri_cache_hit_total{source="prewarm"}[5m]))
+  / sum(rate(vdbi_nri_cache_hit_total[5m]))
+```
+
+Target > 0.95 in steady state. If `prewarm_error_total{reason="semaphore_full"}` is non-zero, raise `nri.prewarmer.maxConcurrent` (default 50).
+
+**Disabling.** Set `nri.prewarmer.enabled: false` in helm and roll the DS. The plugin reverts to pre-prewarmer behavior (sync fetch on every `CreateContainer`).
+
+**Lifecycle note.** Prewarm-issued credentials for pods that never reach `CreateContainer` (admitted then deleted, OOMKilled at start, etc.) are revoked by the revoker's `safetyNetSync` (5-minute periodic GC). No code change required.
