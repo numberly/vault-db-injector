@@ -1660,6 +1660,24 @@ for a full walkthrough including Vault prerequisites.</p>
 <td>NRI plugin priority for <code>stub.WithPluginIdx</code>. Must be unique per containerd instance — running multiple injector releases on the same cluster requires distinct values (e.g. <code>"10"</code> for prod, <code>"11"</code> for dev). The plugin name auto-defaults to the helm release fullname.</td>
 </tr>
 <tr>
+<td>nri.prewarmer</td>
+<td>object</td>
+<td><code>{"enabled":true,"maxConcurrent":50}</code></td>
+<td>Async credential prefetcher. When enabled, a SharedInformer watches labelled pods on the local node and pre-populates the NRI cache before CreateContainer fires. Removes Vault fetch from containerd's hot path in the common case; sync fetch remains as fail-closed fallback. See <code>docs/reference/configuration.md</code> (NRI tuning &gt; Prewarming) for details.</td>
+</tr>
+<tr>
+<td>nri.prewarmer.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Master switch. When false, the prewarmer is not constructed and CreateContainer always uses the sync fetch path.</td>
+</tr>
+<tr>
+<td>nri.prewarmer.maxConcurrent</td>
+<td>int</td>
+<td><code>50</code></td>
+<td>Maximum number of in-flight async prewarm fetches per DS pod. Caps Vault and apiserver load during bursts. Raise on dense nodes.</td>
+</tr>
+<tr>
 <td>nri.resources</td>
 <td>object</td>
 <td><code>{"limits":{"cpu":"200m","memory":"256Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}</code></td>

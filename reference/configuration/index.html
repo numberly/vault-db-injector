@@ -1636,6 +1636,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#prewarming-avoid-createcontainer-fail-closed-on-apiserver-bursts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prewarming (avoid CreateContainer fail-closed on apiserver bursts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reconnect-handling-containerd-reloads-ttrpc-disconnects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reconnect handling (containerd reloads, ttrpc disconnects)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1986,6 +2008,18 @@ keys that are irrelevant to a given mode are silently ignored.</p>
 <td><code>1500ms</code></td>
 <td>Vault credential fetch timeout per <code>CreateContainer</code> event. <strong>MUST be strictly less than containerd's <code>plugin_request_timeout</code></strong> (containerd default: <code>2s</code>). See <a href="#nri-tuning">NRI tuning</a> below.</td>
 </tr>
+<tr>
+<td><code>nri.prewarmer.enabled</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Master switch for the async credential prefetcher. When <code>true</code>, a SharedInformer watches labelled pods on the local node and pre-populates the NRI cache before <code>CreateContainer</code> fires, removing the Vault fetch from containerd's hot path in the common case. When <code>false</code>, no informer is constructed and every <code>CreateContainer</code> uses the sync fetch path (pre-prewarmer behavior).</td>
+</tr>
+<tr>
+<td><code>nri.prewarmer.maxConcurrent</code></td>
+<td>int</td>
+<td><code>50</code></td>
+<td>Maximum number of in-flight async prewarm fetches per DS pod. Bounds Vault and apiserver load during pod bursts. When the semaphore saturates, the surplus pods fall through to the sync path at <code>CreateContainer</code> time. Increment <code>vdbi_nri_prewarm_error_total{reason="semaphore_full"}</code> is the operator signal to raise this value on dense nodes.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="example-injector-config">Example: injector config</h2>
@@ -2141,6 +2175,58 @@ prefix. The reasons:</p>
 visible in <code>kubectl logs -l app=vault-db-injector-nri</code>. The total of
 <code>fetchAndBuildMapping TOTAL</code> against <code>nri.fetchTimeout</code> tells you how
 close you are to fail-closing under load.</p>
+<h3 id="prewarming-avoid-createcontainer-fail-closed-on-apiserver-bursts">Prewarming (avoid CreateContainer fail-closed on apiserver bursts)</h3>
+<p>Under default configuration, the plugin observed transient <code>CreateContainerError</code> events during bursts where the K8s apiserver <code>TokenRequest</code> p99 spikes above the plugin's <code>fetchTimeout</code>. The prewarmer subsystem moves the credential fetch out of containerd's <code>CreateContainer</code> hot path.</p>
+<p><strong>How it works.</strong> A <code>SharedInformer</code> watches pods on the local node (filtered by <code>spec.nodeName</code> and <code>nri.podLabel</code>). On pod <code>ADD</code>, an async fetch populates the existing in-memory cache. When <code>CreateContainer</code> fires (1-5 seconds later, typically), it serves from cache in sub-ms. The sync fetch in <code>CreateContainer</code> remains as a fail-closed fallback for pods that race ahead of the prewarmer or for cold starts.</p>
+<p><strong>Observability.</strong> Four metrics surface prewarmer health:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>What it measures</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vdbi_nri_prewarm_success_total</code></td>
+<td>Successful prewarm fetches</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_prewarm_error_total{reason=…}</code></td>
+<td>Failed/skipped prewarm attempts (<code>vault_fetch</code>, <code>semaphore_full</code>, <code>terminating_pod</code>)</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_prewarm_inflight</code></td>
+<td>Live count of in-flight prewarm fetches (gauge)</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_cache_hit_total{source=…}</code></td>
+<td><code>CreateContainer</code> cache hits labelled by what populated the entry (<code>prewarm</code>, <code>sync</code>, <code>unknown</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The KPI is the prewarm hit rate:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">{</span><span class="nl">source</span><span class="o">=</span><span class="p">&quot;</span><span class="s">prewarm</span><span class="p">&quot;}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+</code></pre></div>
+<p>Target &gt; 0.95 in steady state. If <code>prewarm_error_total{reason="semaphore_full"}</code> is non-zero, raise <code>nri.prewarmer.maxConcurrent</code> (default 50).</p>
+<p><strong>Disabling.</strong> Set <code>nri.prewarmer.enabled: false</code> in helm and roll the DS. The plugin reverts to pre-prewarmer behavior (sync fetch on every <code>CreateContainer</code>).</p>
+<p><strong>Lifecycle note.</strong> Prewarm-issued credentials for pods that never reach <code>CreateContainer</code> (admitted then deleted, OOMKilled at start, etc.) are revoked by the revoker's <code>safetyNetSync</code> (5-minute periodic GC). No code change required.</p>
+<h3 id="reconnect-handling-containerd-reloads-ttrpc-disconnects">Reconnect handling (containerd reloads, ttrpc disconnects)</h3>
+<p>containerd may close NRI plugin ttrpc connections without restarting itself — typical triggers are logrotate-driven SIGHUP, in-place config reloads, or shim version upgrades. Without active handling, the plugin stays alive but disconnected: the DS pod is <code>Running</code> from Kubernetes' POV while the node is effectively NRI-dead.</p>
+<p>The plugin runs the ttrpc stub under a bounded reconnect loop:</p>
+<ol>
+<li>On unexpected disconnect, increment <code>vdbi_nri_reconnect_total{result="attempted"}</code>.</li>
+<li>Backoff <code>1s → 2s → 5s → 10s → 30s</code> (≈ 48s total recovery window).</li>
+<li>Rebuild a fresh <code>stub.Stub</code> and re-register with containerd. NRI's <code>Synchronize</code> hook fires on connect and re-establishes visibility of running containers.</li>
+<li>On successful reconnect, increment <code>vdbi_nri_reconnect_total{result="succeeded"}</code>.</li>
+<li>After the backoff schedule is exhausted, increment <code>vdbi_nri_reconnect_total{result="exhausted"}</code> and return a fatal error → main exits non-zero → kubelet restarts the DS pod.</li>
+</ol>
+<p>In-memory state (<code>plugin.cache</code>, <code>cacheSource</code>, prewarmer informer, sweeper) survives across reconnects, so the recovery is cheap.</p>
+<p><strong>Operator signals.</strong> Each reconnect is logged at <code>Warn</code>. Recommended alert:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kr">increase</span><span class="o">(</span><span class="nv">vdbi_nri_reconnect_total</span><span class="p">{</span><span class="nl">result</span><span class="o">=</span><span class="p">&quot;</span><span class="s">exhausted</span><span class="p">&quot;}[</span><span class="s">1h</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>— fires when the plugin gave up and the pod is being restarted by kubelet. A non-zero <code>attempted</code> rate without <code>exhausted</code> indicates transient disconnects that the lifecycle absorbed (informational, not actionable).</p>
 
 
 

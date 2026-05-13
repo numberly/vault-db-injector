@@ -1636,6 +1636,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#prechauffage-eviter-les-fail-closed-createcontainer-lors-de-bursts-apiserver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Préchauffage (éviter les fail-closed CreateContainer lors de bursts apiserver)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reconnexion-reloads-containerd-disconnects-ttrpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reconnexion (reloads containerd, disconnects ttrpc)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1986,6 +2008,18 @@ de clés ; les clés non pertinentes pour un mode donné sont silencieusement ig
 <td><code>1500ms</code></td>
 <td>Timeout du fetch de credentials Vault par évènement <code>CreateContainer</code>. <strong>DOIT être strictement inférieur au <code>plugin_request_timeout</code> de containerd</strong> (défaut containerd : <code>2s</code>). Voir <a href="#tuning-nri">Tuning NRI</a> ci-dessous.</td>
 </tr>
+<tr>
+<td><code>nri.prewarmer.enabled</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Interrupteur principal du préchauffeur async de credentials. Lorsque <code>true</code>, un SharedInformer observe les pods labellisés du nœud local et pré-remplit le cache NRI avant que <code>CreateContainer</code> ne soit appelé, sortant le fetch Vault du hot path containerd dans le cas courant. Lorsque <code>false</code>, aucun informer n'est construit et chaque <code>CreateContainer</code> utilise le chemin sync (comportement pré-préchauffeur).</td>
+</tr>
+<tr>
+<td><code>nri.prewarmer.maxConcurrent</code></td>
+<td>int</td>
+<td><code>50</code></td>
+<td>Nombre maximum de fetchs async de préchauffe en vol par pod DS. Borne la charge Vault et apiserver pendant les bursts de pods. Quand le sémaphore sature, les pods en surplus retombent sur le chemin sync au <code>CreateContainer</code>. Surveiller <code>vdbi_nri_prewarm_error_total{reason="semaphore_full"}</code> — signal opérationnel pour monter la valeur sur les nœuds denses.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="exemple-configuration-de-linjector">Exemple : configuration de l'injector</h2>
@@ -2145,6 +2179,58 @@ et produit un évènement Kubernetes Warning sur le pod avec un préfixe
 <code>[timing]</code>, visible via <code>kubectl logs -l app=vault-db-injector-nri</code>. Le
 total <code>fetchAndBuildMapping TOTAL</code> comparé à <code>nri.fetchTimeout</code> te dit à
 quel point tu es proche du fail-close sous charge.</p>
+<h3 id="prechauffage-eviter-les-fail-closed-createcontainer-lors-de-bursts-apiserver">Préchauffage (éviter les fail-closed <code>CreateContainer</code> lors de bursts apiserver)</h3>
+<p>Avec la configuration par défaut, le plugin a observé des évènements <code>CreateContainerError</code> transients pendant les bursts où la p99 du <code>TokenRequest</code> apiserver K8s dépasse le <code>fetchTimeout</code> du plugin. Le sous-système préchauffeur sort le fetch de credentials du hot path <code>CreateContainer</code> de containerd.</p>
+<p><strong>Fonctionnement.</strong> Un <code>SharedInformer</code> watch les pods sur le nœud local (filtrés par <code>spec.nodeName</code> et <code>nri.podLabel</code>). À l'évènement pod <code>ADD</code>, un fetch async populate le cache mémoire existant. Quand <code>CreateContainer</code> arrive (1-5 secondes plus tard typiquement), il sert depuis le cache en sub-ms. Le fetch sync dans <code>CreateContainer</code> reste comme fallback fail-closed pour les pods qui devancent le préchauffeur ou pour les cold starts.</p>
+<p><strong>Observabilité.</strong> Quatre métriques exposent la santé du préchauffeur :</p>
+<table>
+<thead>
+<tr>
+<th>Métrique</th>
+<th>Ce qu'elle mesure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vdbi_nri_prewarm_success_total</code></td>
+<td>Fetchs de préchauffe réussis</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_prewarm_error_total{reason=…}</code></td>
+<td>Tentatives de préchauffe échouées/sautées (<code>vault_fetch</code>, <code>semaphore_full</code>, <code>terminating_pod</code>)</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_prewarm_inflight</code></td>
+<td>Compteur des fetchs de préchauffe en vol (gauge)</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_cache_hit_total{source=…}</code></td>
+<td>Hits cache <code>CreateContainer</code> étiquetés selon ce qui a populé l'entrée (<code>prewarm</code>, <code>sync</code>, <code>unknown</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Le KPI est le taux de hit prewarm :</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">{</span><span class="nl">source</span><span class="o">=</span><span class="p">&quot;</span><span class="s">prewarm</span><span class="p">&quot;}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+</code></pre></div>
+<p>Cible &gt; 0.95 en régime stable. Si <code>prewarm_error_total{reason="semaphore_full"}</code> est non nul, monter <code>nri.prewarmer.maxConcurrent</code> (défaut 50).</p>
+<p><strong>Désactivation.</strong> Mettre <code>nri.prewarmer.enabled: false</code> dans helm et rouler le DS. Le plugin revient au comportement pré-préchauffeur (fetch sync sur chaque <code>CreateContainer</code>).</p>
+<p><strong>Cycle de vie.</strong> Les credentials émises par le préchauffeur pour des pods qui n'atteignent jamais <code>CreateContainer</code> (admis puis supprimés, OOMKilled au démarrage, etc.) sont révoquées par le <code>safetyNetSync</code> du revoker (GC périodique 5 min). Aucun code à ajouter.</p>
+<h3 id="reconnexion-reloads-containerd-disconnects-ttrpc">Reconnexion (reloads containerd, disconnects ttrpc)</h3>
+<p>containerd peut fermer la connexion ttrpc du plugin NRI sans pour autant redémarrer lui-même — déclencheurs typiques : SIGHUP de logrotate, reload de config en place, upgrade de shim. Sans gestion active, le plugin reste vivant mais déconnecté : le pod DS est <code>Running</code> du point de vue Kubernetes alors que le nœud est effectivement mort côté NRI.</p>
+<p>Le plugin exécute le stub ttrpc dans une boucle de reconnexion bornée :</p>
+<ol>
+<li>À chaque disconnect inattendu, incrémente <code>vdbi_nri_reconnect_total{result="attempted"}</code>.</li>
+<li>Backoff <code>1s → 2s → 5s → 10s → 30s</code> (fenêtre de récupération ≈ 48s).</li>
+<li>Reconstruit un <code>stub.Stub</code> neuf et se ré-enregistre auprès de containerd. Le hook <code>Synchronize</code> du NRI tire au connect et rétablit la visibilité des containers en cours sur le nœud.</li>
+<li>À la reconnexion réussie, incrémente <code>vdbi_nri_reconnect_total{result="succeeded"}</code>.</li>
+<li>Une fois le schedule de backoff épuisé, incrémente <code>vdbi_nri_reconnect_total{result="exhausted"}</code> et retourne une erreur fatale → main exit non-zéro → kubelet redémarre le pod DS.</li>
+</ol>
+<p>L'état mémoire (<code>plugin.cache</code>, <code>cacheSource</code>, informer du préchauffeur, sweeper) survit aux reconnexions, donc la récupération est bon marché.</p>
+<p><strong>Signaux opérationnels.</strong> Chaque reconnexion est loggée au niveau <code>Warn</code>. Alerte recommandée :</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kr">increase</span><span class="o">(</span><span class="nv">vdbi_nri_reconnect_total</span><span class="p">{</span><span class="nl">result</span><span class="o">=</span><span class="p">&quot;</span><span class="s">exhausted</span><span class="p">&quot;}[</span><span class="s">1h</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>— déclenche quand le plugin a abandonné et que le pod est en cours de redémarrage par kubelet. Un taux <code>attempted</code> non nul sans <code>exhausted</code> indique des disconnects transients absorbés par le lifecycle (informatif, pas actionable).</p>
 
 
 

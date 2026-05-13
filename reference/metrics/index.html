@@ -1998,6 +1998,31 @@ lose visibility immediately on upgrade.</p>
 <td><code>resolveMapping</code> calls that hit a concurrent in-flight call (singleflight dedup). Should stay near 0 in normal operation; spikes indicate concurrent <code>CreateContainer</code> races.</td>
 <td>—</td>
 </tr>
+<tr>
+<td><code>vdbi_nri_prewarm_success_total</code></td>
+<td>Successful async prewarm fetches issued by the informer's <code>AddFunc</code> handler.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_prewarm_error_total</code></td>
+<td>Failed or skipped prewarm attempts.</td>
+<td><code>reason</code> (<code>vault_fetch</code>, <code>semaphore_full</code>, <code>terminating_pod</code>)</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_prewarm_inflight</code></td>
+<td>In-flight async prewarm fetches (gauge). Compare against <code>nri.prewarmer.maxConcurrent</code>.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_cache_hit_total</code></td>
+<td><code>CreateContainer</code> events served from the in-memory cache, labelled by what populated the entry.</td>
+<td><code>source</code> (<code>prewarm</code>, <code>sync</code>, <code>unknown</code>)</td>
+</tr>
+<tr>
+<td><code>vdbi_nri_reconnect_total</code></td>
+<td>NRI plugin ttrpc reconnect lifecycle events. <code>attempted</code> = disconnect detected; <code>succeeded</code> = new stub registered after backoff; <code>exhausted</code> = bounded retries gave up and the pod will be restarted by kubelet.</td>
+<td><code>result</code> (<code>attempted</code>, <code>succeeded</code>, <code>exhausted</code>)</td>
+</tr>
 </tbody>
 </table>
 <hr />
