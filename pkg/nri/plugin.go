@@ -242,12 +242,27 @@ func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) err
 // with the pod UID so the existing renewer/revoker pipeline picks
 // it up unchanged.
 func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podName string) (map[string]string, error) {
+	return p.resolveMappingWithSource(ctx, podUID, podNamespace, podName, "sync")
+}
+
+// resolveMappingWithSource is the canonical entry point. source identifies
+// which path populated a cache entry on miss; on hit, the previously-recorded
+// source is preserved (the caller's source argument is ignored).
+func (p *plugin) resolveMappingWithSource(ctx context.Context, podUID, podNamespace, podName, source string) (map[string]string, error) {
 	p.mu.Lock()
 	cached, ok := p.cache[podUID]
+	hitSrc := ""
+	if ok {
+		hitSrc = p.cacheSource[podUID]
+		if hitSrc == "" {
+			hitSrc = "unknown"
+		}
+	}
 	p.mu.Unlock()
 	if ok {
-		p.log.Infof("NRI resolveMapping cache hit pod=%s/%s uid=%s mappingSize=%d",
-			podNamespace, podName, podUID, len(cached))
+		metrics.NRICacheHitTotal.WithLabelValues(hitSrc).Inc()
+		p.log.Infof("NRI resolveMapping cache hit pod=%s/%s uid=%s mappingSize=%d source=%s",
+			podNamespace, podName, podUID, len(cached), hitSrc)
 		return cached, nil
 	}
 
@@ -265,21 +280,19 @@ func (p *plugin) resolveMapping(ctx context.Context, podUID, podNamespace, podNa
 		}
 		p.mu.Unlock()
 
-		p.log.Infof("NRI fetchAndBuildMapping start pod=%s/%s uid=%s", podNamespace, podName, podUID)
+		p.log.Infof("NRI fetchAndBuildMapping start pod=%s/%s uid=%s source=%s", podNamespace, podName, podUID, source)
 		fetchStart := time.Now()
 		mapping, _, err := fetchAndBuildMapping(ctx, p.cfg, podUID, podNamespace, podName, p.bookkeepingCache)
-		p.log.Infof("NRI fetchAndBuildMapping end pod=%s/%s uid=%s dur=%s err=%v mappingSize=%d",
-			podNamespace, podName, podUID, time.Since(fetchStart), err, len(mapping))
+		p.log.Infof("NRI fetchAndBuildMapping end pod=%s/%s uid=%s dur=%s err=%v mappingSize=%d source=%s",
+			podNamespace, podName, podUID, time.Since(fetchStart), err, len(mapping), source)
 		if err != nil {
 			return nil, err
 		}
 		p.mu.Lock()
 		p.cache[podUID] = mapping
+		p.cacheSource[podUID] = source
 		p.mu.Unlock()
 		if err := saveCache(p.cfg.NRI.CachePath, p.snapshot()); err != nil {
-			// Cache write failure is non-fatal: the in-memory cache still works
-			// for this plugin instance. We just lose persistence — the pod will
-			// hit the bug if both this plugin restarts AND the container retries.
 			p.log.Warnf("save cache after fetch for pod %s: %v", podUID, err)
 		}
 		return mapping, nil
