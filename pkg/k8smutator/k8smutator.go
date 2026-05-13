@@ -362,13 +362,21 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 			return nil, role, nil, err
 		}
 
-		// Best-effort: revoke webhook's own vault SA token now that it's no
-		// longer needed. The NRI plugin authenticates independently at
-		// CreateContainer time. Remove from liveConns so the deferred block
-		// doesn't double-revoke on success.
-		if cfg.NRI.Enabled && vaultConn.K8sSaVaultToken != "" {
+		// Best-effort: in legacy NRI mode, revoke webhook's own login token
+		// now that it's no longer needed (the NRI plugin authenticates
+		// independently at CreateContainer time).
+		//
+		// IMPORTANT: in projected-SA mode, vaultConn.K8sSaVaultToken is the
+		// SHARED bookkeeping token returned by BookkeepingTokenCache and
+		// reused across every concurrent admission. Revoking it here would
+		// invalidate it Vault-side for every other in-flight admission and
+		// kill subsequent KV bookkeeping writes with 403 until the cache
+		// expires (30 min). The bookkeeping token's lifecycle is owned by
+		// the cache, not by this function. Same root cause as
+		// fetchAndBuildMapping's defer cleanup (see commit da90242).
+		if cfg.NRI.Enabled && !cfg.UseProjectedSA && vaultConn.K8sSaVaultToken != "" {
 			if revokeErr := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); revokeErr != nil {
-				logger.WithValues(log.Kv{"contextID": contextID}).Infof("RevokeSelfToken (NRI mode webhook) warning: %v", revokeErr)
+				logger.WithValues(log.Kv{"contextID": contextID}).Infof("RevokeSelfToken (NRI mode webhook, legacy) warning: %v", revokeErr)
 			}
 			// Clear token so deferred cleanup skips it (already revoked).
 			vaultConn.K8sSaVaultToken = ""
