@@ -59,6 +59,8 @@ Le DaemonSet NRI lit sa configuration depuis le même schéma YAML, sous la clé
 | `nri.pluginIndex` | string | `"10"` | Priorité du plugin NRI (`stub.WithPluginIdx`). Doit également être unique par instance containerd quand plusieurs plugins coexistent (ex. `"10"` prod, `"11"` dev). |
 | `nri.podLabel` | string | `vault-db-injector` | Clé de label pod sur laquelle le plugin filtre. Les pods sans ce label (ou avec une valeur `!= "true"`) sont ignorés. Avec plusieurs releases, à régler sur le label spécifique utilisé dans l'`objectSelector` du webhook correspondant. Vide désactive le filtre. |
 | `nri.fetchTimeout` | duration | `1500ms` | Timeout du fetch de credentials Vault par évènement `CreateContainer`. **DOIT être strictement inférieur au `plugin_request_timeout` de containerd** (défaut containerd : `2s`). Voir [Tuning NRI](#tuning-nri) ci-dessous. |
+| `nri.prewarmer.enabled` | bool | `true` | Interrupteur principal du préchauffeur async de credentials. Lorsque `true`, un SharedInformer observe les pods labellisés du nœud local et pré-remplit le cache NRI avant que `CreateContainer` ne soit appelé, sortant le fetch Vault du hot path containerd dans le cas courant. Lorsque `false`, aucun informer n'est construit et chaque `CreateContainer` utilise le chemin sync (comportement pré-préchauffeur). |
+| `nri.prewarmer.maxConcurrent` | int | `50` | Nombre maximum de fetchs async de préchauffe en vol par pod DS. Borne la charge Vault et apiserver pendant les bursts de pods. Quand le sémaphore sature, les pods en surplus retombent sur le chemin sync au `CreateContainer`. Surveiller `vdbi_nri_prewarm_error_total{reason="semaphore_full"}` — signal opérationnel pour monter la valeur sur les nœuds denses. |
 
 ## Exemple : configuration de l'injector
 
@@ -207,3 +209,53 @@ La latence par étape est aussi loggée au niveau `info` sous le tag
 `[timing]`, visible via `kubectl logs -l app=vault-db-injector-nri`. Le
 total `fetchAndBuildMapping TOTAL` comparé à `nri.fetchTimeout` te dit à
 quel point tu es proche du fail-close sous charge.
+
+### Préchauffage (éviter les fail-closed `CreateContainer` lors de bursts apiserver)
+
+Avec la configuration par défaut, le plugin a observé des évènements `CreateContainerError` transients pendant les bursts où la p99 du `TokenRequest` apiserver K8s dépasse le `fetchTimeout` du plugin. Le sous-système préchauffeur sort le fetch de credentials du hot path `CreateContainer` de containerd.
+
+**Fonctionnement.** Un `SharedInformer` watch les pods sur le nœud local (filtrés par `spec.nodeName` et `nri.podLabel`). À l'évènement pod `ADD`, un fetch async populate le cache mémoire existant. Quand `CreateContainer` arrive (1-5 secondes plus tard typiquement), il sert depuis le cache en sub-ms. Le fetch sync dans `CreateContainer` reste comme fallback fail-closed pour les pods qui devancent le préchauffeur ou pour les cold starts.
+
+**Observabilité.** Quatre métriques exposent la santé du préchauffeur :
+
+| Métrique | Ce qu'elle mesure |
+|---|---|
+| `vdbi_nri_prewarm_success_total` | Fetchs de préchauffe réussis |
+| `vdbi_nri_prewarm_error_total{reason=…}` | Tentatives de préchauffe échouées/sautées (`vault_fetch`, `semaphore_full`, `terminating_pod`) |
+| `vdbi_nri_prewarm_inflight` | Compteur des fetchs de préchauffe en vol (gauge) |
+| `vdbi_nri_cache_hit_total{source=…}` | Hits cache `CreateContainer` étiquetés selon ce qui a populé l'entrée (`prewarm`, `sync`, `unknown`) |
+
+Le KPI est le taux de hit prewarm :
+
+```promql
+sum(rate(vdbi_nri_cache_hit_total{source="prewarm"}[5m]))
+  / sum(rate(vdbi_nri_cache_hit_total[5m]))
+```
+
+Cible > 0.95 en régime stable. Si `prewarm_error_total{reason="semaphore_full"}` est non nul, monter `nri.prewarmer.maxConcurrent` (défaut 50).
+
+**Désactivation.** Mettre `nri.prewarmer.enabled: false` dans helm et rouler le DS. Le plugin revient au comportement pré-préchauffeur (fetch sync sur chaque `CreateContainer`).
+
+**Cycle de vie.** Les credentials émises par le préchauffeur pour des pods qui n'atteignent jamais `CreateContainer` (admis puis supprimés, OOMKilled au démarrage, etc.) sont révoquées par le `safetyNetSync` du revoker (GC périodique 5 min). Aucun code à ajouter.
+
+### Reconnexion (reloads containerd, disconnects ttrpc)
+
+containerd peut fermer la connexion ttrpc du plugin NRI sans pour autant redémarrer lui-même — déclencheurs typiques : SIGHUP de logrotate, reload de config en place, upgrade de shim. Sans gestion active, le plugin reste vivant mais déconnecté : le pod DS est `Running` du point de vue Kubernetes alors que le nœud est effectivement mort côté NRI.
+
+Le plugin exécute le stub ttrpc dans une boucle de reconnexion bornée :
+
+1. À chaque disconnect inattendu, incrémente `vdbi_nri_reconnect_total{result="attempted"}`.
+2. Backoff `1s → 2s → 5s → 10s → 30s` (fenêtre de récupération ≈ 48s).
+3. Reconstruit un `stub.Stub` neuf et se ré-enregistre auprès de containerd. Le hook `Synchronize` du NRI tire au connect et rétablit la visibilité des containers en cours sur le nœud.
+4. À la reconnexion réussie, incrémente `vdbi_nri_reconnect_total{result="succeeded"}`.
+5. Une fois le schedule de backoff épuisé, incrémente `vdbi_nri_reconnect_total{result="exhausted"}` et retourne une erreur fatale → main exit non-zéro → kubelet redémarre le pod DS.
+
+L'état mémoire (`plugin.cache`, `cacheSource`, informer du préchauffeur, sweeper) survit aux reconnexions, donc la récupération est bon marché.
+
+**Signaux opérationnels.** Chaque reconnexion est loggée au niveau `Warn`. Alerte recommandée :
+
+```promql
+increase(vdbi_nri_reconnect_total{result="exhausted"}[1h]) > 0
+```
+
+— déclenche quand le plugin a abandonné et que le pod est en cours de redémarrage par kubelet. Un taux `attempted` non nul sans `exhausted` indique des disconnects transients absorbés par le lifecycle (informatif, pas actionable).

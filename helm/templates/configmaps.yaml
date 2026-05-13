@@ -83,4 +83,7 @@ data:
       pluginIndex: {{ .Values.nri.pluginIndex | default "10" | quote }}
       podLabel: {{ .Values.vaultDbInjector.configuration.webhookMatchLabels | quote }}
       fetchTimeout: {{ .Values.nri.fetchTimeout | default "1500ms" | quote }}
+      prewarmer:
+        enabled: {{ .Values.nri.prewarmer.enabled }}
+        maxConcurrent: {{ .Values.nri.prewarmer.maxConcurrent | default 50 }}
 {{- end }}

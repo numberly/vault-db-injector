@@ -34,50 +34,59 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 	g, gctx := errgroup.WithContext(ctx)
 	if c := k8s.NewClient(); c != nil {
 		if clientset, kerr := c.GetKubernetesClient(); kerr == nil {
-			if name := nodeNameFromEnv(); name != "" {
+			name := nodeNameFromEnv()
+			if name != "" {
 				sw := newSweeper(clientset, p, name, log)
 				g.Go(func() error { return sw.Run(gctx) })
 			} else {
 				log.Warn("NODE_NAME env unset; cache sweeper disabled")
 			}
+			if cfg.NRI.Prewarmer.Enabled {
+				if name != "" {
+					pw := newPrewarmer(p, clientset, name, cfg.NRI.Prewarmer.MaxConcurrent, log)
+					g.Go(func() error { return pw.Run(gctx) })
+				} else {
+					log.Warn("NODE_NAME env unset; NRI prewarmer disabled")
+				}
+			} else {
+				log.Info("NRI prewarmer disabled by config (nri.prewarmer.enabled=false)")
+			}
 		} else {
-			log.Warnf("kubernetes client init failed: %v (cache sweeper disabled)", kerr)
+			log.Warnf("kubernetes client init failed: %v (cache sweeper and prewarmer disabled)", kerr)
 		}
 	}
 
-	s, err := stubFor(p)
-	if err != nil {
-		return err
-	}
 	log.Infof("NRI plugin connecting on %s", cfg.NRI.SocketPath)
 
-	// Run the stub in a goroutine so we can react to ctx cancellation
-	// (SIGTERM) by calling Stop() explicitly. The NRI stub's Run() blocks
-	// until Stop() or a fatal error — without an explicit Stop, containerd
-	// may keep the plugin connection registered past pod termination,
-	// causing "plugins X and X both tried to set env" errors when the
-	// next DS pod reconnects with the same idx+name.
-	runDone := make(chan error, 1)
-	go func() { runDone <- s.Run(ctx) }()
+	// stubLifecycle handles bounded reconnect on unexpected ttrpc disconnects
+	// (containerd reload, log rotation, etc.). On exhaustion it returns a
+	// non-nil error, which the errgroup propagates to main → exit non-zero →
+	// kubelet restarts the DS pod. The plugin's in-memory state survives
+	// across reconnects.
+	lifecycle := newStubLifecycle(p, log)
 
-	var runErr error
-	select {
-	case <-ctx.Done():
+	// Use gctx (not ctx): when a sibling goroutine (prewarmer, sweeper)
+	// returns an error, errgroup cancels gctx, and the lifecycle must see
+	// that as a graceful shutdown — otherwise the inner Run unblocking from
+	// the sidecar's Stop() is misinterpreted as a ttrpc disconnect and
+	// triggers spurious reconnect attempts that prevent Run from returning.
+	g.Go(func() error {
+		return lifecycle.run(gctx)
+	})
+
+	// Sidecar: when gctx is cancelled (parent SIGTERM, or another goroutine
+	// returned an error), stop the current stub so its Run unblocks. The NRI
+	// stub's Run does not honour ctx alone — only Stop().
+	g.Go(func() error {
+		<-gctx.Done()
 		log.Infof("NRI plugin shutting down (ctx cancelled)")
-		s.Stop()
-		s.Wait()
-		// Drain Run's return so the goroutine doesn't leak.
-		<-runDone
-	case runErr = <-runDone:
-		// Plugin exited on its own (fatal connection error). Make sure the
-		// stub's resources are released before returning.
-		s.Stop()
-	}
+		lifecycle.shutdown()
+		return nil
+	})
 
-	_ = g.Wait()
-
-	if runErr != nil {
-		return errors.Wrap(runErr, "NRI plugin run loop")
+	err = g.Wait()
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return errors.Wrap(err, "NRI plugin run loop")
 	}
 	return nil
 }

@@ -136,6 +136,12 @@ nri:
   pluginIndex: "10"
   # -- Vault credential fetch timeout per CreateContainer event. MUST be strictly less than containerd `plugin_request_timeout` so the plugin returns an error BEFORE containerd times out the plugin (containerd-side timeout fails-open and leaks placeholders into env). Default `"1500ms"` is aligned with containerd's default `plugin_request_timeout` of `2s` (leaves 500ms for containerd to propagate the error). On nodes configured with a higher `plugin_request_timeout` (e.g. `30s` to absorb Vault bursts), raise this to ~`plugin_request_timeout - 5s`.
   fetchTimeout: "1500ms"
+  # -- Async credential prefetcher. When enabled, a SharedInformer watches labelled pods on the local node and pre-populates the NRI cache before CreateContainer fires. Removes Vault fetch from containerd's hot path in the common case; sync fetch remains as fail-closed fallback. See `docs/reference/configuration.md` (NRI tuning > Prewarming) for details.
+  prewarmer:
+    # -- Master switch. When false, the prewarmer is not constructed and CreateContainer always uses the sync fetch path.
+    enabled: true
+    # -- Maximum number of in-flight async prewarm fetches per DS pod. Caps Vault and apiserver load during bursts. Raise on dense nodes.
+    maxConcurrent: 50
   # -- Tolerations for the NRI DaemonSet. The default tolerates every taint so the plugin runs on every node. The plugin is node-local — if it is missing on a tainted node where labelled pods are scheduled, those pods start with the raw placeholder string in env (visible CrashLoop, but still a leak window). Override to restrict where the plugin runs.
   tolerations:
   - operator: Exists

@@ -50,22 +50,23 @@ func fetchAndBuildMapping(ctx context.Context, cfg *config.Config, contextID, po
 
 	// liveConns accumulates every connector whose Login succeeded.
 	// On partial failure (iteration K fails after 0..K-1 succeeded) the
-	// deferred cleanup revokes all pod-tokens and bookkeeping tokens that
-	// were already issued, preventing silent leaks until token_max_ttl.
+	// deferred cleanup revokes the per-pod tokens that were already issued,
+	// preventing silent leaks until token_max_ttl.
+	//
+	// IMPORTANT: do NOT revoke c.K8sSaVaultToken here. The bookkeeping token
+	// is a shared resource cached by BookkeepingTokenCache and reused across
+	// concurrent admissions/prewarms. Revoking it on one fetch failure
+	// invalidates it for everyone else still holding the cached value, and
+	// kills subsequent KV writes with 403 "permission denied" until the
+	// cache entry expires (30 min). The bookkeeping token's lifecycle is
+	// owned by the cache, not by this function.
 	var liveConns []*vault.Connector
 	defer func() {
 		if retErr != nil && cfg.UseProjectedSA {
 			for _, c := range liveConns {
-				// Revoke the pod-token (current token after Login).
 				if podTok := c.GetToken(); podTok != "" {
 					if revErr := c.RevokeSelfToken(context.Background(), podTok); revErr != nil {
 						logger.GetLogger().Warnf("RevokeSelfToken (pod-token) failed during multi-dbConfig cleanup: %v", revErr)
-					}
-				}
-				// Revoke the bookkeeping injector-SA token separately.
-				if c.K8sSaVaultToken != "" {
-					if revErr := c.RevokeSelfToken(context.Background(), c.K8sSaVaultToken); revErr != nil {
-						logger.GetLogger().Warnf("RevokeSelfToken (bookkeeping) failed during multi-dbConfig cleanup: %v", revErr)
 					}
 				}
 			}

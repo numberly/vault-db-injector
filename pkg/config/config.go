@@ -63,6 +63,26 @@ type NRIConfig struct {
 	// On nodes configured with a higher plugin_request_timeout (e.g. 30s to
 	// absorb Vault bursts), raise this value to ~plugin_request_timeout - 5s.
 	FetchTimeout time.Duration `yaml:"fetchTimeout" envconfig:"fetch_timeout"`
+	// Prewarmer holds the configuration for the async credential prefetcher.
+	// When enabled, a SharedInformer watches labelled pods on this node and
+	// pre-populates plugin.cache before CreateContainer fires, removing the
+	// Vault fetch from containerd's hot path in the common case. The sync
+	// fetch in CreateContainer remains as a fail-closed fallback.
+	Prewarmer NRIPrewarmerConfig `yaml:"prewarmer" envconfig:"prewarmer"`
+}
+
+// NRIPrewarmerConfig configures the async credential prefetcher. See the
+// design spec at docs/superpowers/specs/2026-05-13-nri-prewarmer-design.md.
+type NRIPrewarmerConfig struct {
+	// Enabled, when false, disables the prewarmer entirely (no informer,
+	// no async fetch on pod ADD). CreateContainer falls back to the sync
+	// path (pre-prewarmer behavior). Useful for debugging or in clusters
+	// where the watch overhead is unwelcome.
+	Enabled bool `yaml:"enabled" envconfig:"enabled"`
+	// MaxConcurrent caps the number of in-flight async fetches per DS pod.
+	// Protects Vault and apiserver from thundering-herd on pod bursts.
+	// Defaults to 50; set higher on dense nodes.
+	MaxConcurrent int `yaml:"maxConcurrent" envconfig:"max_concurrent"`
 }
 
 type Config struct {
@@ -140,6 +160,10 @@ func NewConfig(configFile string) (*Config, error) {
 			PluginIndex:  "10",
 			PodLabel:     "vault-db-injector",
 			FetchTimeout: 1500 * time.Millisecond,
+			Prewarmer: NRIPrewarmerConfig{
+				Enabled:       true,
+				MaxConcurrent: 50,
+			},
 		},
 		UseProjectedSA:                false,
 		TokenRequestAudiences:         nil,

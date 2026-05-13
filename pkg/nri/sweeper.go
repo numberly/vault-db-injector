@@ -73,6 +73,7 @@ func (s *sweeper) sweepOnce(ctx context.Context) error {
 	for uid := range s.plugin.cache {
 		if _, ok := live[uid]; !ok {
 			delete(s.plugin.cache, uid)
+			delete(s.plugin.cacheSource, uid)
 			evicted++
 		}
 	}
