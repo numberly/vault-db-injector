@@ -83,3 +83,35 @@ func TestPrewarmer_AddFunc_TriggersFetchForLabelledPod(t *testing.T) {
 		t.Errorf("expected source=prewarm for uid-x, got %v", src)
 	}
 }
+
+func TestPrewarmer_AddFunc_SkipsTerminatingPod(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	p := newPlugin(&config.Config{NRI: config.NRIConfig{
+		PodLabel:  "vault-db-injector",
+		CachePath: t.TempDir() + "/cache.json",
+		Prewarmer: config.NRIPrewarmerConfig{Enabled: true, MaxConcurrent: 5},
+	}}, logger.GetLogger())
+
+	resolver := &stubResolver{}
+	pw := newPrewarmer(p, client, "node-1", 5, logger.GetLogger())
+	pw.resolver = resolver.resolveMappingWithSource
+
+	now := metav1.Now()
+	terminatingPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "pod-term",
+			Namespace:         "default",
+			UID:               types.UID("uid-term"),
+			Labels:            map[string]string{"vault-db-injector": "true"},
+			DeletionTimestamp: &now,
+		},
+		Spec: corev1.PodSpec{NodeName: "node-1"},
+	}
+
+	pw.onAdd(terminatingPod)
+	// Give the (non-existent) goroutine a moment to NOT run.
+	time.Sleep(50 * time.Millisecond)
+	if resolver.calls.Load() != 0 {
+		t.Errorf("expected 0 fetches for terminating pod, got %d", resolver.calls.Load())
+	}
+}
