@@ -258,6 +258,30 @@ var (
 			Help: "Number of resolveMapping calls that hit a concurrent in-flight call (singleflight share). Indicates multi-container pods triggering simultaneous CreateContainer.",
 		}, []string{},
 	)
+	NRIPrewarmSuccess = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "vdbi_nri_prewarm_success_total",
+			Help: "Successful async prewarm fetches issued by the informer's AddFunc handler.",
+		},
+	)
+	NRIPrewarmError = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_nri_prewarm_error_total",
+			Help: "Failed or skipped prewarm attempts.",
+		}, []string{"reason"},
+	)
+	NRIPrewarmInflight = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "vdbi_nri_prewarm_inflight",
+			Help: "In-flight async prewarm fetches (gauge; sanity check vs MaxConcurrent).",
+		},
+	)
+	NRICacheHitTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_nri_cache_hit_total",
+			Help: "CreateContainer events served from plugin.cache, labelled by what populated the entry.",
+		}, []string{"source"},
+	)
 )
 
 func Init(prom *prometheus.Registry) {
@@ -300,5 +324,9 @@ func Init(prom *prometheus.Registry) {
 		LeaseElectionAttempts,
 		LeaseDuration,
 		NRIResolveDuplicateTotal,
+		NRIPrewarmSuccess,
+		NRIPrewarmError,
+		NRIPrewarmInflight,
+		NRICacheHitTotal,
 	)
 }
