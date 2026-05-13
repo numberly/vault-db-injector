@@ -549,3 +549,24 @@ nri:
 	assert.Equal(t, "11", cfg.NRI.PluginIndex)
 	assert.Equal(t, "/run/my-release/cache.json", cfg.NRI.CachePath)
 }
+
+func TestConfig_NRIPrewarmerDefaults(t *testing.T) {
+	// Validate() requires several keys to be non-empty; set the minimum
+	// non-cert mode (renewer) to bypass the cert/key requirements.
+	t.Setenv("INJECTOR_MODE", "renewer")
+	t.Setenv("INJECTOR_VAULT_ADDRESS", "http://vault:8200")
+	t.Setenv("INJECTOR_VAULT_AUTH_PATH", "auth/kubernetes")
+	t.Setenv("INJECTOR_KUBE_ROLE", "my-role")
+	t.Setenv("INJECTOR_VAULT_SECRET_NAME", "vault-secret")
+	t.Setenv("INJECTOR_VAULT_SECRET_PREFIX", "prefix/")
+	cfg, err := NewConfig("")
+	if err != nil {
+		t.Fatalf("NewConfig: %v", err)
+	}
+	if !cfg.NRI.Prewarmer.Enabled {
+		t.Errorf("NRI.Prewarmer.Enabled default: got false, want true")
+	}
+	if cfg.NRI.Prewarmer.MaxConcurrent != 50 {
+		t.Errorf("NRI.Prewarmer.MaxConcurrent default: got %d, want 50", cfg.NRI.Prewarmer.MaxConcurrent)
+	}
+}
