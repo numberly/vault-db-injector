@@ -187,3 +187,52 @@ func TestPrewarmer_OnDelete_EvictsCache(t *testing.T) {
 		t.Error("cacheSource entry not evicted by onDelete")
 	}
 }
+
+func TestPrewarmer_UpdateFunc_DoesNothing(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	p := newPlugin(&config.Config{NRI: config.NRIConfig{
+		PodLabel:  "vault-db-injector",
+		CachePath: t.TempDir() + "/cache.json",
+		Prewarmer: config.NRIPrewarmerConfig{Enabled: true, MaxConcurrent: 5},
+	}}, logger.GetLogger())
+
+	resolver := &stubResolver{}
+	pw := newPrewarmer(p, client, "node-1", 5, logger.GetLogger())
+	pw.resolver = resolver.resolveMappingWithSource
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go pw.Run(ctx)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "p", Namespace: "default", UID: types.UID("uid-u"),
+			Labels: map[string]string{"vault-db-injector": "true"},
+		},
+		Spec: corev1.PodSpec{NodeName: "node-1"},
+	}
+	if _, err := client.CoreV1().Pods("default").Create(ctx, pod, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("Create pod: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if resolver.calls.Load() >= 1 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	beforeUpdate := resolver.calls.Load()
+	if beforeUpdate != 1 {
+		t.Fatalf("expected 1 call after Add, got %d", beforeUpdate)
+	}
+
+	pod.Annotations = map[string]string{"unrelated": "change"}
+	if _, err := client.CoreV1().Pods("default").Update(ctx, pod, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("Update pod: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if resolver.calls.Load() != beforeUpdate {
+		t.Errorf("expected no additional fetches after Update, got %d (was %d)",
+			resolver.calls.Load(), beforeUpdate)
+	}
+}
