@@ -60,6 +60,14 @@ Append to `pkg/config/config_test.go`:
 
 ```go
 func TestConfig_NRIPrewarmerDefaults(t *testing.T) {
+	// Validate() requires several keys to be non-empty; set the minimum
+	// non-cert mode (renewer) to bypass the cert/key requirements.
+	t.Setenv("INJECTOR_MODE", "renewer")
+	t.Setenv("INJECTOR_VAULT_ADDRESS", "http://vault:8200")
+	t.Setenv("INJECTOR_VAULT_AUTH_PATH", "auth/kubernetes")
+	t.Setenv("INJECTOR_KUBE_ROLE", "my-role")
+	t.Setenv("INJECTOR_VAULT_SECRET_NAME", "vault-secret")
+	t.Setenv("INJECTOR_VAULT_SECRET_PREFIX", "prefix/")
 	cfg, err := NewConfig("")
 	if err != nil {
 		t.Fatalf("NewConfig: %v", err)
@@ -81,11 +89,27 @@ go test ./pkg/config/... -run TestConfig_NRIPrewarmerDefaults -v
 
 Expected: `cfg.NRI.Prewarmer undefined` compile error.
 
-- [ ] **Step 3: Add the struct and field**
+- [ ] **Step 3a: Add Prewarmer field inside NRIConfig**
 
-In `pkg/config/config.go`, inside the `NRIConfig` struct (right after the existing `FetchTimeout` field), append:
+In `pkg/config/config.go`, find the current closing of `NRIConfig` which looks like:
 
 ```go
+	// Default: 1500ms — aligned with containerd's default plugin_request_timeout
+	// of 2s (leaves 500ms for containerd to propagate the error to kubelet).
+	// On nodes configured with a higher plugin_request_timeout (e.g. 30s to
+	// absorb Vault bursts), raise this value to ~plugin_request_timeout - 5s.
+	FetchTimeout time.Duration `yaml:"fetchTimeout" envconfig:"fetch_timeout"`
+}
+```
+
+Replace it with (adds `Prewarmer` field then closes the struct, then adds the new type):
+
+```go
+	// Default: 1500ms — aligned with containerd's default plugin_request_timeout
+	// of 2s (leaves 500ms for containerd to propagate the error to kubelet).
+	// On nodes configured with a higher plugin_request_timeout (e.g. 30s to
+	// absorb Vault bursts), raise this value to ~plugin_request_timeout - 5s.
+	FetchTimeout time.Duration `yaml:"fetchTimeout" envconfig:"fetch_timeout"`
 	// Prewarmer holds the configuration for the async credential prefetcher.
 	// When enabled, a SharedInformer watches labelled pods on this node and
 	// pre-populates plugin.cache before CreateContainer fires, removing the
@@ -106,11 +130,25 @@ type NRIPrewarmerConfig struct {
 	// Protects Vault and apiserver from thundering-herd on pod bursts.
 	// Defaults to 50; set higher on dense nodes.
 	MaxConcurrent int `yaml:"maxConcurrent" envconfig:"max_concurrent"`
+}
 ```
 
-(Note: this replaces the existing closing `}` of `NRIConfig` — the closing brace migrates after the `Prewarmer` field. The new closing `}` for `NRIPrewarmerConfig` is added.)
+- [ ] **Step 3b: Add Prewarmer defaults in NewConfig**
 
-In the same file, locate the `NRI: NRIConfig{...}` literal in `NewConfig()` and add the `Prewarmer` field:
+In the same file, find the `NRI: NRIConfig{...}` literal in `NewConfig`. The current text is:
+
+```go
+		NRI: NRIConfig{
+			SocketPath:   "/var/run/nri/nri.sock",
+			CachePath:    "/run/vault-db-injector/nri/cache.json",
+			PluginName:   "vault-db-injector",
+			PluginIndex:  "10",
+			PodLabel:     "vault-db-injector",
+			FetchTimeout: 1500 * time.Millisecond,
+		},
+```
+
+Replace with:
 
 ```go
 		NRI: NRIConfig{
@@ -409,7 +447,7 @@ Expected: all tests pass (including the existing `TestCreateContainer_NoEnv`, `T
 - [ ] **Step 3: Commit**
 
 ```bash
-git add pkg/nri/plugin.go pkg/nri/plugin_test.go
+git add pkg/nri/plugin.go
 git commit -m "feat(nri): add resolveMappingWithSource, instrument cache_hit_total"
 ```
 
@@ -492,7 +530,22 @@ func (p *plugin) RemovePodSandbox(_ context.Context, pod *nriapi.PodSandbox) err
 }
 ```
 
-Also update `Synchronize` (around line 60) which has similar logic — replace the loop body to use `delete` only and avoid touching `cacheSource` independently. Actually it's already simple, just ensure `cacheSource` is also cleaned. Update:
+Also update `Synchronize` to evict `cacheSource` alongside `cache`. Find this exact block in `Synchronize`:
+
+```go
+	p.mu.Lock()
+	evicted := 0
+	for uid := range p.cache {
+		if _, alive := live[uid]; !alive {
+			delete(p.cache, uid)
+			evicted++
+		}
+	}
+	cacheSize := len(p.cache)
+	p.mu.Unlock()
+```
+
+Replace with:
 
 ```go
 	p.mu.Lock()
@@ -729,6 +782,12 @@ func (pw *prewarmer) Run(ctx context.Context) error {
 		return err
 	}
 	factory.Start(ctx.Done())
+	// Wait for the initial LIST to populate the lister before declaring ready.
+	// Tests rely on this to avoid races between Create() and event delivery.
+	if !cache.WaitForCacheSync(ctx.Done(), podInformer.HasSynced) {
+		pw.log.Warn("NRI prewarmer cache sync cancelled before completion")
+		return nil
+	}
 	pw.log.Infof("NRI prewarmer running for node %s (label=%s)",
 		pw.nodeName, podLabel)
 	<-ctx.Done()
@@ -753,20 +812,13 @@ func (pw *prewarmer) onAdd(obj any) {
 	uid := string(pod.UID)
 	ns := pod.Namespace
 	name := pod.Name
-	// Capture DeletionTimestamp pointer — re-checked inside goroutine below
-	// to catch the race between event dispatch and goroutine start.
+	// DeletionTimestamp was checked at handler entry. Pods that transition
+	// to Terminating after dispatch are handled by DeleteFunc (cache evict)
+	// + revoker safetyNetSync (Vault revocation) — see design spec §4.
 	go func() {
 		defer pw.sem.Release(1)
 		metrics.NRIPrewarmInflight.Inc()
 		defer metrics.NRIPrewarmInflight.Dec()
-		// Re-check DeletionTimestamp. The pod object captured at event time
-		// is a snapshot; if the pod entered Terminating between event dispatch
-		// and goroutine start, the field would have changed in the lister's
-		// next observation. We re-read via a fresh local check.
-		if pod.DeletionTimestamp != nil {
-			metrics.NRIPrewarmError.WithLabelValues("terminating_pod").Inc()
-			return
-		}
 		ctx, cancel := context.WithTimeout(context.Background(), pw.fetchTimeout)
 		defer cancel()
 		if _, err := pw.resolver(ctx, uid, ns, name, "prewarm"); err != nil {
@@ -824,7 +876,7 @@ git commit -m "feat(nri): add prewarmer with informer-driven AddFunc + DeleteFun
 
 ---
 
-## Task 7: Prewarmer — DeletionTimestamp re-check race test
+## Task 7: Prewarmer — terminating pod is skipped at handler entry
 
 **Files:**
 - Modify: `pkg/nri/prewarmer_test.go`
@@ -940,6 +992,9 @@ func TestPrewarmer_AddFunc_SemaphoreSaturates(t *testing.T) {
 		t.Errorf("expected 2 in-flight calls, got %d", slow.calls.Load())
 	}
 	close(slow.released)
+	// Give the in-flight goroutines a moment to finish before t.TempDir()
+	// cleanup races with the persist write inside resolveMappingWithSource.
+	time.Sleep(100 * time.Millisecond)
 }
 ```
 
@@ -1291,7 +1346,7 @@ In `helm/templates/configmaps.yaml`, locate the `nri:` block that already render
 
 ```yaml
       prewarmer:
-        enabled: {{ .Values.nri.prewarmer.enabled | default true }}
+        enabled: {{ .Values.nri.prewarmer.enabled }}
         maxConcurrent: {{ .Values.nri.prewarmer.maxConcurrent | default 50 }}
 ```
 
@@ -1476,10 +1531,15 @@ Expected: no new lint errors. Pre-existing warnings unchanged.
 - [ ] **Step 3: Helm template renders**
 
 ```bash
-helm template test-release helm/ -f helm/values.yml 2>&1 | grep -A2 "prewarmer:"
+helm template test-release helm/ \
+  --set vaultDbInjector.configuration.vaultAddress=http://vault:8200 \
+  --set vaultDbInjector.configuration.kubeRole=test \
+  --set vaultDbInjector.configuration.vaultSecretName=secret \
+  --set vaultDbInjector.configuration.vaultSecretPrefix=p/ \
+  --set nri.enabled=true 2>&1 | grep -A2 "prewarmer:"
 ```
 
-Expected: see `prewarmer: enabled: true / maxConcurrent: 50` in the rendered ConfigMap.
+Expected: see `prewarmer:` followed by `enabled: true` and `maxConcurrent: 50` in the rendered ConfigMap. (Required values are forced to satisfy helm/chart validation; adjust if your chart's required keys differ.)
 
 - [ ] **Step 4: Spec sanity check — read the design doc and verify the plan covered each section**
 
