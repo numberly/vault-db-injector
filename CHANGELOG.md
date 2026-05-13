@@ -1,5 +1,44 @@
 # Changelog
 
+## [3.2.0](https://github.com/numberly/vault-db-injector/compare/v3.1.0...v3.2.0) (2026-05-13)
+
+
+### Features
+
+* **config:** add NRI.Prewarmer block (Enabled, MaxConcurrent) ([7500b3d](https://github.com/numberly/vault-db-injector/commit/7500b3d6181fb66b9e2f933440e090740ad0428e))
+* **helm:** expose nri.prewarmer.{enabled,maxConcurrent} values ([53ac202](https://github.com/numberly/vault-db-injector/commit/53ac202586846a742964ad6df010cc192ffe6b30))
+* **metrics:** add NRI prewarmer counters and cache_hit_total ([55993cf](https://github.com/numberly/vault-db-injector/commit/55993cf8da18c9efb40b9869a4e1ece1db6f39b6))
+* **nri:** add cacheSource parallel map for cache_hit_total labelling ([4e01302](https://github.com/numberly/vault-db-injector/commit/4e013028c15a36992f5441b95a837580eaeab823))
+* **nri:** add prewarmer with informer-driven AddFunc + DeleteFunc ([201a29b](https://github.com/numberly/vault-db-injector/commit/201a29baf4968e562a2137183549da890779ede2))
+* **nri:** add resolveMappingWithSource, instrument cache_hit_total ([8ebc0fe](https://github.com/numberly/vault-db-injector/commit/8ebc0fe02e473674205e23e5fc4ea96b543272d6))
+* **nri:** prewarmer + fail-closed substitution + ttrpc reconnect lifecycle ([77201e7](https://github.com/numberly/vault-db-injector/commit/77201e78e436548da79e99fed470cce0f9e41a74))
+* **nri:** start prewarmer in runner, gated by Prewarmer.Enabled ([2e13f58](https://github.com/numberly/vault-db-injector/commit/2e13f58e6b1f99385aa2353f1aab6530f40dc9a3))
+
+
+### Bug Fixes
+
+* **nri:** bounded reconnect on ttrpc disconnect, then crash for kubelet restart ([ffcd463](https://github.com/numberly/vault-db-injector/commit/ffcd4633b497422d32e44d04920bb7183719e3fe))
+* **nri:** propagate gctx to lifecycle + derive prewarm fetch ctx from runCtx ([edb50ec](https://github.com/numberly/vault-db-injector/commit/edb50ecb32ef61d318f1f92838b28f17bb542c84))
+* **nri:** sweeper now also evicts cacheSource entries ([c16d80c](https://github.com/numberly/vault-db-injector/commit/c16d80c2403071d2add3e0771b5afe79d3a8d349))
+* **vault:** never revoke shared bookkeeping token in cleanup defer ([da90242](https://github.com/numberly/vault-db-injector/commit/da902426c3a768f44e81f166bf994073f23f6baf))
+* **webhook:** never revoke shared bookkeeping token on success path ([b8825b1](https://github.com/numberly/vault-db-injector/commit/b8825b1a65ddaeb5a71357c4e9dd8e57969e22ec))
+
+
+### Documentation
+
+* document NRI prewarmer config keys and tuning section (EN+FR) ([feb79d6](https://github.com/numberly/vault-db-injector/commit/feb79d630b125b8ca33665a0f984e004ec625106))
+* **metrics:** document NRI prewarmer and cache_hit_total metrics ([2225c43](https://github.com/numberly/vault-db-injector/commit/2225c437c8e11f390056bca230190460a1c345cb))
+* **plans:** amend NRI prewarmer plan per plan review ([b18e808](https://github.com/numberly/vault-db-injector/commit/b18e808272efe8a6bced1f79d5220867fc004e4d))
+* **plans:** implementation plan for NRI prewarmer ([2eae186](https://github.com/numberly/vault-db-injector/commit/2eae186b5255f20ab9e0b45dcc52f34f6f64eef8))
+* **specs:** add NRI prewarmer design spec ([e7b24a2](https://github.com/numberly/vault-db-injector/commit/e7b24a27ccf77d0904d0a77112d62c7bb3e7dfad))
+* **specs:** amend NRI prewarmer design per security review ([a4a1dcd](https://github.com/numberly/vault-db-injector/commit/a4a1dcd16550fac6754b3ee35d080fed2d0b811a))
+* **specs:** fix two stale references after first amendment ([7b4de08](https://github.com/numberly/vault-db-injector/commit/7b4de082849daf745a864aced0619d438de237b6))
+
+
+### Code refactoring
+
+* **nri:** extract evictCacheEntry helper, sync cacheSource ([1e3494e](https://github.com/numberly/vault-db-injector/commit/1e3494e025b3557dc7ae8a9f54ef3d4770a9ffc3))
+
 ## [3.1.0](https://github.com/numberly/vault-db-injector/compare/v3.0.1...v3.1.0) (2026-05-12)
 
 
