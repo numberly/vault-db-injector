@@ -108,6 +108,7 @@ These metrics are emitted by the NRI DaemonSet. They are absent when
 | `vdbi_nri_prewarm_error_total` | Failed or skipped prewarm attempts. | `reason` (`vault_fetch`, `semaphore_full`, `terminating_pod`) |
 | `vdbi_nri_prewarm_inflight` | In-flight async prewarm fetches (gauge). Compare against `nri.prewarmer.maxConcurrent`. | — |
 | `vdbi_nri_cache_hit_total` | `CreateContainer` events served from the in-memory cache, labelled by what populated the entry. | `source` (`prewarm`, `sync`, `unknown`) |
+| `vdbi_nri_reconnect_total` | NRI plugin ttrpc reconnect lifecycle events. `attempted` = disconnect detected; `succeeded` = new stub registered after backoff; `exhausted` = bounded retries gave up and the pod will be restarted by kubelet. | `result` (`attempted`, `succeeded`, `exhausted`) |
 
 ---
 

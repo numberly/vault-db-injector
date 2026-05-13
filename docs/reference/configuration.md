@@ -233,3 +233,25 @@ Target > 0.95 in steady state. If `prewarm_error_total{reason="semaphore_full"}`
 **Disabling.** Set `nri.prewarmer.enabled: false` in helm and roll the DS. The plugin reverts to pre-prewarmer behavior (sync fetch on every `CreateContainer`).
 
 **Lifecycle note.** Prewarm-issued credentials for pods that never reach `CreateContainer` (admitted then deleted, OOMKilled at start, etc.) are revoked by the revoker's `safetyNetSync` (5-minute periodic GC). No code change required.
+
+### Reconnect handling (containerd reloads, ttrpc disconnects)
+
+containerd may close NRI plugin ttrpc connections without restarting itself — typical triggers are logrotate-driven SIGHUP, in-place config reloads, or shim version upgrades. Without active handling, the plugin stays alive but disconnected: the DS pod is `Running` from Kubernetes' POV while the node is effectively NRI-dead.
+
+The plugin runs the ttrpc stub under a bounded reconnect loop:
+
+1. On unexpected disconnect, increment `vdbi_nri_reconnect_total{result="attempted"}`.
+2. Backoff `1s → 2s → 5s → 10s → 30s` (≈ 48s total recovery window).
+3. Rebuild a fresh `stub.Stub` and re-register with containerd. NRI's `Synchronize` hook fires on connect and re-establishes visibility of running containers.
+4. On successful reconnect, increment `vdbi_nri_reconnect_total{result="succeeded"}`.
+5. After the backoff schedule is exhausted, increment `vdbi_nri_reconnect_total{result="exhausted"}` and return a fatal error → main exits non-zero → kubelet restarts the DS pod.
+
+In-memory state (`plugin.cache`, `cacheSource`, prewarmer informer, sweeper) survives across reconnects, so the recovery is cheap.
+
+**Operator signals.** Each reconnect is logged at `Warn`. Recommended alert:
+
+```promql
+increase(vdbi_nri_reconnect_total{result="exhausted"}[1h]) > 0
+```
+
+— fires when the plugin gave up and the pod is being restarted by kubelet. A non-zero `attempted` rate without `exhausted` indicates transient disconnects that the lifecycle absorbed (informational, not actionable).

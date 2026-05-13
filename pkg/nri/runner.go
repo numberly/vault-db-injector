@@ -56,39 +56,32 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 		}
 	}
 
-	s, err := stubFor(p)
-	if err != nil {
-		return err
-	}
 	log.Infof("NRI plugin connecting on %s", cfg.NRI.SocketPath)
 
-	// Run the stub in a goroutine so we can react to ctx cancellation
-	// (SIGTERM) by calling Stop() explicitly. The NRI stub's Run() blocks
-	// until Stop() or a fatal error — without an explicit Stop, containerd
-	// may keep the plugin connection registered past pod termination,
-	// causing "plugins X and X both tried to set env" errors when the
-	// next DS pod reconnects with the same idx+name.
-	runDone := make(chan error, 1)
-	go func() { runDone <- s.Run(ctx) }()
+	// stubLifecycle handles bounded reconnect on unexpected ttrpc disconnects
+	// (containerd reload, log rotation, etc.). On exhaustion it returns a
+	// non-nil error, which the errgroup propagates to main → exit non-zero →
+	// kubelet restarts the DS pod. The plugin's in-memory state survives
+	// across reconnects.
+	lifecycle := newStubLifecycle(p, log)
 
-	var runErr error
-	select {
-	case <-ctx.Done():
+	g.Go(func() error {
+		return lifecycle.run(ctx)
+	})
+
+	// Sidecar: when gctx is cancelled (parent SIGTERM, or another goroutine
+	// returned an error), stop the current stub so its Run unblocks. The NRI
+	// stub's Run does not honour ctx alone — only Stop().
+	g.Go(func() error {
+		<-gctx.Done()
 		log.Infof("NRI plugin shutting down (ctx cancelled)")
-		s.Stop()
-		s.Wait()
-		// Drain Run's return so the goroutine doesn't leak.
-		<-runDone
-	case runErr = <-runDone:
-		// Plugin exited on its own (fatal connection error). Make sure the
-		// stub's resources are released before returning.
-		s.Stop()
-	}
+		lifecycle.shutdown()
+		return nil
+	})
 
-	_ = g.Wait()
-
-	if runErr != nil {
-		return errors.Wrap(runErr, "NRI plugin run loop")
+	err = g.Wait()
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return errors.Wrap(err, "NRI plugin run loop")
 	}
 	return nil
 }

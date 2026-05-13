@@ -282,6 +282,12 @@ var (
 			Help: "CreateContainer events served from plugin.cache, labelled by what populated the entry.",
 		}, []string{"source"},
 	)
+	NRIReconnectTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vdbi_nri_reconnect_total",
+			Help: "NRI plugin ttrpc reconnect lifecycle events: attempted (disconnect detected), succeeded (new stub registered), exhausted (gave up after bounded retries, pod will restart).",
+		}, []string{"result"},
+	)
 )
 
 func Init(prom *prometheus.Registry) {
@@ -328,5 +334,6 @@ func Init(prom *prometheus.Registry) {
 		NRIPrewarmError,
 		NRIPrewarmInflight,
 		NRICacheHitTotal,
+		NRIReconnectTotal,
 	)
 }

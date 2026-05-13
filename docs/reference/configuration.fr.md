@@ -237,3 +237,25 @@ Cible > 0.95 en régime stable. Si `prewarm_error_total{reason="semaphore_full"}
 **Désactivation.** Mettre `nri.prewarmer.enabled: false` dans helm et rouler le DS. Le plugin revient au comportement pré-préchauffeur (fetch sync sur chaque `CreateContainer`).
 
 **Cycle de vie.** Les credentials émises par le préchauffeur pour des pods qui n'atteignent jamais `CreateContainer` (admis puis supprimés, OOMKilled au démarrage, etc.) sont révoquées par le `safetyNetSync` du revoker (GC périodique 5 min). Aucun code à ajouter.
+
+### Reconnexion (reloads containerd, disconnects ttrpc)
+
+containerd peut fermer la connexion ttrpc du plugin NRI sans pour autant redémarrer lui-même — déclencheurs typiques : SIGHUP de logrotate, reload de config en place, upgrade de shim. Sans gestion active, le plugin reste vivant mais déconnecté : le pod DS est `Running` du point de vue Kubernetes alors que le nœud est effectivement mort côté NRI.
+
+Le plugin exécute le stub ttrpc dans une boucle de reconnexion bornée :
+
+1. À chaque disconnect inattendu, incrémente `vdbi_nri_reconnect_total{result="attempted"}`.
+2. Backoff `1s → 2s → 5s → 10s → 30s` (fenêtre de récupération ≈ 48s).
+3. Reconstruit un `stub.Stub` neuf et se ré-enregistre auprès de containerd. Le hook `Synchronize` du NRI tire au connect et rétablit la visibilité des containers en cours sur le nœud.
+4. À la reconnexion réussie, incrémente `vdbi_nri_reconnect_total{result="succeeded"}`.
+5. Une fois le schedule de backoff épuisé, incrémente `vdbi_nri_reconnect_total{result="exhausted"}` et retourne une erreur fatale → main exit non-zéro → kubelet redémarre le pod DS.
+
+L'état mémoire (`plugin.cache`, `cacheSource`, informer du préchauffeur, sweeper) survit aux reconnexions, donc la récupération est bon marché.
+
+**Signaux opérationnels.** Chaque reconnexion est loggée au niveau `Warn`. Alerte recommandée :
+
+```promql
+increase(vdbi_nri_reconnect_total{result="exhausted"}[1h]) > 0
+```
+
+— déclenche quand le plugin a abandonné et que le pod est en cours de redémarrage par kubelet. Un taux `attempted` non nul sans `exhausted` indique des disconnects transients absorbés par le lifecycle (informatif, pas actionable).
