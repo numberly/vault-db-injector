@@ -1,7 +1,7 @@
 apiVersion: v1
 name: vault-db-injector
-version: 3.2.0  # x-release-please-version
-appVersion: 3.2.0  # x-release-please-version
+version: 3.2.1  # x-release-please-version
+appVersion: 3.2.1  # x-release-please-version
 description: vault-db-injector helm chart
 keywords:
 - vault-db-injector
