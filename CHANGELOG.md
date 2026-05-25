@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.1](https://github.com/numberly/vault-db-injector/compare/v3.2.0...v3.2.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **renewer:** flush per-pod metrics when pod is deleted ([f09c61a](https://github.com/numberly/vault-db-injector/commit/f09c61a020473a495b0f31def81e3bf5cb6d4dec))
+* **renewer:** flush per-pod metrics when pod is deleted ([c5ee788](https://github.com/numberly/vault-db-injector/commit/c5ee7883d6d6c37e4b6626b82dabb2b1c48a3eac))
+
 ## [3.2.0](https://github.com/numberly/vault-db-injector/compare/v3.1.0...v3.2.0) (2026-05-13)
 
 
