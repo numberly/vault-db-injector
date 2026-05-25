@@ -13,6 +13,8 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -226,6 +228,49 @@ func TestSyncAndCleanupTokens_PodServiceError(t *testing.T) {
 	svc := &fakePodService{err: errors.New("k8s unavailable")}
 	result := c.SyncAndCleanupTokens(context.Background(), cfg, nil, "secret", "prefix", svc, 3600)
 	assert.False(t, result, "expected false when pod service returns error")
+}
+
+// TestSyncAndCleanupTokens_DeletedPodFlushesRenewerMetrics verifies that, when a
+// KV entry references a pod that no longer exists in the Kubernetes API, the
+// renewer flushes the per-pod metric series it owns. These gauges/counters are
+// written in the renewer process and the Prometheus registry is per-process, so
+// the revoker's DeleteLabelValues cannot reach them — the renewer must do it.
+func TestSyncAndCleanupTokens_DeletedPodFlushesRenewerMetrics(t *testing.T) {
+	const uuid, ns = "uuid-gone", "default"
+
+	// Isolate from cross-test pollution, then seed the series this process owns.
+	metrics.TokenExpirationInTime.Reset()
+	metrics.LeaseExpirationInTime.Reset()
+	metrics.RenewTokenCount.Reset()
+	metrics.RenewTokenErrorCount.Reset()
+	metrics.RenewLeaseCount.Reset()
+	metrics.RenewLeaseErrorCount.Reset()
+
+	metrics.TokenExpirationInTime.WithLabelValues(uuid, ns).Set(123)
+	metrics.LeaseExpirationInTime.WithLabelValues(uuid, ns).Set(456)
+	metrics.RenewTokenCount.WithLabelValues(uuid, ns).Inc()
+	metrics.RenewTokenErrorCount.WithLabelValues(uuid, ns).Inc()
+	metrics.RenewLeaseCount.WithLabelValues(uuid, ns).Inc()
+	metrics.RenewLeaseErrorCount.WithLabelValues(uuid, ns).Inc()
+
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel)
+	c := &Connector{Log: log, VaultRateLimit: 10}
+	cfg := &config.Config{VaultRateLimit: 10}
+
+	// Live pods do NOT include uuid → deleted-pod branch (no Vault calls).
+	svc := &fakePodService{pods: []k8s.PodInfo{{PodNameUUIDs: []string{"some-other-uuid"}}}}
+	keys := []*KeyInfo{NewKeyInfo(uuid, "lease-1", "tok-1", ns, "sa", "pod", "node")}
+
+	result := c.SyncAndCleanupTokens(context.Background(), cfg, keys, "secret", "prefix", svc, 3600)
+	assert.True(t, result, "deleted-pod branch must not flip isOk to false")
+
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.TokenExpirationInTime), "vdbi_token_expiration not flushed")
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.LeaseExpirationInTime), "vdbi_lease_expiration not flushed")
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.RenewTokenCount), "vdbi_renew_token_count_success not flushed")
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.RenewTokenErrorCount), "vdbi_renew_token_count_error not flushed")
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.RenewLeaseCount), "vdbi_renew_lease_count_success not flushed")
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.RenewLeaseErrorCount), "vdbi_renew_lease_count_error not flushed")
 }
 
 // ---------------------------------------------------------------------------

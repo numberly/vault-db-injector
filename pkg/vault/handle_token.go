@@ -456,10 +456,22 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 					}
 				}
 			} else {
-				// Pod no longer exists in the Kubernetes API — skip silently.
-				// The revoker owns safety-net cleanup (periodic safetyNetSync)
-				// so the renewer does not need revoke-orphan or KV-delete caps.
-				c.Log.Debugf("Pod for uuid %s not found in k8s, skipping (revoker handles cleanup)", ki.PodNameUID)
+				// Pod no longer exists in the Kubernetes API. Vault revoke and
+				// KV-delete stay the revoker's job (periodic safetyNetSync), so
+				// the renewer does not need revoke-orphan or KV-delete caps.
+				// But the per-pod metric series below are written *in this
+				// process* (RenewToken/RenewLease), and the Prometheus registry
+				// is per-process in-memory: a DeleteLabelValues from the revoker
+				// process cannot reach this process's registry. So flush them
+				// here, otherwise the renewer-leader's /metrics keeps exposing
+				// series for pods that no longer exist.
+				metrics.TokenExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+				metrics.LeaseExpirationInTime.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+				metrics.RenewTokenCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+				metrics.RenewTokenErrorCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+				metrics.RenewLeaseCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+				metrics.RenewLeaseErrorCount.DeleteLabelValues(ki.PodNameUID, ki.Namespace)
+				c.Log.Debugf("Pod for uuid %s not found in k8s, flushed renewer metrics, skipping vault cleanup (revoker handles it)", ki.PodNameUID)
 			}
 		}(ki)
 	}
