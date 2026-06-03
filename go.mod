@@ -1,6 +1,6 @@
 module github.com/numberly/vault-db-injector
 
-go 1.26.0
+go 1.26.4
 
 require (
 	github.com/cockroachdb/errors v1.13.0
