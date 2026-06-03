@@ -295,7 +295,7 @@ déploiement de la v3.0 ; c'est attendu).
 ```bash
 helm upgrade <release> ./helm/ \
   --reuse-values \
-  --version 3.0.0
+  --version 3.2.1
 ```
 
 Les valeurs par défaut conservent :

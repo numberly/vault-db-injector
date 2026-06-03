@@ -81,7 +81,7 @@ helm install vault-db-injector numberly/vault-db-injector \
 ```bash
 helm install vault-db-injector \
   oci://ghcr.io/numberly/charts/vault-db-injector \
-  --version 3.0.0 \
+  --version 3.2.1 \
   --namespace vault-db-injector --create-namespace \
   -f my-values.yaml
 ```
@@ -89,13 +89,13 @@ helm install vault-db-injector \
 ### Container image
 
 ```bash
-docker pull ghcr.io/numberly/vault-db-injector:v3.0.0
+docker pull ghcr.io/numberly/vault-db-injector:v3.2.1
 ```
 
 The image is signed with Cosign keyless. Verify before deployment:
 
 ```bash
-cosign verify ghcr.io/numberly/vault-db-injector:v3.0.0 \
+cosign verify ghcr.io/numberly/vault-db-injector:v3.2.1 \
   --certificate-identity-regexp="^https://github.com/numberly/vault-db-injector/.github/workflows/release.yml@refs/tags/v[0-9].*$" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 ```

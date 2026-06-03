@@ -298,7 +298,7 @@ deployed; that's expected).
 ```bash
 helm upgrade <release> ./helm/ \
   --reuse-values \
-  --version 3.0.0
+  --version 3.2.1
 ```
 
 Default values keep:
