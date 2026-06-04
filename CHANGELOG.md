@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.2.2](https://github.com/numberly/vault-db-injector/compare/v3.2.1...v3.2.2) (2026-06-04)
+
+
+### Bug Fixes
+
+* **deps:** bump go directive to 1.26.4 to patch stdlib CVEs ([5436350](https://github.com/numberly/vault-db-injector/commit/543635054386c55c43e2df11d18dc605729176b9))
+* **helm:** default image registry to ghcr.io ([375923a](https://github.com/numberly/vault-db-injector/commit/375923a3ecb957ac728824e091dfa8a88898d0e0))
+* **release:** publish v3.2.1 to ghcr.io and align chart defaults ([326e1a1](https://github.com/numberly/vault-db-injector/commit/326e1a1865a6e86976149f2a0c97b6c844e9a0d8))
+
+
+### Documentation
+
+* bump install examples to v3.2.1 ([a6f2ca6](https://github.com/numberly/vault-db-injector/commit/a6f2ca6a157d7740a4a96340098a87652d8a7ac1))
+
+
+### CI
+
+* **release:** allow workflow_dispatch for an existing tag ([4fac603](https://github.com/numberly/vault-db-injector/commit/4fac60374b8e10e19da8b13403c2df00948b5e8e))
+
 ## [3.2.1](https://github.com/numberly/vault-db-injector/compare/v3.2.0...v3.2.1) (2026-05-25)
 
 
