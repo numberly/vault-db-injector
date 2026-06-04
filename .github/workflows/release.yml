@@ -135,26 +135,16 @@ jobs:
           docker buildx imagetools create \
             -t "ghcr.io/numberly/vault-db-injector:latest" \
             "ghcr.io/numberly/vault-db-injector:${VERSION}-unsigned"
-      - name: Delete the transient :VERSION-unsigned tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.build-image.outputs.version }}
-        run: |
-          PACKAGE_TYPE=container
-          PACKAGE_NAME=vault-db-injector
-          ORG=numberly
-          VID=$(gh api -H "Accept: application/vnd.github+json" \
-            "/orgs/${ORG}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions" \
-            --paginate \
-            --jq ".[] | select(.metadata.container.tags[]? == \"${VERSION}-unsigned\") | .id" \
-            | head -1)
-          if [ -n "${VID}" ]; then
-            gh api -X DELETE -H "Accept: application/vnd.github+json" \
-              "/orgs/${ORG}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions/${VID}"
-            echo "Deleted package version ${VID} that held tag ${VERSION}-unsigned"
-          else
-            echo "No package version found holding tag ${VERSION}-unsigned (already deleted?)"
-          fi
+      # NOTE: we intentionally do NOT delete the :VERSION-unsigned tag.
+      # On GHCR, `docker buildx imagetools create -t VERSION VERSION-unsigned`
+      # does not produce a new package version — it just attaches the
+      # `VERSION` (and `latest`) tag to the existing version that already
+      # carries `VERSION-unsigned`. The GHCR REST API has no per-tag
+      # deletion; `DELETE /packages/.../versions/{id}` removes the whole
+      # package version, which wipes the stable tags we just promoted.
+      # Leaving the `-unsigned` tag in place on the same version is the
+      # least-bad option and is consistent: it is literally the same
+      # image bytes that VERSION and latest point to.
 
   chart-releaser:
     name: Publish chart to gh-pages
