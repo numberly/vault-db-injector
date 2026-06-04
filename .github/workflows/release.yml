@@ -169,7 +169,15 @@ jobs:
           mkdir -p .cr-release-packages
           helm package helm -d .cr-release-packages
           ls -la .cr-release-packages
-      - uses: helm/chart-releaser-action@v1.7.0
+      # Pinned to the post-v1.7.0 main commit that ships #202
+      # ("Write chart_version only if latest_tag is defined"). The v1.7.0
+      # tag dereferences `latest_tag` unconditionally under `set -u`, which
+      # crashes any run that uses skip_packaging: true (our case — we
+      # pre-package above) with `cr.sh: line 111: latest_tag: unbound
+      # variable`, even after the chart and gh-pages index have been
+      # pushed successfully. Repin to a tagged release once one is cut
+      # past v1.7.0.
+      - uses: helm/chart-releaser-action@3e001cb8c68933439c7e721650f20a07a1a5c61e
         with:
           charts_dir: helm
           skip_packaging: true
@@ -192,7 +200,17 @@ jobs:
         with:
           version: v3.16.4
       - uses: sigstore/cosign-installer@v3
-      - name: Log in to GHCR
+      # cosign reads ~/.docker/config.json, which `helm registry login`
+      # does not populate. Without docker/login-action the `cosign sign`
+      # step further down fails with `UNAUTHORIZED: User cannot be
+      # authenticated with the token provided`.
+      - name: Log in to GHCR (docker auth for cosign)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GHCR (helm auth for push)
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Package and push chart
         id: push
