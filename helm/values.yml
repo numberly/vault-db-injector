@@ -51,7 +51,7 @@ vaultDbInjector:
       runAsUser: 65534
     image:
       # -- Injector container image repository.
-      repository: numberly/vault-db-injector
+      repository: ghcr.io/numberly/vault-db-injector
       # -- Injector container image tag.
       tag: 3.2.1  # x-release-please-version
     # -- imagePullPolicy applied to the injector container.
@@ -84,7 +84,7 @@ vaultDbInjector:
     replicas: 4
     image:
       # -- Renewer container image repository.
-      repository: numberly/vault-db-injector
+      repository: ghcr.io/numberly/vault-db-injector
       # -- Renewer container image tag.
       tag: 3.2.1  # x-release-please-version
     # -- imagePullPolicy applied to the renewer container.
@@ -106,7 +106,7 @@ vaultDbInjector:
     replicas: 4
     image:
       # -- Revoker container image repository.
-      repository: numberly/vault-db-injector
+      repository: ghcr.io/numberly/vault-db-injector
       # -- Revoker container image tag.
       tag: 3.2.1  # x-release-please-version
     # -- imagePullPolicy applied to the revoker container.

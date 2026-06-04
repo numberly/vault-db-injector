@@ -62,7 +62,7 @@ for a full walkthrough including Vault prerequisites.
 | vaultDbInjector.configuration.webhookMatchLabels | string | `"vault-db-injector"` | Value of the `objectSelector` label on the MutatingWebhookConfiguration. Pods carrying this label are sent to the webhook for admission. |
 | vaultDbInjector.injector.args | list | `["--config=/injector/config.yaml"]` | Arguments passed to the injector container. |
 | vaultDbInjector.injector.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Pod-level securityContext applied to the injector container. Defaults are non-root + read-only root filesystem. |
-| vaultDbInjector.injector.image.repository | string | `"numberly/vault-db-injector"` | Injector container image repository. |
+| vaultDbInjector.injector.image.repository | string | `"ghcr.io/numberly/vault-db-injector"` | Injector container image repository. |
 | vaultDbInjector.injector.image.tag | string | `"3.2.1"` | Injector container image tag. |
 | vaultDbInjector.injector.imagePullPolicy | string | `"Always"` | imagePullPolicy applied to the injector container. |
 | vaultDbInjector.injector.ports | list | `[{"port":8443,"targetPort":8443}]` | Service ports for the webhook (HTTPS). |
@@ -72,14 +72,14 @@ for a full walkthrough including Vault prerequisites.
 | vaultDbInjector.injector.type | string | `"ClusterIP"` | Service type for the webhook service. |
 | vaultDbInjector.renewer.args | list | `["--config=/renewer/config.yaml"]` | Arguments passed to the renewer container. |
 | vaultDbInjector.renewer.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Pod-level securityContext applied to the renewer container. |
-| vaultDbInjector.renewer.image.repository | string | `"numberly/vault-db-injector"` | Renewer container image repository. |
+| vaultDbInjector.renewer.image.repository | string | `"ghcr.io/numberly/vault-db-injector"` | Renewer container image repository. |
 | vaultDbInjector.renewer.image.tag | string | `"3.2.1"` | Renewer container image tag. |
 | vaultDbInjector.renewer.imagePullPolicy | string | `"Always"` | imagePullPolicy applied to the renewer container. |
 | vaultDbInjector.renewer.replicas | int | `4` | Number of renewer replicas. Leader election selects one active renewer at a time. |
 | vaultDbInjector.renewer.serviceAccountName | string | `""` | Override the ServiceAccount used by the renewer Deployment. Empty = chart-managed default (`<release>` in legacy mode, `<release>-renewer` when `useProjectedSA: true`). |
 | vaultDbInjector.revoker.args | list | `["--config=/revoker/config.yaml"]` | Arguments passed to the revoker container. |
 | vaultDbInjector.revoker.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Pod-level securityContext applied to the revoker container. |
-| vaultDbInjector.revoker.image.repository | string | `"numberly/vault-db-injector"` | Revoker container image repository. |
+| vaultDbInjector.revoker.image.repository | string | `"ghcr.io/numberly/vault-db-injector"` | Revoker container image repository. |
 | vaultDbInjector.revoker.image.tag | string | `"3.2.1"` | Revoker container image tag. |
 | vaultDbInjector.revoker.imagePullPolicy | string | `"Always"` | imagePullPolicy applied to the revoker container. |
 | vaultDbInjector.revoker.replicas | int | `4` | Number of revoker replicas. Leader election selects one active revoker at a time. |

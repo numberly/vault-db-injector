@@ -5,6 +5,12 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing git tag to (re)publish (e.g. v3.2.1)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -26,9 +32,15 @@ jobs:
       is-prerelease: ${{ steps.version.outputs.is-prerelease }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - id: version
         run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           if [[ "${VERSION}" == *-* ]]; then
             echo "is-prerelease=true" >> "$GITHUB_OUTPUT"
@@ -83,6 +95,8 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - name: Run Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -152,6 +166,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
       - name: Configure git
         run: |
           git config user.name "$GITHUB_ACTOR"
@@ -181,6 +196,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: azure/setup-helm@v4
         with:
           version: v3.16.4
@@ -215,7 +232,7 @@ jobs:
       - name: Append verification commands
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag || github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
           BODY=$(gh release view "${TAG}" --repo "${REPO}" --json body --jq '.body')
