@@ -1,0 +1,21 @@
+apiVersion: v1
+entries:
+  vault-db-injector:
+  - apiVersion: v1
+    appVersion: 3.2.2
+    created: "2026-06-04T05:43:44.007989812Z"
+    description: vault-db-injector helm chart
+    digest: 3e4171de92ac9125995f3689c8170d3e65ce04cfd2811315a51248fcdf173bc3
+    keywords:
+    - vault-db-injector
+    - vault
+    maintainers:
+    - email: guillaume.legrain@numberly.com
+      name: Guillaume LEGRAIN
+    name: vault-db-injector
+    sources:
+    - https://github.com/numberly/vault-db-injector
+    urls:
+    - https://github.com/numberly/vault-db-injector/releases/download/vault-db-injector-3.2.2/vault-db-injector-3.2.2.tgz
+    version: 3.2.2
+generated: "2026-06-04T05:43:44.007997206Z"
