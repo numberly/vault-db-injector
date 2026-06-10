@@ -59,7 +59,15 @@ func (r *tokenRenewerImpl) RenewTokenJob(ctx context.Context) {
 		}
 
 		podService := k8s.NewPodService(r.clientset, r.cfg)
-		ok := vaultConn.SyncAndCleanupTokens(ctx, r.cfg, keyInfos, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix, podService, r.cfg.SyncTTLSecond)
+		// Renew increment is the desired token lifetime (TokenTTL), NOT the sync
+		// interval. Otherwise the token TTL collapses to the sync period.
+		renewIncrementSeconds, err := r.cfg.TokenTTLSeconds()
+		if err != nil {
+			r.log.Errorf("invalid tokenTTL, skipping sync: %v", err)
+			metrics.SynchronizationErrorCount.WithLabelValues().Inc()
+			return false
+		}
+		ok := vaultConn.SyncAndCleanupTokens(ctx, r.cfg, keyInfos, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix, podService, renewIncrementSeconds)
 		if !ok {
 			metrics.SynchronizationErrorCount.WithLabelValues().Inc()
 			return false

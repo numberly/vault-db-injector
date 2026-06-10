@@ -214,6 +214,7 @@ func (cfg *Config) Validate() error {
 		{cfg.Sentry && cfg.SentryDsn == "", "no sentryDsn specified"},
 		{cfg.UseProjectedSA && len(cfg.TokenRequestAudiences) == 0, "tokenRequestAudiences must be set (e.g., [\"vault\"]) when useProjectedSA is true — empty audience disables the cryptographic SA-impersonation bound"},
 		{cfg.UseProjectedSA && cfg.TokenRequestExpirationSeconds <= 0, "tokenRequestExpirationSeconds must be > 0 when useProjectedSA is enabled"},
+		{cfg.TokenTTL != "" && !validDuration(cfg.TokenTTL), "tokenTTL must be a valid Go duration (e.g. \"8766h\")"},
 	}
 
 	for _, check := range checks {
@@ -222,6 +223,21 @@ func (cfg *Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+func validDuration(s string) bool {
+	_, err := time.ParseDuration(s)
+	return err == nil
+}
+
+// TokenTTLSeconds parses TokenTTL (e.g. "8766h") into seconds. It is the TTL
+// requested from Vault on every token renew, decoupled from the sync interval.
+func (cfg *Config) TokenTTLSeconds() (int, error) {
+	d, err := time.ParseDuration(cfg.TokenTTL)
+	if err != nil {
+		return 0, errors.Wrapf(err, "invalid tokenTTL %q", cfg.TokenTTL)
+	}
+	return int(d.Seconds()), nil
 }
 
 func GetLogLevel(level string) (logrus.Level, error) {

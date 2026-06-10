@@ -373,7 +373,7 @@ func (c *Connector) HandlePodDeletionToken(ctx context.Context, keysInformation 
 	return nil
 }
 
-func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config, keysInformations []*KeyInfo, secretName, prefix string, podService k8s.PodService, syncTTLSeconds int) bool {
+func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config, keysInformations []*KeyInfo, secretName, prefix string, podService k8s.PodService, tokenRenewIncrementSeconds int) bool {
 	podsInformations, err := podService.GetAllPodAndNamespace(ctx)
 	if err != nil {
 		c.Log.Errorf("Error while trying to get Pod from Kubernetes %v", err)
@@ -415,7 +415,7 @@ func (c *Connector) SyncAndCleanupTokens(ctx context.Context, cfg *config.Config
 			}
 
 			if _, found := podInfoMap[ki.PodNameUID]; found {
-				err := c.RenewToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace, syncTTLSeconds)
+				err := c.RenewToken(ctx, ki.TokenID, ki.PodNameUID, ki.Namespace, tokenRenewIncrementSeconds)
 				if err != nil {
 					c.Log.Errorf("Can't renew Token with pod UUID: %s", ki.PodNameUID)
 					isOk.Store(false)
@@ -529,8 +529,8 @@ func (c *Connector) RevokeSelfToken(ctx context.Context, tokenID string) error {
 	return nil
 }
 
-func (c *Connector) RenewToken(ctx context.Context, tokenID, uuid, namespace string, syncTTLSeconds int) error {
-	tokenRenew, err := c.client.Auth().Token().RenewWithContext(ctx, tokenID, syncTTLSeconds)
+func (c *Connector) RenewToken(ctx context.Context, tokenID, uuid, namespace string, renewIncrementSeconds int) error {
+	tokenRenew, err := c.client.Auth().Token().RenewWithContext(ctx, tokenID, renewIncrementSeconds)
 	if err != nil {
 		if strings.Contains(err.Error(), "token not found") {
 			c.Log.Debugf("can't renew revoked token for uuid %s : it has been revoked by the revoker", uuid)
