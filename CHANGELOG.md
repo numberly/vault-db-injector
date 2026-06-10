@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.2.3](https://github.com/numberly/vault-db-injector/compare/v3.2.2...v3.2.3) (2026-06-10)
+
+
+### Bug Fixes
+
+* **release:** make chart publishing jobs succeed end-to-end ([#80](https://github.com/numberly/vault-db-injector/issues/80)) ([5279db1](https://github.com/numberly/vault-db-injector/commit/5279db1a1426b60b46e3bff7218e12b69d06328f))
+* **release:** stop deleting the package version that holds stable tags ([#78](https://github.com/numberly/vault-db-injector/issues/78)) ([f768c3a](https://github.com/numberly/vault-db-injector/commit/f768c3aa33654a4faba474598e07df4d995d9b6c))
+* **renewer:** decouple renew increment from sync interval ([#81](https://github.com/numberly/vault-db-injector/issues/81)) ([8aed571](https://github.com/numberly/vault-db-injector/commit/8aed5710ec8739f425b98e0b316032857924f284))
+
 ## [3.2.2](https://github.com/numberly/vault-db-injector/compare/v3.2.1...v3.2.2) (2026-06-04)
 
 
