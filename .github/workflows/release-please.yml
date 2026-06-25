@@ -15,10 +15,20 @@ jobs:
     outputs:
       pr: ${{ steps.release.outputs.pr }}
     steps:
+      # Mint a GitHub App token so the tag/release push is NOT attributed to
+      # the default GITHUB_TOKEN. Events triggered by GITHUB_TOKEN do not start
+      # new workflow runs (anti-recursion), which is why release.yml
+      # (on: push: tags) never fired on release-please releases. An App token
+      # is a distinct identity, so the tag push triggers release.yml normally.
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - id: release
         uses: googleapis/release-please-action@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
