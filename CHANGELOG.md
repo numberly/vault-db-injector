@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.4](https://github.com/numberly/vault-db-injector/compare/v3.2.3...v3.2.4) (2026-06-25)
+
+
+### Bug Fixes
+
+* **vault:** revoke leaked technical tokens ([#85](https://github.com/numberly/vault-db-injector/issues/85)) ([08af0f4](https://github.com/numberly/vault-db-injector/commit/08af0f4f9dadea5bede15dc9c3b646f1ed477552))
+
 ## [3.2.3](https://github.com/numberly/vault-db-injector/compare/v3.2.2...v3.2.3) (2026-06-10)
 
 
