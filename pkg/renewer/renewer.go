@@ -96,9 +96,14 @@ func (r *tokenRenewerImpl) RenewTokenJob(ctx context.Context) {
 			metrics.LastSynchronizationDuration.Observe(duration)
 
 		case <-r.stopChan:
-			if err := vaultConn.RevokeSelfToken(ctx, vaultConn.K8sSaVaultToken); err != nil {
+			// Use a fresh context: on SIGTERM the inherited ctx is already
+			// cancelled, which would make RevokeSelfToken fail immediately and
+			// leak the renewer's own login token. Mirrors revoker.go shutdown.
+			cleanupCtx, cancelCleanup := context.WithTimeout(context.Background(), 10*time.Second)
+			if err := vaultConn.RevokeSelfToken(cleanupCtx, vaultConn.K8sSaVaultToken); err != nil {
 				r.log.Errorf("RevokeSelfToken failed: %v", err)
 			}
+			cancelCleanup()
 			r.log.Warn("Stopping TokenSync1Hours due to lost leadership")
 			return
 		}
