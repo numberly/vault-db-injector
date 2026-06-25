@@ -382,6 +382,24 @@ func injectCredentialsIntoPod(ctx context.Context, contextID string, cfg *config
 			vaultConn.K8sSaVaultToken = ""
 		}
 
+		// In projected-SA + NRI mode the webhook's per-admission pod-token
+		// (vaultConn.GetToken()) is used only for the authz Login above; the
+		// NRI plugin authenticates independently at CreateContainer time. It is
+		// never the parent of a credential lease here, so revoke it on the
+		// success path instead of letting it linger until token_max_ttl.
+		// NOTE: revoke GetToken() (the pod-token), NOT K8sSaVaultToken — the
+		// latter is the SHARED bookkeeping token owned by the cache.
+		if cfg.NRI.Enabled && cfg.UseProjectedSA {
+			if podTok := vaultConn.GetToken(); podTok != "" {
+				if revokeErr := vaultConn.RevokeSelfToken(ctx, podTok); revokeErr != nil {
+					logger.WithValues(log.Kv{"contextID": contextID}).Infof("RevokeSelfToken (projected-SA NRI admission pod-token) warning: %v", revokeErr)
+				}
+				// Clear so the deferred error cleanup (keyed on GetToken()) skips
+				// this already-revoked pod-token on a later multi-dbConfig failure.
+				vaultConn.SetToken("")
+			}
+		}
+
 		if creds != nil {
 			podUuids = append(podUuids, creds.PodUUID)
 		} else if cfg.NRI.Enabled {
