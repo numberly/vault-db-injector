@@ -613,12 +613,25 @@ func (c *Connector) StartTokenRenewal(ctx context.Context, cfg *config.Config) {
 				if err != nil {
 					c.Log.Errorf("Failed to renew Vault token: %v", err)
 					c.Log.Info("Trying to reconnect to Vault")
+					oldToken := c.K8sSaVaultToken
 					newConn, err := ConnectToVault(ctx, cfg, c.k8sSaToken)
 					if err != nil {
-						c.Log.Fatalf("Can't reconnect to VAULT: %v", err)
+						// Don't Fatalf: keep the current (stale) token and let the
+						// next tick retry. Killing the process here would abandon
+						// oldToken without revoking it.
+						c.Log.Errorf("Can't reconnect to VAULT, will retry next tick: %v", err)
+						continue
 					}
 					c.K8sSaVaultToken = newConn.K8sSaVaultToken
 					c.SetToken(newConn.K8sSaVaultToken)
+					// Revoke the abandoned login token so it doesn't linger until
+					// token_max_ttl. Best-effort: a failure here only delays cleanup
+					// to Vault-side expiry, it must not block renewal.
+					if oldToken != "" && oldToken != newConn.K8sSaVaultToken {
+						if revErr := c.RevokeSelfToken(ctx, oldToken); revErr != nil {
+							c.Log.Warnf("RevokeSelfToken (stale login token after reconnect) failed: %v", revErr)
+						}
+					}
 				}
 				c.Log.Debug("Token has been renewed succefully !")
 			}
