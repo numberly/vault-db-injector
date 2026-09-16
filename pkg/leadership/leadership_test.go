@@ -90,6 +90,25 @@ func TestNewLeaderElector_NotNil(t *testing.T) {
 	require.NotNil(t, le)
 }
 
+// TestStopLeading_FailsLivenessAndClosesStopChan guards the zombie fix: a pod
+// that lost the lease must report unhealthy so kubelet restarts it (RunOrDie
+// never re-enters the election on its own) and must signal the worker to stop.
+func TestStopLeading_FailsLivenessAndClosesStopChan(t *testing.T) {
+	noopFunc := func(_ context.Context, _ chan struct{}) {}
+	le := NewLeaderElector(NewLock(nil, "lock-test", "pod-a", "ns"), "pod-a", noopFunc).(*leaderElectorImpl)
+	stopChan := make(chan struct{})
+	require.True(t, le.IsHealthy())
+
+	le.stopLeading(stopChan)
+
+	assert.False(t, le.IsHealthy(), "liveness must fail after leadership loss")
+	select {
+	case <-stopChan:
+	default:
+		t.Fatal("stopChan must be closed after leadership loss")
+	}
+}
+
 // TestNewLeaderElector_IsHealthyTrue verifies a freshly constructed elector starts healthy.
 func TestNewLeaderElector_IsHealthyTrue(t *testing.T) {
 	noopFunc := func(_ context.Context, _ chan struct{}) {}

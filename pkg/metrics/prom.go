@@ -290,6 +290,19 @@ var (
 	)
 )
 
+// FlushPodSeries drops every per-pod series the renewer writes for uuid.
+// The registry is per-process, so the process that wrote the series is the
+// only one that can remove them; leaving them behind keeps expired
+// vdbi_*_expiration values on /metrics forever and alerts never resolve.
+func FlushPodSeries(uuid, namespace string) {
+	TokenExpirationInTime.DeleteLabelValues(uuid, namespace)
+	LeaseExpirationInTime.DeleteLabelValues(uuid, namespace)
+	RenewTokenCount.DeleteLabelValues(uuid, namespace)
+	RenewTokenErrorCount.DeleteLabelValues(uuid, namespace)
+	RenewLeaseCount.DeleteLabelValues(uuid, namespace)
+	RenewLeaseErrorCount.DeleteLabelValues(uuid, namespace)
+}
+
 func Init(prom *prometheus.Registry) {
 	prom.MustRegister(
 		MutatedPodWithErrorCount,

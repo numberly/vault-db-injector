@@ -33,6 +33,21 @@ func NewTokenRenewer(cfg *config.Config, clientset k8s.KubernetesClient, stopcha
 	}
 }
 
+// flushVanished drops the per-pod metric series of every uuid present in prev
+// but absent from the current KV listing, and returns the new tracked set.
+func flushVanished(prev map[string]string, current []*vault.KeyInfo) map[string]string {
+	next := make(map[string]string, len(current))
+	for _, ki := range current {
+		next[ki.PodNameUID] = ki.Namespace
+	}
+	for uuid, namespace := range prev {
+		if _, still := next[uuid]; !still {
+			metrics.FlushPodSeries(uuid, namespace)
+		}
+	}
+	return next
+}
+
 func (r *tokenRenewerImpl) RenewTokenJob(ctx context.Context) {
 	saToken, err := r.clientset.GetServiceAccountToken()
 	if err != nil {
@@ -44,6 +59,13 @@ func (r *tokenRenewerImpl) RenewTokenJob(ctx context.Context) {
 	}
 	r.log.Debugf("authenticated to vault using role %s", r.cfg.VaultAuthPath)
 
+	// uuid -> namespace of every KV entry seen on the previous cycle. The
+	// revoker usually deletes the KV entry before this process notices the
+	// pod is gone, so the "pod missing in k8s" branch in SyncAndCleanupTokens
+	// rarely runs; diffing consecutive KV listings is what actually catches
+	// vanished pods and lets us drop their frozen metric series.
+	tracked := map[string]string{}
+
 	syncToken := func(vaultConn *vault.Connector) bool {
 
 		keyInfos, err := vaultConn.ListKeyInfo(ctx, r.cfg.VaultSecretName, r.cfg.VaultSecretPrefix)
@@ -53,6 +75,11 @@ func (r *tokenRenewerImpl) RenewTokenJob(ctx context.Context) {
 			// stall renewal of every other token until the next tick.
 			r.log.Warnf("Partial error while retrieving key info, continuing with available keys: %v", err)
 			metrics.SynchronizationErrorCount.WithLabelValues().Inc()
+		} else {
+			// Only trust a complete listing: a partial one would flush series
+			// of pods that are still alive (they would come back on the next
+			// successful renew anyway, but there is no reason to flap).
+			tracked = flushVanished(tracked, keyInfos)
 		}
 		if len(keyInfos) == 0 {
 			return false
