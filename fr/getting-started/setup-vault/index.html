@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1721,19 +1721,19 @@
 <p>Si un mount existe déjà au chemin cible, Vault retourne <code>Error enabling: Error making API request</code> avec le statut 400. Utilisez <code>vault secrets list</code> ou <code>vault auth list</code> pour vérifier les chemins existants avant d'exécuter ces commandes.</p>
 <h2 id="configurer-la-methode-dauthentification-kubernetes">Configurer la méthode d'authentification Kubernetes</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>vault<span class="w"> </span>write<span class="w"> </span>auth/kubernetes/config<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="nv">kubernetes_host</span><span class="o">=</span><span class="s2">&quot;https://&lt;APISERVER&gt;:6443&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="nv">kubernetes_host</span><span class="o">=</span><span class="s2">"https://&lt;APISERVER&gt;:6443"</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nv">kubernetes_ca_cert</span><span class="o">=</span>@/path/to/ca.crt<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nv">issuer</span><span class="o">=</span><span class="s2">&quot;https://kubernetes.default.svc.cluster.local&quot;</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nv">issuer</span><span class="o">=</span><span class="s2">"https://kubernetes.default.svc.cluster.local"</span>
 </code></pre></div>
 <p>Remplacez <code>&lt;APISERVER&gt;</code> par l'adresse que votre instance Vault utilise pour atteindre le serveur API Kubernetes. La valeur <code>issuer</code> doit correspondre au flag <code>--service-account-issuer</code> du kube-apiserver — <code>https://kubernetes.default.svc.cluster.local</code> est la valeur par défaut pour la plupart des distributions.</p>
 <p>Pour récupérer le certificat CA depuis le cluster :</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>config<span class="w"> </span>view<span class="w"> </span>--raw<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.clusters[0].cluster.certificate-authority-data}&#39;</span><span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>config<span class="w"> </span>view<span class="w"> </span>--raw<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.clusters[0].cluster.certificate-authority-data}'</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>-d<span class="w"> </span>&gt;<span class="w"> </span>/tmp/k8s-ca.crt
 </code></pre></div>
 <p>Passez ensuite <code>/tmp/k8s-ca.crt</code> comme argument <code>@</code> ci-dessus.</p>
 <h2 id="verifier">Vérifier</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>vault<span class="w"> </span><span class="nb">read</span><span class="w"> </span>auth/kubernetes/config
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>vault<span class="w"> </span>secrets<span class="w"> </span>list<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;(database|vault-db-injector)&#39;</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>vault<span class="w"> </span>secrets<span class="w"> </span>list<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'(database|vault-db-injector)'</span>
 </code></pre></div>
 <p>Résultat attendu : <code>auth/kubernetes/config</code> retourne l'hôte et le CA que vous avez configurés. La liste des secrets affiche <code>database/</code> et <code>vault-db-injector/</code>.</p>
 <h2 id="suivant">Suivant</h2>
@@ -1807,7 +1807,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

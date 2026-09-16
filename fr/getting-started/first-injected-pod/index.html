@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1677,13 +1677,13 @@
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="nt">db-creds-injector.numberly.io/myapp.env-key-dbuser</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DB_USER</span>
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="nt">db-creds-injector.numberly.io/myapp.env-key-dbpassword</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DB_PASS</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">  </span><span class="nt">labels</span><span class="p">:</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="nt">vault-db-injector</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="nt">vault-db-injector</span><span class="p">:</span><span class="w"> </span><span class="s">"true"</span>
 <a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="nt">spec</span><span class="p">:</span>
 <a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">  </span><span class="nt">serviceAccountName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myapp</span>
 <a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">  </span><span class="nt">containers</span><span class="p">:</span>
 <a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">app</span>
 <a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres:16</span>
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">      </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;sleep&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;infinity&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">      </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"sleep"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"infinity"</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p>Le label <code>vault-db-injector: "true"</code> est ce qui déclenche l'admission. Le webhook détecte le label, place des placeholders opaques dans les variables d'environnement <code>DB_USER</code> et <code>DB_PASS</code>, et le plugin NRI sur le nœud substitue les vrais identifiants avant le démarrage du conteneur.</p>
 <p>Appliquez-le :</p>
@@ -1708,16 +1708,16 @@
 <a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">    </span><span class="nt">db-creds-injector.numberly.io/myapp.template</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgresql://@db.team-myapp.svc:5432/myapp?sslmode=require</span>
 <a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span><span class="nt">db-creds-injector.numberly.io/myapp.env-key-uri</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DATABASE_URL</span>
 <a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">  </span><span class="nt">labels</span><span class="p">:</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span><span class="nt">vault-db-injector</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span><span class="nt">vault-db-injector</span><span class="p">:</span><span class="w"> </span><span class="s">"true"</span>
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="nt">spec</span><span class="p">:</span>
 <a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">  </span><span class="nt">serviceAccountName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myapp</span>
 <a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">  </span><span class="nt">containers</span><span class="p">:</span>
 <a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">app</span>
 <a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres:16</span>
-<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">      </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;sleep&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;infinity&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">      </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"sleep"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"infinity"</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <h2 id="verifier-que-les-identifiants-fonctionnent">Vérifier que les identifiants fonctionnent</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>team-myapp<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>myapp<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;env | grep DB_&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>team-myapp<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>myapp<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">'env | grep DB_'</span>
 </code></pre></div>
 <p>La sortie attendue affiche le nom d'utilisateur et le mot de passe réels, pas un placeholder :
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>DB_USER=vault-myapp-prod-1746345600-x8k2j9ab
@@ -1726,7 +1726,7 @@
 <p>En mode URI, la variable d'environnement est <code>DATABASE_URL</code> au lieu de <code>DB_USER</code>/<code>DB_PASS</code>.</p>
 <p>Testez la connexion à la base de données :</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>team-myapp<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>myapp<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="s1">&#39;PGPASSWORD=$DB_PASS psql -h db -U $DB_USER -d myapp -c &quot;SELECT 1&quot;&#39;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="s1">'PGPASSWORD=$DB_PASS psql -h db -U $DB_USER -d myapp -c "SELECT 1"'</span>
 </code></pre></div>
 <p>Résultat attendu : <code>SELECT 1</code> retourne une ligne. Si la connexion échoue, vérifiez que le nom d'hôte <code>db</code> est résolu depuis l'intérieur du pod et que le serveur PostgreSQL autorise les connexions depuis l'IP du pod.</p>
 <h2 id="ce-qui-vient-de-se-passer">Ce qui vient de se passer</h2>
@@ -1813,7 +1813,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1692,8 +1692,8 @@
 </ul>
 <h2 id="4-lifecycle-event-handling">4. Lifecycle &amp; event handling</h2>
 <h3 id="informer-filters-apiserver-side-not-in-memory">Informer filters (apiserver-side, not in-memory)</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nx">labelSelector</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">cfg</span><span class="p">.</span><span class="nx">NRI</span><span class="p">.</span><span class="nx">PodLabel</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;=true&quot;</span><span class="w">    </span><span class="c1">// e.g. vault-db-injector=true</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nx">fieldSelector</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&quot;spec.nodeName=&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">nodeName</span><span class="w">     </span><span class="c1">// local node only</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nx">labelSelector</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">cfg</span><span class="p">.</span><span class="nx">NRI</span><span class="p">.</span><span class="nx">PodLabel</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">"=true"</span><span class="w">    </span><span class="c1">// e.g. vault-db-injector=true</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nx">fieldSelector</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">"spec.nodeName="</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">nodeName</span><span class="w">     </span><span class="c1">// local node only</span>
 </code></pre></div>
 <p>Each DS pod receives only the pods on its own node that match the release's label. Watch volume is proportional to the workload on the node, not the cluster size.</p>
 <h3 id="event-handlers">Event handlers</h3>
@@ -1758,7 +1758,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">// pkg/config/config.go</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">NRIConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="c1">// ... existing fields ...</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nx">Prewarmer</span><span class="w"> </span><span class="nx">NRIPrewarmerConfig</span><span class="w"> </span><span class="s">`yaml:&quot;prewarmer&quot; envconfig:&quot;prewarmer&quot;`</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nx">Prewarmer</span><span class="w"> </span><span class="nx">NRIPrewarmerConfig</span><span class="w"> </span><span class="s">`yaml:"prewarmer" envconfig:"prewarmer"`</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">}</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="kd">type</span><span class="w"> </span><span class="nx">NRIPrewarmerConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
@@ -1766,10 +1766,10 @@
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="c1">// no async fetch on pod ADD). CreateContainer falls back to the sync</span>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="c1">// path (current behavior pre-prewarmer). Useful for debugging or in</span>
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="c1">// clusters where the watch overhead is unwelcome.</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="nx">Enabled</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="s">`yaml:&quot;enabled&quot; envconfig:&quot;enabled&quot;`</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="nx">Enabled</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="s">`yaml:"enabled" envconfig:"enabled"`</span>
 <a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="c1">// MaxConcurrent caps the number of in-flight async fetches per DS pod.</span>
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">    </span><span class="c1">// Protects Vault and apiserver from thundering-herd on pod bursts.</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">    </span><span class="nx">MaxConcurrent</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="s">`yaml:&quot;maxConcurrent&quot; envconfig:&quot;max_concurrent&quot;`</span><span class="w"> </span><span class="c1">// default 50</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">    </span><span class="nx">MaxConcurrent</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="s">`yaml:"maxConcurrent" envconfig:"max_concurrent"`</span><span class="w"> </span><span class="c1">// default 50</span>
 <a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="p">}</span>
 </code></pre></div>
 <p>Defaults in <code>NewConfig()</code>:</p>
@@ -1826,7 +1826,7 @@
 <h3 id="kpi-dashboards-alerts-derived-from-these">KPI dashboards / alerts derived from these</h3>
 <ul>
 <li><strong>Prewarm hit rate</strong> (the success criterion of this project):
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">{</span><span class="nl">source</span><span class="o">=</span><span class="p">&quot;</span><span class="s">prewarm</span><span class="p">&quot;}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">{</span><span class="nl">source</span><span class="o">=</span><span class="p">"</span><span class="s">prewarm</span><span class="p">"}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
 </code></pre></div>
   Target &gt; 0.95 in steady state. Below 0.80 → prewarm is not working or pods race their CreateContainer.</li>
@@ -2118,7 +2118,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

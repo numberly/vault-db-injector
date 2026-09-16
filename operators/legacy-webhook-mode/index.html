@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1783,55 +1783,55 @@ Vault role under <code>auth/kubernetes/role/</code> bound to the injector SA. Th
 renewer and revoker share the same policy and role.</p>
 <h3 id="policy-vault-db-injector-legacy">Policy <code>vault-db-injector</code> (legacy)</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># --- KV-v2 bookkeeping ---</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/data/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;create&quot;, &quot;read&quot;, &quot;update&quot;, &quot;delete&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/data/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"create", "read", "update", "delete"</span><span class="p">]</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">}</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/metadata/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;, &quot;delete&quot;, &quot;list&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/metadata/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read", "delete", "list"</span><span class="p">]</span>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># --- Vault token operations ---</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/create-orphan&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;, &quot;sudo&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/create-orphan"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update", "sudo"</span><span class="p">]</span>
 <a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">}</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/revoke-orphan&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;, &quot;sudo&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/revoke-orphan"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update", "sudo"</span><span class="p">]</span>
 <a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="p">}</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/revoke&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/revoke"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="p">}</span>
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/renew&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/renew"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="p">}</span>
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/renew-self&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/renew-self"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="p">}</span>
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/lookup-self&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/lookup-self"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="p">}</span>
 <a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>
 <a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="c1"># --- Authorization check (CanIGetRoles) ---</span>
-<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/kubernetes/role/*&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/kubernetes/role/*"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="p">}</span>
 <a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>
 <a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="c1"># --- Database credential issuance ---</span>
-<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;database/creds/*&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a><span class="err">path</span><span class="w"> </span><span class="s2">"database/creds/*"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a><span class="p">}</span>
 <a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a>
 <a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a><span class="c1"># --- Probes ---</span>
-<a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/health&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/health"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a><span class="p">}</span>
 </code></pre></div>
 <h3 id="role-vault-db-injector-legacy">Role <code>vault-db-injector</code> (legacy)</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>vault<span class="w"> </span>write<span class="w"> </span>auth/kubernetes/role/vault-db-injector<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">&quot;1h&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">&quot;24h&quot;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">"1h"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">"24h"</span>
 </code></pre></div>
 <p>The Helm value <code>vaultDbInjector.configuration.kubeRole</code> must equal
 this role name.</p>
@@ -1925,7 +1925,7 @@ list.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

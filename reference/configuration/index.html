@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2116,18 +2116,18 @@ DAG runs, cronjobs at the top of the hour, scale-out events), Vault's
 <code>auth/kubernetes/login</code> can spike to several seconds. To absorb the burst
 without <code>CreateContainerError</code> events, raise both timeouts in lockstep:</p>
 <p><strong>On each node, in <code>/etc/containerd/config.toml</code>:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[plugins.</span><span class="s2">&quot;io.containerd.nri.v1.nri&quot;</span><span class="k">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[plugins.</span><span class="s2">"io.containerd.nri.v1.nri"</span><span class="k">]</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">disable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">disable_connections</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="n">plugin_registration_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;15s&quot;</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">plugin_request_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;30s&quot;</span><span class="w">   </span><span class="c1"># vs default 2s</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">socket_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/var/run/nri/nri.sock&quot;</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="n">plugin_registration_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"15s"</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">plugin_request_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"30s"</span><span class="w">   </span><span class="c1"># vs default 2s</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">socket_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/run/nri/nri.sock"</span>
 </code></pre></div>
 <p>Then <code>systemctl reload containerd</code> (or <code>restart</code> if reload is not
 supported on your distribution).</p>
 <p><strong>In Helm values:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">nri</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">fetchTimeout</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;25s&quot;</span><span class="w">   </span><span class="c1"># &lt; containerd plugin_request_timeout (30s), with 5s margin</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">fetchTimeout</span><span class="p">:</span><span class="w"> </span><span class="s">"25s"</span><span class="w">   </span><span class="c1"># &lt; containerd plugin_request_timeout (30s), with 5s margin</span>
 </code></pre></div>
 <p>Trade-off: when Vault is genuinely unavailable, pods will hang up to 25s
 per attempt before kubelet retries. Acceptable in most cases — the
@@ -2206,7 +2206,7 @@ close you are to fail-closing under load.</p>
 </tbody>
 </table>
 <p>The KPI is the prewarm hit rate:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">{</span><span class="nl">source</span><span class="o">=</span><span class="p">&quot;</span><span class="s">prewarm</span><span class="p">&quot;}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">{</span><span class="nl">source</span><span class="o">=</span><span class="p">"</span><span class="s">prewarm</span><span class="p">"}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">vdbi_nri_cache_hit_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
 </code></pre></div>
 <p>Target &gt; 0.95 in steady state. If <code>prewarm_error_total{reason="semaphore_full"}</code> is non-zero, raise <code>nri.prewarmer.maxConcurrent</code> (default 50).</p>
@@ -2224,7 +2224,7 @@ close you are to fail-closing under load.</p>
 </ol>
 <p>In-memory state (<code>plugin.cache</code>, <code>cacheSource</code>, prewarmer informer, sweeper) survives across reconnects, so the recovery is cheap.</p>
 <p><strong>Operator signals.</strong> Each reconnect is logged at <code>Warn</code>. Recommended alert:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kr">increase</span><span class="o">(</span><span class="nv">vdbi_nri_reconnect_total</span><span class="p">{</span><span class="nl">result</span><span class="o">=</span><span class="p">&quot;</span><span class="s">exhausted</span><span class="p">&quot;}[</span><span class="s">1h</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kr">increase</span><span class="o">(</span><span class="nv">vdbi_nri_reconnect_total</span><span class="p">{</span><span class="nl">result</span><span class="o">=</span><span class="p">"</span><span class="s">exhausted</span><span class="p">"}[</span><span class="s">1h</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
 </code></pre></div>
 <p>— fires when the plugin gave up and the pod is being restarted by kubelet. A non-zero <code>attempted</code> rate without <code>exhausted</code> indicates transient disconnects that the lifecycle absorbed (informational, not actionable).</p>
 
@@ -2296,7 +2296,7 @@ close you are to fail-closing under load.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

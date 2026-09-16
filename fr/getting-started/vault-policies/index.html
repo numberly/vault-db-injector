@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1794,19 +1794,19 @@
 <h2 id="backend-de-base-de-donnees">Backend de base de données</h2>
 <h3 id="connexion-a-la-base-de-donnees">Connexion à la base de données</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>vault<span class="w"> </span>write<span class="w"> </span>database/config/myapp-postgres<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="nv">plugin_name</span><span class="o">=</span><span class="s2">&quot;postgresql-database-plugin&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nv">connection_url</span><span class="o">=</span><span class="s2">&quot;postgresql://{{username}}:{{password}}@db:5432/myapp&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nv">allowed_roles</span><span class="o">=</span><span class="s2">&quot;myapp-prod&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nv">username</span><span class="o">=</span><span class="s2">&quot;vaultadmin&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nv">password</span><span class="o">=</span><span class="s2">&quot;&lt;strong-random&gt;&quot;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="nv">plugin_name</span><span class="o">=</span><span class="s2">"postgresql-database-plugin"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nv">connection_url</span><span class="o">=</span><span class="s2">"postgresql://{{username}}:{{password}}@db:5432/myapp"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nv">allowed_roles</span><span class="o">=</span><span class="s2">"myapp-prod"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nv">username</span><span class="o">=</span><span class="s2">"vaultadmin"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nv">password</span><span class="o">=</span><span class="s2">"&lt;strong-random&gt;"</span>
 </code></pre></div>
 <h3 id="role-de-base-de-donnees">Rôle de base de données</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>vault<span class="w"> </span>write<span class="w"> </span>database/roles/myapp-prod<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="nv">db_name</span><span class="o">=</span><span class="s2">&quot;myapp-postgres&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nv">creation_statements</span><span class="o">=</span><span class="s2">&quot;CREATE ROLE \&quot;{{name}}\&quot; WITH LOGIN PASSWORD &#39;{{password}}&#39; VALID UNTIL &#39;{{expiration}}&#39;; GRANT myapp_owner TO \&quot;{{name}}\&quot;;&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nv">revocation_statements</span><span class="o">=</span><span class="s2">&quot;REASSIGN OWNED BY \&quot;{{name}}\&quot; TO myapp_owner; DROP OWNED BY \&quot;{{name}}\&quot;; DROP ROLE \&quot;{{name}}\&quot;;&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nv">default_ttl</span><span class="o">=</span><span class="s2">&quot;1h&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nv">max_ttl</span><span class="o">=</span><span class="s2">&quot;24h&quot;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="nv">db_name</span><span class="o">=</span><span class="s2">"myapp-postgres"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nv">creation_statements</span><span class="o">=</span><span class="s2">"CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT myapp_owner TO \"{{name}}\";"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nv">revocation_statements</span><span class="o">=</span><span class="s2">"REASSIGN OWNED BY \"{{name}}\" TO myapp_owner; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nv">default_ttl</span><span class="o">=</span><span class="s2">"1h"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nv">max_ttl</span><span class="o">=</span><span class="s2">"24h"</span>
 </code></pre></div>
 <p><code>revocation_statements</code> est obligatoire en production. Sans cela, Vault retombe
 sur un <code>DROP ROLE</code> par défaut qui échoue dès que le rôle dynamique possède des
@@ -1826,27 +1826,27 @@ au cluster B.</p>
 </div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># KV-v2 bookkeeping (remplacer vault-db-injector par votre vaultSecretName,</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># et figer le segment cluster en production — voir la note ci-dessus)</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/data/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;create&quot;, &quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/data/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"create", "update"</span><span class="p">]</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">}</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/metadata/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;create&quot;, &quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/metadata/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"create", "update"</span><span class="p">]</span>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Lecture de la config du rôle de l&#39;application (nécessaire à l&#39;admission pour</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Lecture de la config du rôle de l'application (nécessaire à l'admission pour</span>
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># valider le ServiceAccount lié)</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/kubernetes/role/*&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/kubernetes/role/*"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">}</span>
 <a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c1"># Lookup de lease (validation des leases hérités à l&#39;admission)</span>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/leases/lookup&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c1"># Lookup de lease (validation des leases hérités à l'admission)</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/leases/lookup"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="p">}</span>
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>
 <a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="c1"># Health probes</span>
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/health&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/health"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="p">}</span>
 </code></pre></div>
 <p>Appliquez-la :</p>
@@ -1857,44 +1857,44 @@ au cluster B.</p>
 leases pendant les passes de synchronisation (quand un pod n'existe plus), il a
 donc besoin des capabilities revoke en plus de renew :</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># KV-v2 bookkeeping — cycle de vie complet : lire le travail à faire, écrire</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># le résultat, supprimer les entrées des pods qui n&#39;existent plus</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/data/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;create&quot;, &quot;read&quot;, &quot;update&quot;, &quot;delete&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># le résultat, supprimer les entrées des pods qui n'existent plus</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/data/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"create", "read", "update", "delete"</span><span class="p">]</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">}</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/metadata/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;, &quot;list&quot;, &quot;delete&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/metadata/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read", "list", "delete"</span><span class="p">]</span>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">}</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Renouvellement de token</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/renew&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/renew"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="p">}</span>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/lookup&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/lookup"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="p">}</span>
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/renew-self&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/renew-self"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="p">}</span>
 <a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>
 <a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="c1"># Renouvellement et lookup de lease</span>
-<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/leases/renew&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/leases/renew"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="p">}</span>
-<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/leases/lookup&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/leases/lookup"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="p">}</span>
 <a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a>
 <a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="c1"># Révocation des tokens orphan et des leases pour les pods qui ont disparu</span>
-<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a><span class="c1"># entre l&#39;admission par le webhook et la passe de sync suivante du renewer</span>
-<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/revoke-orphan&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;, &quot;sudo&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a><span class="c1"># entre l'admission par le webhook et la passe de sync suivante du renewer</span>
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/revoke-orphan"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update", "sudo"</span><span class="p">]</span>
 <a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a><span class="p">}</span>
-<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/leases/revoke&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/leases/revoke"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a><span class="p">}</span>
 <a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a>
-<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/health&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/health"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a><span class="p">}</span>
 </code></pre></div>
 <p>Appliquez-la :</p>
@@ -1903,36 +1903,36 @@ donc besoin des capabilities revoke en plus de renew :</p>
 <h2 id="politique-du-revoker">Politique du revoker</h2>
 <p>Créez <code>vault-db-revoker.hcl</code> :</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># KV-v2 bookkeeping (read + delete)</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/data/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;, &quot;delete&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/data/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read", "delete"</span><span class="p">]</span>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">}</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/metadata/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;, &quot;list&quot;, &quot;delete&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/metadata/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read", "list", "delete"</span><span class="p">]</span>
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="p">}</span>
 <a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
 <a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># Token revoke</span>
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/revoke&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/revoke"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="p">}</span>
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/revoke-orphan&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;, &quot;sudo&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/revoke-orphan"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update", "sudo"</span><span class="p">]</span>
 <a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="p">}</span>
 <a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
 <a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="c1"># Lease revocation and lookup (safety-net sync)</span>
-<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/leases/revoke&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/leases/revoke"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="p">}</span>
-<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/leases/lookup&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/leases/lookup"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="p">}</span>
 <a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>
 <a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="c1"># Self-token renewal</span>
-<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/renew-self&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/renew-self"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="p">}</span>
 <a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a>
-<a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/health&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/health"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a><span class="p">}</span>
 </code></pre></div>
 <p>Appliquez-la :</p>
@@ -1959,21 +1959,21 @@ Elle ne gère <strong>pas</strong> l'admission, donc elle n'a pas besoin de
 <code>auth/kubernetes/role/*</code> ni de <code>sys/leases/lookup</code>.</p>
 <p>Créez <code>vault-db-injector-nri.hcl</code> :</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Écriture du bookkeeping KV-v2 (le plugin NRI enregistre le résultat de la substitution)</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/data/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;create&quot;, &quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/data/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"create", "update"</span><span class="p">]</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">}</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;vault-db-injector/metadata/+/+&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;create&quot;, &quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="err">path</span><span class="w"> </span><span class="s2">"vault-db-injector/metadata/+/+"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"create", "update"</span><span class="p">]</span>
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="p">}</span>
 <a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
 <a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="c1"># Renouvellement du token (le processus NRI maintient son token de login en vie</span>
 <a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="c1"># entre les événements CreateContainer)</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/renew-self&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/renew-self"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="p">}</span>
 <a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>
-<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;sys/health&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="err">path</span><span class="w"> </span><span class="s2">"sys/health"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="p">}</span>
 </code></pre></div>
 <p>Appliquez-la :</p>
@@ -1992,49 +1992,49 @@ privilèges NRI décrite ci-dessus.</p>
 <p>Créez un rôle d'authentification Vault par ServiceAccount :</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Injector (couvre aussi le plugin NRI dans la configuration partagée par défaut)</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>vault<span class="w"> </span>write<span class="w"> </span>auth/kubernetes/role/vault-db-injector<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">&quot;vault&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">&quot;1h&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">&quot;24h&quot;</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">"vault"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">"1h"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">"24h"</span>
 <a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
 <a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1"># Renewer</span>
 <a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>vault<span class="w"> </span>write<span class="w"> </span>auth/kubernetes/role/vault-db-injector-renewer<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">&quot;vault-db-injector-renewer&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">&quot;vault&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">&quot;vault-db-renewer&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">&quot;1h&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">&quot;24h&quot;</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">"vault-db-injector-renewer"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">"vault"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">"vault-db-renewer"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">"1h"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">"24h"</span>
 <a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a>
 <a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="c1"># Revoker</span>
 <a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a>vault<span class="w"> </span>write<span class="w"> </span>auth/kubernetes/role/vault-db-injector-revoker<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">&quot;vault-db-injector-revoker&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">&quot;vault&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-24" name="__codelineno-10-24" href="#__codelineno-10-24"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">&quot;vault-db-revoker&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-25" name="__codelineno-10-25" href="#__codelineno-10-25"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">&quot;1h&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-26" name="__codelineno-10-26" href="#__codelineno-10-26"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">&quot;24h&quot;</span>
+<a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">"vault-db-injector-revoker"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">"vault"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-24" name="__codelineno-10-24" href="#__codelineno-10-24"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">"vault-db-revoker"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-25" name="__codelineno-10-25" href="#__codelineno-10-25"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">"1h"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-26" name="__codelineno-10-26" href="#__codelineno-10-26"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">"24h"</span>
 <a id="__codelineno-10-27" name="__codelineno-10-27" href="#__codelineno-10-27"></a>
 <a id="__codelineno-10-28" name="__codelineno-10-28" href="#__codelineno-10-28"></a><span class="c1"># NRI (uniquement si nri.serviceAccountName + kubeRoleNri sont définis à des valeurs distinctes)</span>
 <a id="__codelineno-10-29" name="__codelineno-10-29" href="#__codelineno-10-29"></a>vault<span class="w"> </span>write<span class="w"> </span>auth/kubernetes/role/vault-db-injector-nri<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-30" name="__codelineno-10-30" href="#__codelineno-10-30"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">&quot;vault-db-injector-nri&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-31" name="__codelineno-10-31" href="#__codelineno-10-31"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">&quot;vault-db-injector&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-32" name="__codelineno-10-32" href="#__codelineno-10-32"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">&quot;vault&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-33" name="__codelineno-10-33" href="#__codelineno-10-33"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">&quot;vault-db-injector-nri&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-34" name="__codelineno-10-34" href="#__codelineno-10-34"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">&quot;1h&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-35" name="__codelineno-10-35" href="#__codelineno-10-35"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">&quot;24h&quot;</span>
+<a id="__codelineno-10-30" name="__codelineno-10-30" href="#__codelineno-10-30"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">"vault-db-injector-nri"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-31" name="__codelineno-10-31" href="#__codelineno-10-31"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">"vault-db-injector"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-32" name="__codelineno-10-32" href="#__codelineno-10-32"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">"vault"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-33" name="__codelineno-10-33" href="#__codelineno-10-33"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">"vault-db-injector-nri"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-34" name="__codelineno-10-34" href="#__codelineno-10-34"></a><span class="w">    </span><span class="nv">token_ttl</span><span class="o">=</span><span class="s2">"1h"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-35" name="__codelineno-10-35" href="#__codelineno-10-35"></a><span class="w">    </span><span class="nv">token_max_ttl</span><span class="o">=</span><span class="s2">"24h"</span>
 </code></pre></div>
 <h2 id="configuration-par-application">Configuration par application</h2>
 <p>Répétez ce bloc pour chaque application nécessitant des identifiants de base de données dynamiques.</p>
 <h3 id="politique-de-lapplication">Politique de l'application</h3>
 <p>Créez <code>myapp-prod.hcl</code> :</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;database/creds/myapp-prod&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="err">path</span><span class="w"> </span><span class="s2">"database/creds/myapp-prod"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"read"</span><span class="p">]</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="p">}</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="err">path</span><span class="w"> </span><span class="s2">&quot;auth/token/renew-self&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;update&quot;</span><span class="p">]</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="err">path</span><span class="w"> </span><span class="s2">"auth/token/renew-self"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="na">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"update"</span><span class="p">]</span>
 <a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="p">}</span>
 </code></pre></div>
 <p>Appliquez-la :</p>
@@ -2042,12 +2042,12 @@ privilèges NRI décrite ci-dessus.</p>
 </code></pre></div>
 <h3 id="role-dauthentification-vault-de-lapplication">Rôle d'authentification Vault de l'application</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>vault<span class="w"> </span>write<span class="w"> </span>auth/kubernetes/role/myapp-prod<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">&quot;myapp&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">&quot;team-myapp&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">&quot;vault&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">&quot;myapp-prod&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="nv">token_type</span><span class="o">=</span><span class="s2">&quot;service&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span><span class="nv">token_period</span><span class="o">=</span><span class="s2">&quot;24h&quot;</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span><span class="nv">bound_service_account_names</span><span class="o">=</span><span class="s2">"myapp"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="nv">bound_service_account_namespaces</span><span class="o">=</span><span class="s2">"team-myapp"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="nv">audience</span><span class="o">=</span><span class="s2">"vault"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span><span class="nv">token_policies</span><span class="o">=</span><span class="s2">"myapp-prod"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="nv">token_type</span><span class="o">=</span><span class="s2">"service"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span><span class="nv">token_period</span><span class="o">=</span><span class="s2">"24h"</span>
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">token_period est obligatoire en mode projected-SA</p>
@@ -2130,7 +2130,7 @@ privilèges NRI décrite ci-dessus.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

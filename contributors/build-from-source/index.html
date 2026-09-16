@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1742,7 +1742,7 @@ repository ships a helper for k3d:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">K3D_FIX_DNS</span><span class="o">=</span><span class="m">0</span><span class="w"> </span>k3d<span class="w"> </span>cluster<span class="w"> </span>create<span class="w"> </span>vault-db-test<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--servers<span class="w"> </span><span class="m">1</span><span class="w"> </span>--agents<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--image<span class="w"> </span>rancher/k3s:v1.34.1-k3s1<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--volume<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">/scripts/k3d-containerd-config.toml.tmpl:/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl@all&quot;</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--volume<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">/scripts/k3d-containerd-config.toml.tmpl:/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl@all"</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1"># Verify the NRI socket is present on each node</span>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>k3d-vault-db-test-agent-0<span class="w"> </span>ls<span class="w"> </span>/var/run/nri/nri.sock
@@ -1756,7 +1756,7 @@ exercise the full v3.0 path:</p>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--namespace<span class="w"> </span>vault-db-injector<span class="w"> </span>--create-namespace<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.vaultAddress<span class="o">=</span>http://vault.local:8200<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.useProjectedSA<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.tokenRequestAudiences<span class="o">=</span><span class="s1">&#39;{vault}&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.tokenRequestAudiences<span class="o">=</span><span class="s1">'{vault}'</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span>--set<span class="w"> </span>nri.enabled<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span>--set<span class="w"> </span>nri.pluginIndex<span class="o">=</span><span class="m">10</span>
 </code></pre></div>
@@ -1834,7 +1834,7 @@ exercise the full v3.0 path:</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

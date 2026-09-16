@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1705,13 +1705,13 @@
 <p>La sortie attendue inclut <code>admissionregistration.k8s.io/v1</code>.</p>
 <h3 id="nri-dans-containerd">NRI dans containerd</h3>
 <p>Ouvrez <code>/etc/containerd/config.toml</code> sur chaque nœud et confirmez que la section NRI existe et n'est pas désactivée :</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[plugins.</span><span class="s2">&quot;io.containerd.nri.v1.nri&quot;</span><span class="k">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[plugins.</span><span class="s2">"io.containerd.nri.v1.nri"</span><span class="k">]</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="n">disable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="n">disable_connections</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="n">plugin_registration_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;5s&quot;</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="n">plugin_request_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2m&quot;</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="n">socket_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/var/run/nri/nri.sock&quot;</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="n">state_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/var/run/nri&quot;</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="n">plugin_registration_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5s"</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="n">plugin_request_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"2m"</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="n">socket_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/run/nri/nri.sock"</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="n">state_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/run/nri"</span>
 </code></pre></div>
 <p>Si la section est absente, ajoutez-la et redémarrez containerd :</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>containerd
@@ -1818,7 +1818,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

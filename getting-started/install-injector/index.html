@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1664,7 +1664,7 @@
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.vaultAuthPath<span class="o">=</span>kubernetes<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.kubeRole<span class="o">=</span>vault-db-injector<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.useProjectedSA<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.tokenRequestAudiences<span class="o">=</span><span class="s1">&#39;{vault}&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span>--set<span class="w"> </span>vaultDbInjector.configuration.tokenRequestAudiences<span class="o">=</span><span class="s1">'{vault}'</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span>--set<span class="w"> </span>nri.enabled<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span>--set<span class="w"> </span>nri.pluginIndex<span class="o">=</span><span class="m">10</span>
 </code></pre></div>
@@ -1738,14 +1738,14 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>vault-db-injector<span class="w"> </span>get<span class="w"> </span>pods
 </code></pre></div>
 <p>Expected: 2 injector pods, 4 renewer pods, 4 revoker pods, and 1 NRI pod per node — all <code>Ready</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>vault-db-injector<span class="w"> </span>logs<span class="w"> </span>deployment/vault-db-injector<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;(starting webhook|vault login)&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>vault-db-injector<span class="w"> </span>logs<span class="w"> </span>deployment/vault-db-injector<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"(starting webhook|vault login)"</span>
 </code></pre></div>
 <p>Expected output lines like:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>starting webhook server on :8443
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>vault login successful role=vault-db-injector
 </code></pre></div></p>
 <p>If the NRI plugin fails to register, check containerd logs on the node:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>containerd<span class="w"> </span>--since<span class="w"> </span><span class="s2">&quot;5 minutes ago&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>nri
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>containerd<span class="w"> </span>--since<span class="w"> </span><span class="s2">"5 minutes ago"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>nri
 </code></pre></div>
 <h2 id="next">Next</h2>
 <p><a href="../first-injected-pod/">First injected pod</a></p>
@@ -1818,7 +1818,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "toc.follow", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
