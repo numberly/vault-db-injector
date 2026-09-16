@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.5](https://github.com/numberly/vault-db-injector/compare/v3.2.4...v3.2.5) (2026-09-16)
+
+
+### Bug Fixes
+
+* **renewer:** flush vanished pod metrics and restart on leadership loss ([#94](https://github.com/numberly/vault-db-injector/issues/94)) ([a7dbe60](https://github.com/numberly/vault-db-injector/commit/a7dbe606ff1f30e68d7bb2b4e92005a37f9a100d))
+
 ## [3.2.4](https://github.com/numberly/vault-db-injector/compare/v3.2.3...v3.2.4) (2026-06-25)
 
 
