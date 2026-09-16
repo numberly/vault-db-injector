@@ -7,6 +7,9 @@ import (
 
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/k8s"
+	"github.com/numberly/vault-db-injector/pkg/metrics"
+	"github.com/numberly/vault-db-injector/pkg/vault"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -138,6 +141,30 @@ func TestFakeKubernetesClient_CoreV1(t *testing.T) {
 	c := &fakeKubernetesClient{}
 	// CoreV1 returns nil in the fake — this is expected in unit tests
 	assert.Nil(t, c.CoreV1())
+}
+
+// TestFlushVanished_DropsSeriesOfUUIDsMissingFromKVListing covers the common
+// production path: the revoker deleted the KV entry before the renewer saw the
+// pod disappear, so the only signal left is "uuid was listed last cycle, not
+// this one". Its per-pod series must go, live uuids must stay.
+func TestFlushVanished_DropsSeriesOfUUIDsMissingFromKVListing(t *testing.T) {
+	metrics.LeaseExpirationInTime.Reset()
+	metrics.TokenExpirationInTime.Reset()
+	metrics.RenewLeaseCount.Reset()
+
+	metrics.LeaseExpirationInTime.WithLabelValues("gone", "ns").Set(1)
+	metrics.TokenExpirationInTime.WithLabelValues("gone", "ns").Set(1)
+	metrics.RenewLeaseCount.WithLabelValues("gone", "ns").Inc()
+	metrics.LeaseExpirationInTime.WithLabelValues("alive", "ns").Set(2)
+
+	prev := map[string]string{"gone": "ns", "alive": "ns"}
+	next := flushVanished(prev, []*vault.KeyInfo{{PodNameUID: "alive", Namespace: "ns"}})
+
+	assert.Equal(t, map[string]string{"alive": "ns"}, next)
+	assert.Equal(t, 1, testutil.CollectAndCount(metrics.LeaseExpirationInTime), "only the live uuid must remain")
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.TokenExpirationInTime))
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.RenewLeaseCount))
+	assert.Equal(t, 1, testutil.CollectAndCount(metrics.LeaseExpirationInTime))
 }
 
 // Satisfy the compiler: corev1 is imported for the test helper below.

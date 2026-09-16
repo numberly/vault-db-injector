@@ -62,6 +62,21 @@ func NewLock(client coordinationv1.CoordinationV1Interface, lockName, podname, n
 	}
 }
 
+// stopLeading is invoked once leadership is lost. RunOrDie returns and this
+// process never re-enters the election, but the metrics and healthcheck
+// servers keep it alive: a zombie serving a frozen Prometheus registry
+// (stale vdbi_last_synchronization_success and expired *_expiration series).
+// Marking it unhealthy lets the liveness probe restart the pod, which both
+// re-enters the election and starts from an empty registry.
+func (le *leaderElectorImpl) stopLeading(stopChan chan struct{}) {
+	metrics.IsLeader.WithLabelValues(le.lock.LeaseMeta.GetName()).Set(0)
+	le.log.Info("No longer leader, stopping process and failing liveness so kubelet restarts the pod")
+	le.mu.Lock()
+	le.healthy = false
+	le.mu.Unlock()
+	close(stopChan)
+}
+
 // runLeaderElection runs leadership election. If an instance of the controller is the leader and stops leading it will shutdown.
 
 func (le *leaderElectorImpl) RunLeaderElection(ctx context.Context, stopChan chan struct{}) {
@@ -79,9 +94,7 @@ func (le *leaderElectorImpl) RunLeaderElection(ctx context.Context, stopChan cha
 				go le.leaderFunc(ctx, stopChan)
 			},
 			OnStoppedLeading: func() {
-				metrics.IsLeader.WithLabelValues(le.lock.LeaseMeta.GetName()).Set(0)
-				le.log.Info("No longer leader, stopping process")
-				close(stopChan)
+				le.stopLeading(stopChan)
 			},
 			OnNewLeader: func(currentID string) {
 				if currentID == le.id {
