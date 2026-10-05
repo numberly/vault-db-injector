@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - args: {{- toYaml .Values.vaultDbInjector.revoker.args | nindent 8 }}
-        image: {{ .Values.vaultDbInjector.revoker.image.repository }}:{{ .Values.vaultDbInjector.revoker.image.tag | default .Chart.AppVersion }}
+        image: {{ .Values.vaultDbInjector.revoker.image.repository }}:{{ .Values.vaultDbInjector.revoker.image.tag | default (printf "v%s" .Chart.AppVersion) }}
         imagePullPolicy: {{ .Values.vaultDbInjector.revoker.imagePullPolicy }}
         name: vault-db-revoker
         env:

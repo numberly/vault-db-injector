@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - args: {{- toYaml .Values.vaultDbInjector.injector.args | nindent 8 }}
-        image: {{ .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.vaultDbInjector.injector.image.tag | default .Chart.AppVersion }}
+        image: {{ .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.vaultDbInjector.injector.image.tag | default (printf "v%s" .Chart.AppVersion) }}
         imagePullPolicy: {{ .Values.vaultDbInjector.injector.imagePullPolicy }}
         name: vault-db-injector
         {{- if .Values.nri.enabled }}

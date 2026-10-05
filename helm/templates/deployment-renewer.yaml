@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - args: {{- toYaml .Values.vaultDbInjector.renewer.args | nindent 8 }}
-        image: {{ .Values.vaultDbInjector.renewer.image.repository }}:{{ .Values.vaultDbInjector.renewer.image.tag | default .Chart.AppVersion }}
+        image: {{ .Values.vaultDbInjector.renewer.image.repository }}:{{ .Values.vaultDbInjector.renewer.image.tag | default (printf "v%s" .Chart.AppVersion) }}
         imagePullPolicy: {{ .Values.vaultDbInjector.renewer.imagePullPolicy }}
         name: vault-db-renewer
         env:
