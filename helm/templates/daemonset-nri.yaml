@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: vault-db-nri
-        image: "{{ .Values.nri.image.repository | default .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.nri.image.tag | default .Values.vaultDbInjector.injector.image.tag | default .Chart.AppVersion }}"
+        image: "{{ .Values.nri.image.repository | default .Values.vaultDbInjector.injector.image.repository }}:{{ .Values.nri.image.tag | default .Values.vaultDbInjector.injector.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         imagePullPolicy: {{ .Values.nri.imagePullPolicy | default "IfNotPresent" }}
         args:
         - "--config=/nri/config.yaml"
