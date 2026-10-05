@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.6](https://github.com/numberly/vault-db-injector/compare/v3.2.5...v3.2.6) (2026-10-05)
+
+
+### Bug Fixes
+
+* **release:** publish images on release-please tags and align chart tag ([#99](https://github.com/numberly/vault-db-injector/issues/99)) ([80fac42](https://github.com/numberly/vault-db-injector/commit/80fac424a55ad6155322f8fd57a24a9a9d8dda21)), closes [#97](https://github.com/numberly/vault-db-injector/issues/97)
+
 ## [3.2.5](https://github.com/numberly/vault-db-injector/compare/v3.2.4...v3.2.5) (2026-09-16)
 
 
