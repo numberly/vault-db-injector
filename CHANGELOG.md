@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.7](https://github.com/numberly/vault-db-injector/compare/v3.2.6...v3.2.7) (2026-10-05)
+
+
+### Bug Fixes
+
+* **deps:** bump Go to 1.26.8 and patch vulnerable dependencies ([#101](https://github.com/numberly/vault-db-injector/issues/101)) ([9545ba5](https://github.com/numberly/vault-db-injector/commit/9545ba56715c38b213413075a1ca7aeea146e19b)), closes [#97](https://github.com/numberly/vault-db-injector/issues/97)
+
 ## [3.2.6](https://github.com/numberly/vault-db-injector/compare/v3.2.5...v3.2.6) (2026-10-05)
 
 
