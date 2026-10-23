@@ -98,3 +98,26 @@ kubectl -n team-myapp describe pod myapp | grep -A10 Events
 A `FailedCreate` or webhook-related event with a Vault error message
 indicates the injector returned a non-200 response at admission time.
 Share the full event text with your operator.
+
+## Sporadic `EOF` / `use of closed network connection` from the webhook
+
+Symptom: a pod creation fails once with an event like
+
+```
+failed calling webhook "vault-db-injector...": Post "https://...:8443/mutate": EOF
+```
+
+or `use of closed network connection`, and the retry succeeds. Nothing
+appears in the injector logs. The apiserver logs the same error.
+
+Cause: before v3.2.9 the webhook HTTP server had no `IdleTimeout`, so Go
+closed idle keep-alive connections after 10s while the apiserver's client
+keeps them for 90s. When an admission request landed on a connection the
+injector had just closed, the apiserver failed closed.
+
+Fix: upgrade the injector to v3.2.9 or later. The server now keeps idle
+connections for 120s and its read/write timeouts are 30s, the apiserver's
+maximum webhook `timeoutSeconds`. These values are constants in
+`pkg/injector`, not configuration: both bounds come from Kubernetes
+itself and are the same on every cluster, so a knob could only ever drop
+below them and reintroduce the bug.
