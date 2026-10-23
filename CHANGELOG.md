@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.9](https://github.com/numberly/vault-db-injector/compare/v3.2.8...v3.2.9) (2026-10-23)
+
+
+### Bug Fixes
+
+* **webhook:** set IdleTimeout and raise read/write timeouts on the HTTP server ([be10272](https://github.com/numberly/vault-db-injector/commit/be10272dfefb6ff7cb60704adc23cf7458ff79f9)), closes [#107](https://github.com/numberly/vault-db-injector/issues/107)
+
+
+### Documentation
+
+* **troubleshooting:** document sporadic webhook EOF and the timeout fix ([b3ca2e5](https://github.com/numberly/vault-db-injector/commit/b3ca2e54926e13c6f9f7f989cf669ea049a8e535))
+
 ## [3.2.8](https://github.com/numberly/vault-db-injector/compare/v3.2.7...v3.2.8) (2026-10-23)
 
 
