@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.8](https://github.com/numberly/vault-db-injector/compare/v3.2.7...v3.2.8) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** bump Go to 1.27.3 and golang.org/x/net to v0.60.0 ([afb95b0](https://github.com/numberly/vault-db-injector/commit/afb95b06cb09c966d0e667e0b54390362729083c))
+
+
+### CI
+
+* bump golangci-lint to v2.15.0 for Go 1.27 ([ebade3c](https://github.com/numberly/vault-db-injector/commit/ebade3c3ac19450e5c38ef7a81d7b8aa7d88fdc5))
+
 ## [3.2.7](https://github.com/numberly/vault-db-injector/compare/v3.2.6...v3.2.7) (2026-10-05)
 
 
