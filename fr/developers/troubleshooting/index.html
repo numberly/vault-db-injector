@@ -991,6 +991,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#eof-use-of-closed-network-connection-sporadiques-du-webhook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EOF / use of closed network connection sporadiques du webhook
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1771,6 +1782,22 @@ et les règles d'alerte suggérées.</p>
 <p>Un événement <code>FailedCreate</code> ou lié au webhook accompagné d'un message d'erreur Vault
 indique que l'injector a retourné une réponse non-200 lors de l'admission.
 Transmettez le texte complet de l'événement à votre opérateur.</p>
+<h2 id="eof-use-of-closed-network-connection-sporadiques-du-webhook"><code>EOF</code> / <code>use of closed network connection</code> sporadiques du webhook</h2>
+<p>Symptôme : une création de pod échoue une fois avec un événement du type</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>failed calling webhook "vault-db-injector...": Post "https://...:8443/mutate": EOF
+</code></pre></div>
+<p>ou <code>use of closed network connection</code>, et la nouvelle tentative réussit. Rien
+n'apparaît dans les logs de l'injector. L'apiserver journalise la même erreur.</p>
+<p>Cause : avant la v3.2.9, le serveur HTTP du webhook n'avait pas d'<code>IdleTimeout</code>.
+Go fermait donc les connexions keep-alive inactives après 10s alors que le
+client de l'apiserver les conserve 90s. Quand une requête d'admission arrivait
+sur une connexion que l'injector venait de fermer, l'apiserver échouait.</p>
+<p>Correctif : mettre à jour l'injector en v3.2.9 ou ultérieure. Le serveur garde
+désormais les connexions inactives 120s et ses timeouts de lecture/écriture
+sont à 30s, le <code>timeoutSeconds</code> maximal d'un webhook côté apiserver. Ces valeurs
+sont des constantes dans <code>pkg/injector</code>, pas de la configuration : les deux
+bornes viennent de Kubernetes lui-même et sont identiques sur tout cluster, un
+paramètre ne pourrait donc que passer en dessous et réintroduire le bug.</p>
 
 
 
