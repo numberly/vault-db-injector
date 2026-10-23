@@ -27,6 +27,30 @@ import (
 
 var _ Starter = (*starterImpl)(nil)
 
+// HTTP server timeouts for the admission webhook.
+//
+// These are deliberately constants, not Config fields. Both bounds derive from
+// Kubernetes itself and are identical on every cluster: the apiserver's webhook
+// client (client-go) keeps idle connections for 90s, and
+// MutatingWebhookConfiguration.timeoutSeconds is capped at 30s. There is no
+// legitimate per-deployment value; the only thing a knob could do is drop below
+// one of these bounds and reintroduce the bug. If Kubernetes ever changes them,
+// bump the constants here.
+const (
+	webhookReadHeaderTimeout = 10 * time.Second
+	// Must stay above the apiserver's maximum webhook timeout (30s) so the
+	// server never cuts a connection the apiserver is still waiting on. A
+	// shorter WriteTimeout is also the likely cause of the sporadic
+	// "tls: bad record MAC" seen when Vault is slow.
+	webhookReadTimeout  = 30 * time.Second
+	webhookWriteTimeout = 30 * time.Second
+	// Must stay above client-go's IdleConnTimeout (90s). Without it Go falls
+	// back to ReadTimeout and closes idle keep-alive connections before the
+	// apiserver does, which surfaces as random "EOF" /
+	// "use of closed network connection" on admission calls.
+	webhookIdleTimeout = 120 * time.Second
+)
+
 type Starter interface {
 	StartWebhook(ctx context.Context, stopChan chan struct{}) error
 }
@@ -118,11 +142,13 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 	}
 
 	httpServer := &http.Server{
-		Addr:         "0.0.0.0:8443",
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		TLSConfig:    tlsConfig,
-		Handler:      wrappedHandler,
+		Addr:              "0.0.0.0:8443",
+		ReadHeaderTimeout: webhookReadHeaderTimeout,
+		ReadTimeout:       webhookReadTimeout,
+		WriteTimeout:      webhookWriteTimeout,
+		IdleTimeout:       webhookIdleTimeout,
+		TLSConfig:         tlsConfig,
+		Handler:           wrappedHandler,
 	}
 
 	errCh := make(chan error)
@@ -145,6 +171,8 @@ func (s *starterImpl) StartWebhook(ctx context.Context, stopChan chan struct{}) 
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
+		// Prometheus scrapes over keep-alive; same idle race as the webhook.
+		IdleTimeout: webhookIdleTimeout,
 	}
 	go func() {
 		whLogger.Infof("Listening metrics on :8080")

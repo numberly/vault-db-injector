@@ -2,6 +2,7 @@ package injector
 
 import (
 	"testing"
+	"time"
 
 	"github.com/numberly/vault-db-injector/pkg/config"
 	"github.com/numberly/vault-db-injector/pkg/sentry"
@@ -55,4 +56,24 @@ func TestNewWebhookStarter_ConfigIsStored(t *testing.T) {
 func TestSentryRecoveryMiddleware_ReturnsHandler(t *testing.T) {
 	middleware := SentryRecoveryMiddleware(&noopSentry{})
 	require.NotNil(t, middleware, "SentryRecoveryMiddleware must return a non-nil middleware func")
+}
+
+// Guards the invariants documented on the webhook timeout constants: the
+// apiserver caps webhook timeoutSeconds at 30s and client-go keeps idle
+// connections for 90s. Dropping below either reintroduces random EOF /
+// "use of closed network connection" on admission calls.
+func TestWebhookServerTimeouts(t *testing.T) {
+	const (
+		apiserverMaxWebhookTimeout = 30 * time.Second
+		clientGoIdleConnTimeout    = 90 * time.Second
+	)
+	if webhookReadTimeout < apiserverMaxWebhookTimeout {
+		t.Errorf("webhookReadTimeout %v < apiserver max webhook timeout %v", webhookReadTimeout, apiserverMaxWebhookTimeout)
+	}
+	if webhookWriteTimeout < apiserverMaxWebhookTimeout {
+		t.Errorf("webhookWriteTimeout %v < apiserver max webhook timeout %v", webhookWriteTimeout, apiserverMaxWebhookTimeout)
+	}
+	if webhookIdleTimeout <= clientGoIdleConnTimeout {
+		t.Errorf("webhookIdleTimeout %v must be > client-go IdleConnTimeout %v", webhookIdleTimeout, clientGoIdleConnTimeout)
+	}
 }
