@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	github.com/cockroachdb/errors v1.14.0
-	github.com/containerd/nri v0.12.4
+	github.com/containerd/nri v0.12.5
 	github.com/getsentry/sentry-go v0.50.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault v1.21.4
@@ -19,9 +19,9 @@ require (
 	golang.org/x/sync v0.24.0
 	golang.org/x/time v0.16.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.37.1
-	k8s.io/apimachinery v0.37.1
-	k8s.io/client-go v0.37.1
+	k8s.io/api v0.37.2
+	k8s.io/apimachinery v0.37.2
+	k8s.io/client-go v0.37.2
 )
 
 require (
