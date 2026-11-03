@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.3.0](https://github.com/numberly/vault-db-injector/compare/v3.2.9...v3.3.0) (2026-11-03)
+
+
+### Features
+
+* **helm:** add injector PodDisruptionBudget and preStop sleep ([fa2279d](https://github.com/numberly/vault-db-injector/commit/fa2279dec85fe9d58c99c72f2fa5e1e85f23253d))
+
+
+### Bug Fixes
+
+* **helm:** only render injector PDB when replicas &gt; 1 ([ac8acdc](https://github.com/numberly/vault-db-injector/commit/ac8acdcadfadcb7f8c41dd3c91805ec39318f2de))
+
 ## [3.2.9](https://github.com/numberly/vault-db-injector/compare/v3.2.8...v3.2.9) (2026-10-23)
 
 
