@@ -1,4 +1,5 @@
-{{- if .Values.vaultDbInjector.injector.podDisruptionBudget.enabled }}
+{{- $inj := .Values.vaultDbInjector.injector }}
+{{- if and $inj.podDisruptionBudget.enabled (gt (int $inj.replicas) 1) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -6,7 +7,7 @@ metadata:
   labels:
   {{- include "vault-db-injector.labels" . | nindent 4 }}
 spec:
-  minAvailable: {{ .Values.vaultDbInjector.injector.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ $inj.podDisruptionBudget.minAvailable }}
   selector:
     matchLabels:
       app: vault-db-injector

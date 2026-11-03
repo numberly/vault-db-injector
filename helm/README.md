@@ -65,7 +65,7 @@ for a full walkthrough including Vault prerequisites.
 | vaultDbInjector.injector.image.repository | string | `"ghcr.io/numberly/vault-db-injector"` | Injector container image repository. |
 | vaultDbInjector.injector.image.tag | string | `"v3.2.9"` | Injector container image tag. |
 | vaultDbInjector.injector.imagePullPolicy | string | `"Always"` | imagePullPolicy applied to the injector container. |
-| vaultDbInjector.injector.podDisruptionBudget.enabled | bool | `true` | Create a PodDisruptionBudget for the injector, so a node drain never evicts every webhook replica at once. |
+| vaultDbInjector.injector.podDisruptionBudget.enabled | bool | `true` | Create a PodDisruptionBudget for the injector, so a node drain never evicts every webhook replica at once. Only rendered when `replicas` > 1. |
 | vaultDbInjector.injector.podDisruptionBudget.minAvailable | int | `1` | Minimum injector pods kept available during voluntary disruptions. |
 | vaultDbInjector.injector.ports | list | `[{"port":8443,"targetPort":8443}]` | Service ports for the webhook (HTTPS). |
 | vaultDbInjector.injector.preStopSleepSeconds | int | `5` | Seconds the injector waits on SIGTERM before shutting down, so the apiserver stops routing admission calls to it first (failurePolicy is Fail). Uses the native `sleep` preStop action (Kubernetes >= 1.30, image is distroless). 0 disables it. |
