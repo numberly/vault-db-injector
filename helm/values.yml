@@ -62,6 +62,13 @@ vaultDbInjector:
       targetPort: 8443
     # -- Number of injector Deployment replicas.
     replicas: 2
+    # -- Seconds the injector waits on SIGTERM before shutting down, so the apiserver stops routing admission calls to it first (failurePolicy is Fail). Uses the native `sleep` preStop action (Kubernetes >= 1.30, image is distroless). 0 disables it.
+    preStopSleepSeconds: 5
+    podDisruptionBudget:
+      # -- Create a PodDisruptionBudget for the injector, so a node drain never evicts every webhook replica at once.
+      enabled: true
+      # -- Minimum injector pods kept available during voluntary disruptions.
+      minAvailable: 1
     serviceAccount:
       # -- Annotations added to the injector ServiceAccount only (e.g. for IRSA / GCP Workload Identity). Not propagated to the renewer/revoker SAs.
       annotations: {}

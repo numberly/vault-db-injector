@@ -40,6 +40,12 @@ spec:
         - containerPort: 8888
           name: healthcheck
           protocol: TCP
+        {{- with .Values.vaultDbInjector.injector.preStopSleepSeconds }}
+        lifecycle:
+          preStop:
+            sleep:
+              seconds: {{ . }}
+        {{- end }}
         resources: {}
         securityContext: {{- toYaml .Values.vaultDbInjector.injector.containerSecurityContext
           | nindent 10 }}
