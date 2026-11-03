@@ -2,7 +2,7 @@
 
 vault-db-injector helm chart
 
-![Version: 3.2.9](https://img.shields.io/badge/Version-3.2.9-informational?style=flat-square) ![AppVersion: 3.2.9](https://img.shields.io/badge/AppVersion-3.2.9-informational?style=flat-square)
+![Version: 3.3.0](https://img.shields.io/badge/Version-3.3.0-informational?style=flat-square) ![AppVersion: 3.3.0](https://img.shields.io/badge/AppVersion-3.3.0-informational?style=flat-square)
 
 ## TL;DR — minimal values for the canonical NRI + projected-SA install
 
@@ -63,7 +63,7 @@ for a full walkthrough including Vault prerequisites.
 | vaultDbInjector.injector.args | list | `["--config=/injector/config.yaml"]` | Arguments passed to the injector container. |
 | vaultDbInjector.injector.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Pod-level securityContext applied to the injector container. Defaults are non-root + read-only root filesystem. |
 | vaultDbInjector.injector.image.repository | string | `"ghcr.io/numberly/vault-db-injector"` | Injector container image repository. |
-| vaultDbInjector.injector.image.tag | string | `"v3.2.9"` | Injector container image tag. |
+| vaultDbInjector.injector.image.tag | string | `"v3.3.0"` | Injector container image tag. |
 | vaultDbInjector.injector.imagePullPolicy | string | `"Always"` | imagePullPolicy applied to the injector container. |
 | vaultDbInjector.injector.podDisruptionBudget.enabled | bool | `true` | Create a PodDisruptionBudget for the injector, so a node drain never evicts every webhook replica at once. Only rendered when `replicas` > 1. |
 | vaultDbInjector.injector.podDisruptionBudget.minAvailable | int | `1` | Minimum injector pods kept available during voluntary disruptions. |
@@ -76,14 +76,14 @@ for a full walkthrough including Vault prerequisites.
 | vaultDbInjector.renewer.args | list | `["--config=/renewer/config.yaml"]` | Arguments passed to the renewer container. |
 | vaultDbInjector.renewer.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Pod-level securityContext applied to the renewer container. |
 | vaultDbInjector.renewer.image.repository | string | `"ghcr.io/numberly/vault-db-injector"` | Renewer container image repository. |
-| vaultDbInjector.renewer.image.tag | string | `"v3.2.9"` | Renewer container image tag. |
+| vaultDbInjector.renewer.image.tag | string | `"v3.3.0"` | Renewer container image tag. |
 | vaultDbInjector.renewer.imagePullPolicy | string | `"Always"` | imagePullPolicy applied to the renewer container. |
 | vaultDbInjector.renewer.replicas | int | `4` | Number of renewer replicas. Leader election selects one active renewer at a time. |
 | vaultDbInjector.renewer.serviceAccountName | string | `""` | Override the ServiceAccount used by the renewer Deployment. Empty = chart-managed default (`<release>` in legacy mode, `<release>-renewer` when `useProjectedSA: true`). |
 | vaultDbInjector.revoker.args | list | `["--config=/revoker/config.yaml"]` | Arguments passed to the revoker container. |
 | vaultDbInjector.revoker.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Pod-level securityContext applied to the revoker container. |
 | vaultDbInjector.revoker.image.repository | string | `"ghcr.io/numberly/vault-db-injector"` | Revoker container image repository. |
-| vaultDbInjector.revoker.image.tag | string | `"v3.2.9"` | Revoker container image tag. |
+| vaultDbInjector.revoker.image.tag | string | `"v3.3.0"` | Revoker container image tag. |
 | vaultDbInjector.revoker.imagePullPolicy | string | `"Always"` | imagePullPolicy applied to the revoker container. |
 | vaultDbInjector.revoker.replicas | int | `4` | Number of revoker replicas. Leader election selects one active revoker at a time. |
 | vaultDbInjector.revoker.serviceAccountName | string | `""` | Override the ServiceAccount used by the revoker Deployment. Empty = chart-managed default (`<release>` in legacy mode, `<release>-revoker` when `useProjectedSA: true`). |
