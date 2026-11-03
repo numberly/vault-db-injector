@@ -1834,10 +1834,28 @@ for a full walkthrough including Vault prerequisites.</p>
 <td>imagePullPolicy applied to the injector container.</td>
 </tr>
 <tr>
+<td>vaultDbInjector.injector.podDisruptionBudget.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Create a PodDisruptionBudget for the injector, so a node drain never evicts every webhook replica at once. Only rendered when <code>replicas</code> &gt; 1.</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.podDisruptionBudget.minAvailable</td>
+<td>int</td>
+<td><code>1</code></td>
+<td>Minimum injector pods kept available during voluntary disruptions.</td>
+</tr>
+<tr>
 <td>vaultDbInjector.injector.ports</td>
 <td>list</td>
 <td><code>[{"port":8443,"targetPort":8443}]</code></td>
 <td>Service ports for the webhook (HTTPS).</td>
+</tr>
+<tr>
+<td>vaultDbInjector.injector.preStopSleepSeconds</td>
+<td>int</td>
+<td><code>5</code></td>
+<td>Seconds the injector waits on SIGTERM before shutting down, so the apiserver stops routing admission calls to it first (failurePolicy is Fail). Uses the native <code>sleep</code> preStop action (Kubernetes &gt;= 1.30, image is distroless). 0 disables it.</td>
 </tr>
 <tr>
 <td>vaultDbInjector.injector.replicas</td>
