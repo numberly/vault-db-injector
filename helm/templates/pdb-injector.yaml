@@ -1,0 +1,14 @@
+{{- if .Values.vaultDbInjector.injector.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "vault-db-injector.fullname" . }}
+  labels:
+  {{- include "vault-db-injector.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.vaultDbInjector.injector.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app: vault-db-injector
+    {{- include "vault-db-injector.selectorLabels" . | nindent 6 }}
+{{- end }}
