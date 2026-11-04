@@ -51,7 +51,7 @@ spec:
         livenessProbe:
           failureThreshold: 3
           httpGet:
-            path: /healthz
+            path: /live
             port: healthcheck
             scheme: HTTP
           initialDelaySeconds: 20
