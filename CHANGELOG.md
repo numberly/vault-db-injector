@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.1](https://github.com/numberly/vault-db-injector/compare/v3.3.0...v3.3.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **helm:** probe /live for renewer and revoker liveness ([829e38c](https://github.com/numberly/vault-db-injector/commit/829e38c376c509eff08a98ef75b62ca0b1216209))
+
 ## [3.3.0](https://github.com/numberly/vault-db-injector/compare/v3.2.9...v3.3.0) (2026-11-03)
 
 
