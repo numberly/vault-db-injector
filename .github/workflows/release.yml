@@ -177,7 +177,7 @@ jobs:
       # variable`, even after the chart and gh-pages index have been
       # pushed successfully. Repin to a tagged release once one is cut
       # past v1.7.0.
-      - uses: helm/chart-releaser-action@0a4a76cd0d743c104539192612dbc24a61c3e3c1
+      - uses: helm/chart-releaser-action@c5a1c1b527a31d92ad837d7723dd67f0b8b62f15
         with:
           charts_dir: helm
           skip_packaging: true
