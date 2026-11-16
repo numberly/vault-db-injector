@@ -1,6 +1,6 @@
 # numberlyinfra/vault-db-injector
 
-FROM golang:1.27.3-alpine AS build
+FROM golang:1.27.4-alpine AS build
 
 WORKDIR /app
 COPY go.mod go.sum ./
